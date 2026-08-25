@@ -123,6 +123,40 @@
   .player-wrap { flex: 1; position: relative; background: #000; }
   .player-wrap iframe, .player-wrap video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
   .player-tip { text-align: center; color: #9b8f80; font-size: 13px; padding: 8px 20px; }
+
+  /* ====== 播放列表弹层 ====== */
+  .playlist-overlay {
+    display: none; position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,.45); align-items: center; justify-content: center;
+  }
+  .playlist-overlay.show { display: flex; }
+  .playlist-panel {
+    background: #fff; border-radius: 20px; width: 95%; max-width: 600px;
+    max-height: 88vh; display: flex; flex-direction: column;
+    box-shadow: 0 12px 48px rgba(0,0,0,.2);
+  }
+  .playlist-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 16px 18px; border-bottom: 1px solid #eee;
+    background: linear-gradient(135deg,#e8f5e9,#fff); border-radius: 20px 20px 0 0;
+  }
+  .playlist-head h2 { flex: 1; font-size: 17px; color: #333; margin: 0; }
+  .playlist-close {
+    background: #eee; border: none; border-radius: 50%; width: 34px; height: 34px;
+    font-size: 18px; cursor: pointer; color: #666; display: flex; align-items: center; justify-content: center;
+  }
+  .playlist-close:active { background: #ddd; }
+  .playlist-grid {
+    display: grid; grid-template-columns: repeat(auto-fill,minmax(120px,1fr));
+    gap: 10px; padding: 14px; overflow-y: auto; flex: 1;
+  }
+  .ep-card {
+    background: #f8f9fa; border-radius: 12px; padding: 10px 8px; text-align: center;
+    cursor: pointer; border: 2px solid transparent; transition: all .15s;
+    font-size: 13px; font-weight: 600; color: #444; line-height: 1.4;
+  }
+  .ep-card:active { transform: scale(.95); }
+  .ep-card:hover { border-color: #4caf50; background: #e8f5e9; }
 </style>
 </head>
 <body>
@@ -143,6 +177,17 @@
 
   <!-- 视频列表 -->
   <main class="grid" id="grid"></main>
+
+  <!-- 播放列表弹层 -->
+  <div class="playlist-overlay" id="playlistOverlay">
+    <div class="playlist-panel">
+      <div class="playlist-head">
+        <h2 id="playlistTitle">🌍 美丽中国</h2>
+        <button class="playlist-close" id="playlistClose">✕</button>
+      </div>
+      <div class="playlist-grid" id="playlistGrid"></div>
+    </div>
+  </div>
 
   <!-- 播放器 -->
   <div class="player-mask" id="playerMask">
@@ -195,135 +240,85 @@ const VIDEOS = [
   { title: "SSS 字母歌合集(102集)", grade: "小学", cat: "英文儿歌", emoji: "🎵", type: "bili", url: "BV177411T77W" },
   { title: "SSS 自然拼读动画(71集)", grade: "小学", cat: "字母拼读", emoji: "🔤", type: "bili", url: "BV142A4z2EEV" },
 
-  // ==================== 美丽中国 Amazing China (全60集) ====================
-  { title: "01 安集海大峡谷", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 1 },
-  { title: "02 巴音布鲁克草原", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 2 },
-  { title: "03 冰川下的鲜红岩石", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 3 },
-  { title: "04 冰之花", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 4 },
-  { title: "05 不冻之河", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 5 },
-  { title: "06 吹来的大地", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 6 },
-  { title: "07 磁铁山脉里的天坑与地漏", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 7 },
-  { title: "08 大风雕刻的魔鬼城", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 8 },
-  { title: "09 大漠奇观·月牙泉", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 9 },
-  { title: "10 大熊猫的野外家园", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 10 },
-  { title: "11 东方阿尔卑斯", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 11 },
-  { title: "12 多彩之湖", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 12 },
-  { title: "13 飞越长城", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 13 },
-  { title: "14 共同生活在这片土地上", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 14 },
-  { title: "15 海岸线上的水墨画", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 15 },
-  { title: "16 航拍中国", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 16 },
-  { title: "17 河西走廊", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 17 },
-  { title: "18 黑龙江的冰泳", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 18 },
-  { title: "19 候鸟的乐园", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 19 },
-  { title: "20 沪沽山", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 20 },
-  { title: "21 花海", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 21 },
-  { title: "22 华夏绿洲", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 22 },
-  { title: "23 黄沙帝国的遗产", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 23 },
-  { title: "24 活着的海草", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 24 },
-  { title: "25 火山之后", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 25 },
-  { title: "26 火焰山", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 26 },
-  { title: "27 吉林雾凇", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 27 },
-  { title: "28 敬信湿地", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 28 },
-  { title: "29 喀斯特地貌", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 29 },
-  { title: "30 库尔德宁", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 30 },
-  { title: "31 辽河口", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 31 },
-  { title: "32 流动的湖", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 32 },
-  { title: "33 绿洲", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 33 },
-  { title: "34 秘境喀纳斯湖", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7ThtX", page: 34 },
-  { title: "35 牧民之家", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 35 },
-  { title: "36 纳马夸兰", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 36 },
-  { title: "37 南方的海", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 37 },
-  { title: "38 你的名字叫湖泊", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 38 },
-  { title: "39 Puget Sound", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 39 },
-  { title: "40 去了就不会忘的地方", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 40 },
-  { title: "41 三江七岸", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 41 },
-  { title: "42 沙漠的眼泪", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 42 },
-  { title: "43 沙漠中的海底", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 43 },
-  { title: "44 生命的童话", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 44 },
-  { title: "45 水天之间的巨型盆景", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 45 },
-  { title: "46 四川红石", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 46 },
-  { title: "47 四姑娘山", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 47 },
-  { title: "48 太平洋的温暖", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 48 },
-  { title: "49 透明的大海", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 49 },
-  { title: "50 吐着泡泡的娃娃鱼", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 50 },
-  { title: "51 雪豹", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 51 },
-  { title: "52 雪地", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 52 },
-  { title: "53 盐城湿地", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 53 },
-  { title: "54 养蜂人之家", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 54 },
-  { title: "55 长江", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 55 },
-  { title: "56 中国的彩虹山", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 56 },
-  { title: "57 中国海岸", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 57 },
-  { title: "58 中国的热带雨林", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 58 },
-  { title: "59 中国之美", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 59 },
-  { title: "60 壮美长白山", grade: "初中", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 60 },
-
-
-  { title: "02 巴音布鲁克草原", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 2 },
-  { title: "03 冰川下的鲜红岩石", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 3 },
-  { title: "04 冰之花", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 4 },
-  { title: "05 不冻之河", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 5 },
-  { title: "06 吹来的大地", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 6 },
-  { title: "07 磁铁山脉里的天坑与地漏", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 7 },
-  { title: "08 大风雕刻的魔鬼城", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 8 },
-  { title: "09 大漠奇观·月牙泉", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 9 },
-  { title: "10 大熊猫的野外家园", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 10 },
-  { title: "11 东方阿尔卑斯", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 11 },
-  { title: "12 多彩之湖", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 12 },
-  { title: "13 飞越长城", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 13 },
-  { title: "14 共同生活在这片土地上", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 14 },
-  { title: "15 海岸线上的水墨画", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 15 },
-  { title: "16 航拍中国", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 16 },
-  { title: "17 河西走廊", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 17 },
-  { title: "18 黑龙江的冰泳", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 18 },
-  { title: "19 候鸟的乐园", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 19 },
-  { title: "20 沪沽山", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 20 },
-  { title: "21 花海", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 21 },
-  { title: "22 华夏绿洲", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 22 },
-  { title: "23 黄沙帝国的遗产", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 23 },
-  { title: "24 活着的海草", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 24 },
-  { title: "25 火山之后", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 25 },
-  { title: "26 火焰山", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 26 },
-  { title: "27 吉林雾凇", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 27 },
-  { title: "28 敬信湿地", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 28 },
-  { title: "29 喀斯特地貌", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 29 },
-  { title: "30 库尔德宁", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 30 },
-  { title: "31 辽河口", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 31 },
-  { title: "32 流动的湖", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 32 },
-  { title: "33 绿洲", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 33 },
-  { title: "34 秘境喀纳斯湖", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 34 },
-  { title: "35 牧民之家", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 35 },
-  { title: "36 纳马夸兰", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 36 },
-  { title: "37 南方的海", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 37 },
-  { title: "38 你的名字叫湖泊", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 38 },
-  { title: "39 Puget Sound", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 39 },
-  { title: "40 去了就不会忘的地方", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 40 },
-  { title: "41 三江七岸", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 41 },
-  { title: "42 沙漠的眼泪", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 42 },
-  { title: "43 沙漠中的海底", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 43 },
-  { title: "44 生命的童话", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 44 },
-  { title: "45 水天之间的巨型盆景", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 45 },
-  { title: "46 四川红石", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 46 },
-  { title: "47 四姑娘山", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 47 },
-  { title: "48 太平洋的温暖", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 48 },
-  { title: "49 透明的大海", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 49 },
-  { title: "50 吐着泡泡的娃娃鱼", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 50 },
-  { title: "51 雪豹", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 51 },
-  { title: "52 雪地", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 52 },
-  { title: "53 盐城湿地", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 53 },
-  { title: "54 养蜂人之家", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 54 },
-  { title: "55 长江", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 55 },
-  { title: "56 中国的彩虹山", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 56 },
-  { title: "57 中国海岸", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 57 },
-  { title: "58 中国的热带雨林", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 58 },
-  { title: "59 中国之美", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 59 },
-  { title: "60 壮美长白山", grade: "小学", cat: "美丽中国", emoji: "🏔️", type: "bili", url: "BV1du411h7tX", page: 60 },
-
   // ==================== 初中(14岁) ====================
   { title: "BBC Learning English · 日常口语", grade: "初中", cat: "综合听说", emoji: "🎧", type: "bili", url: "BV1Ux411y7fE" },
   { title: "English with Lucy · 地道发音教程", grade: "初中", cat: "综合听说", emoji: "🎧", type: "bili", url: "BV1qK411V7FP" },
   { title: "TED-Ed 英文演讲精读", grade: "初中", cat: "阅读写作", emoji: "📝", type: "bili", url: "BV1Bx411Z7Dn" },
   { title: "英语语法精讲合集(初中通用)", grade: "初中", cat: "语法精讲", emoji: "📐", type: "bili", url: "BV1Vx411b7R3" },
   { title: "中考英语真题讲解合集", grade: "初中", cat: "真题练习", emoji: "✍️", type: "bili", url: "BV1Vx411b7R3" },
+
+  // ==================== 美丽中国 Amazing China 专辑(入口) ====================
+  {
+    title: "🌍 美丽中国 Amazing China (全60集)",
+    grade: "初中",
+    cat: "美丽中国",
+    emoji: "🏔️",
+    type: "playlist",
+    // 下面 episodes 数组里的每一集会自动按 page 播放对应分P
+    episodes: [
+      { title: "01 安集海大峡谷",           page: 1  },
+      { title: "02 巴音布鲁克草原",           page: 2  },
+      { title: "03 冰川下的鲜红岩石",           page: 3  },
+      { title: "04 冰之花",                  page: 4  },
+      { title: "05 不冻之河",                page: 5  },
+      { title: "06 吹来的大地",              page: 6  },
+      { title: "07 磁铁山脉里的天坑与地漏",     page: 7  },
+      { title: "08 大风雕刻的魔鬼城",          page: 8  },
+      { title: "09 大漠奇观·月牙泉",          page: 9  },
+      { title: "10 大熊猫的野外家园",          page: 10 },
+      { title: "11 东方阿尔卑斯",             page: 11 },
+      { title: "12 多彩之湖",                page: 12 },
+      { title: "13 飞越长城",                page: 13 },
+      { title: "14 共同生活在这片土地上",       page: 14 },
+      { title: "15 海岸线上的水墨画",          page: 15 },
+      { title: "16 航拍中国",                page: 16 },
+      { title: "17 河西走廊",                page: 17 },
+      { title: "18 黑龙江的冰泳",             page: 18 },
+      { title: "19 候鸟的乐园",               page: 19 },
+      { title: "20 沪沽山",                  page: 20 },
+      { title: "21 花海",                   page: 21 },
+      { title: "22 华夏绿洲",                page: 22 },
+      { title: "23 黄沙帝国的遗产",            page: 23 },
+      { title: "24 活着的海草",               page: 24 },
+      { title: "25 火山之后",                page: 25 },
+      { title: "26 火焰山",                  page: 26 },
+      { title: "27 吉林雾凇",                page: 27 },
+      { title: "28 敬信湿地",                page: 28 },
+      { title: "29 喀斯特地貌",               page: 29 },
+      { title: "30 库尔德宁",                page: 30 },
+      { title: "31 辽河口",                  page: 31 },
+      { title: "32 流动的湖",                page: 32 },
+      { title: "33 绿洲",                   page: 33 },
+      { title: "34 秘境喀纳斯湖",             page: 34 },
+      { title: "35 牧民之家",                page: 35 },
+      { title: "36 纳马夸兰",                page: 36 },
+      { title: "37 南方的海",                page: 37 },
+      { title: "38 你的名字叫湖泊",            page: 38 },
+      { title: "39 Puget Sound",            page: 39 },
+      { title: "40 去了就不会忘的地方",          page: 40 },
+      { title: "41 三江七岸",                page: 41 },
+      { title: "42 沙漠的眼泪",               page: 42 },
+      { title: "43 沙漠中的海底",             page: 43 },
+      { title: "44 生命的童话",               page: 44 },
+      { title: "45 水天之间的巨型盆景",          page: 45 },
+      { title: "46 四川红石",                page: 46 },
+      { title: "47 四姑娘山",                page: 47 },
+      { title: "48 太平洋的温暖",             page: 48 },
+      { title: "49 透明的大海",               page: 49 },
+      { title: "50 吐着泡泡的娃娃鱼",           page: 50 },
+      { title: "51 雪豹",                   page: 51 },
+      { title: "52 雪地",                   page: 52 },
+      { title: "53 盐城湿地",                page: 53 },
+      { title: "54 养蜂人之家",               page: 54 },
+      { title: "55 长江",                   page: 55 },
+      { title: "56 中国的彩虹山",             page: 56 },
+      { title: "57 中国海岸",                page: 57 },
+      { title: "58 中国的热带雨林",            page: 58 },
+      { title: "59 中国之美",                page: 59 },
+      { title: "60 壮美长白山",               page: 60 },
+    ],
+    bv: "BV1du411h7tX"
+  },
 
   // 本地视频示例: 删除前面的 // 即可启用
   // { title: "我的视频", grade: "小学", cat: "趣味动画", emoji: "⭐", type: "local", url: "videos/文件名.mp4" },
@@ -494,6 +489,7 @@ function buildGradeTabs() {
       buildCats(g);
       renderGrid();
       renderCheckin(g.key);
+      $("#playlistOverlay").classList.remove("show");
     };
     wrap.appendChild(btn);
   });
@@ -511,6 +507,7 @@ function buildCats(gradeObj) {
       b.classList.add("active");
       currentCat = c.name;
       renderGrid();
+      $("#playlistOverlay").classList.remove("show");
     };
     wrap.appendChild(b);
   });
@@ -529,10 +526,43 @@ function renderGrid() {
     const d = document.createElement("div");
     d.className = "card";
     d.innerHTML = '<div class="thumb">' + v.emoji + '</div><div class="name">' + v.title + '</div>';
-    d.onclick = () => play(v);
+    d.onclick = () => {
+      if (v.type === "playlist") {
+        showPlaylist(v);
+      } else {
+        play(v);
+      }
+    };
     grid.appendChild(d);
   });
 }
+
+// 展示专辑集列表
+function showPlaylist(v) {
+  $("#playlistTitle").textContent = v.emoji + " " + v.title;
+  const grid = $("#playlistGrid");
+  grid.innerHTML = "";
+  v.episodes.forEach(ep => {
+    const d = document.createElement("div");
+    d.className = "ep-card";
+    d.textContent = ep.title;
+    d.onclick = () => {
+      $("#playlistOverlay").classList.remove("show");
+      play({
+        emoji: v.emoji,
+        title: ep.title,
+        type: "bili",
+        url: v.bv,
+        page: ep.page
+      });
+    };
+    grid.appendChild(d);
+  });
+  $("#playlistOverlay").classList.add("show");
+}
+
+$("#playlistClose").onclick = () => $("#playlistOverlay").classList.remove("show");
+$("#playlistOverlay").onclick = e => { if (e.target === $("#playlistOverlay")) $("#playlistOverlay").classList.remove("show"); };
 
 function play(v) {
   $("#ptitle").textContent = v.emoji + " " + v.title;
