@@ -8,83 +8,192 @@
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body {
     font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-    background: linear-gradient(170deg, #fff3d6 0%, #ffe0ec 45%, #dceeff 100%);
-    background-attachment: fixed;
+    background: #FFF8F0;
     min-height: 100vh;
-    padding-bottom: 80px;
+    padding-bottom: 90px;
+    overflow-x: hidden;
+  }
+
+  /* ====== 背景装饰 ====== */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 360px;
+    background: linear-gradient(170deg, #FFD6E8 0%, #C3E8FF 55%, #FFF8F0 100%);
+    z-index: -1;
+    border-radius: 0 0 40px 40px;
   }
 
   /* ====== 顶部标题 ====== */
-  .top { text-align: center; padding: 24px 16px 4px; }
-  .top h1 { font-size: 34px; color: #ff6b9d; letter-spacing: 2px; text-shadow: 2px 2px 0 #fff; }
-  .top > p { margin-top: 6px; color: #8a7a6a; font-size: 15px; }
+  .top { text-align: center; padding: 22px 16px 10px; }
+  .top h1 { font-size: 30px; color: #FF5E7E; letter-spacing: 1px; text-shadow: 1px 2px 0 #fff; }
+  .top > p { margin-top: 4px; color: #8a7a6a; font-size: 14px; }
 
-  /* ====== 打卡区 ====== */
-  .checkin-section { max-width: 480px; margin: 14px auto 0; padding: 0 14px; }
-  .checkin-card {
-    background: #fff; border-radius: 22px; padding: 18px 20px 16px;
-    box-shadow: 0 4px 18px rgba(0,0,0,.10); display: flex; align-items: center; gap: 14px;
-  }
-  .ci-icon-wrap { position: relative; flex-shrink: 0; }
-  .ci-icon { font-size: 52px; line-height: 1; display: block; }
-  .ci-badge {
-    position: absolute; top: -4px; right: -4px;
-    background: #ff3b5c; color: #fff; border-radius: 50%;
-    width: 20px; height: 20px; font-size: 12px; font-weight: bold;
-    display: flex; align-items: center; justify-content: center;
-    border: 2px solid #fff;
-  }
-  .ci-info { flex: 1; min-width: 0; }
-  .ci-grade-name { font-size: 17px; font-weight: bold; color: #333; margin-bottom: 2px; }
-  .ci-status { font-size: 14px; color: #888; }
-  .ci-streak-row { display: flex; align-items: baseline; gap: 4px; margin-top: 3px; }
-  .ci-fire { font-size: 22px; }
-  .ci-streak-num { font-size: 26px; font-weight: bold; color: #ff6b3a; }
-  .ci-streak-label { font-size: 14px; color: #ff6b3a; }
-  .ci-btn {
-    flex-shrink: 0; border: none; border-radius: 999px; padding: 12px 20px;
-    font-size: 17px; font-weight: bold; cursor: pointer; font-family: inherit;
-    transition: all .15s; white-space: nowrap;
-  }
-  .ci-btn-done {
-    background: #e8f5e9; color: #2eaf52; pointer-events: none;
-  }
-  .ci-btn-today {
-    background: linear-gradient(135deg, #ff9a56, #ff5e7e);
-    color: #fff; box-shadow: 0 4px 14px rgba(255,94,126,.4);
-  }
-  .ci-btn-today:active { transform: scale(.93); }
-  .ci-btn-miss {
-    background: linear-gradient(135deg, #b0bec5, #78909c);
-    color: #fff; box-shadow: 0 4px 12px rgba(0,0,0,.15);
-  }
+  /* ====== 打卡任务区 ====== */
+  .task-section { max-width: 500px; margin: 12px auto 0; padding: 0 14px; }
 
-  /* 打卡历史 */
-  .ci-history {
-    max-width: 480px; margin: 10px auto 0; padding: 0 14px;
-    background: #fff; border-radius: 18px; padding: 14px 18px;
-    box-shadow: 0 3px 12px rgba(0,0,0,.08);
+  /* 周进度条 */
+  .week-bar {
+    display: flex; align-items: center; gap: 6px;
+    background: #fff; border-radius: 16px; padding: 10px 14px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.08); margin-bottom: 10px;
   }
-  .ci-history-title { font-size: 13px; color: #aaa; margin-bottom: 8px; font-weight: bold; letter-spacing: 1px; }
-  .ci-dots { display: flex; gap: 6px; flex-wrap: wrap; }
-  .ci-dot {
-    width: 28px; height: 28px; border-radius: 50%;
+  .week-label { font-size: 13px; color: #888; white-space: nowrap; font-weight: bold; }
+  .week-dots { display: flex; gap: 5px; flex: 1; justify-content: center; }
+  .w-dot {
+    width: 30px; height: 30px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 12px; font-weight: bold;
+    font-size: 12px; font-weight: bold; transition: transform .2s;
   }
-  .ci-dot-checked { background: #c8f0d4; color: #2eaf52; }
-  .ci-dot-today { background: #fff3e0; color: #ff9a56; border: 1.5px dashed #ff9a56; }
-  .ci-dot-empty { background: #f5f5f5; color: #ccc; }
+  .w-dot.done { background: linear-gradient(135deg,#4CAF50,#81C784); color: #fff; }
+  .w-dot.today { background: linear-gradient(135deg,#FF9A56,#FF5E7E); color: #fff; animation: pulse 2s infinite; }
+  .w-dot.miss { background: linear-gradient(135deg,#FF8A80,#FF5252); color: #fff; animation: pulseSlow 3s infinite; }
+  .w-dot.future { background: #f0f0f0; color: #ccc; }
+  @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.12)} }
+  @keyframes pulseSlow { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+
+  /* 今日任务卡片 */
+  .task-card {
+    background: #fff; border-radius: 22px;
+    box-shadow: 0 6px 24px rgba(255,94,126,.18);
+    overflow: hidden; cursor: pointer; transition: transform .15s;
+  }
+  .task-card:active { transform: scale(.97); }
+  .task-card.is-done { box-shadow: 0 6px 24px rgba(76,175,80,.18); }
+
+  .task-card-top {
+    display: flex; align-items: center; gap: 14px;
+    padding: 18px 18px 14px;
+  }
+  .task-card-icon { font-size: 44px; line-height: 1; flex-shrink: 0; }
+  .task-card-info { flex: 1; min-width: 0; }
+  .task-tag {
+    display: inline-block; background: linear-gradient(135deg,#FF9A56,#FF5E7E);
+    color: #fff; font-size: 11px; font-weight: bold; border-radius: 999px;
+    padding: 2px 10px; margin-bottom: 4px; letter-spacing: .5px;
+  }
+  .task-tag.done-tag { background: linear-gradient(135deg,#4CAF50,#81C784); }
+  .task-title { font-size: 17px; font-weight: bold; color: #333; margin-bottom: 2px; line-height: 1.3; }
+  .task-sub { font-size: 13px; color: #999; }
+  .task-arrow { font-size: 22px; color: #ccc; flex-shrink: 0; transition: transform .2s; }
+  .task-card:hover .task-arrow { transform: translateX(4px); }
+
+  .task-card-bottom {
+    padding: 10px 18px 14px;
+    border-top: 1.5px dashed #f0e8e0;
+  }
+  .task-hint { font-size: 13px; color: #bbb; display: flex; align-items: center; gap: 6px; }
+  .task-hint.done-hint { color: #4CAF50; }
+
+  /* ====== 补打卡区域 ====== */
+  .miss-section {
+    max-width: 500px; margin: 8px auto 0; padding: 0 14px;
+    display: flex; flex-direction: column; gap: 7px;
+  }
+  .miss-title {
+    font-size: 13px; color: #bbb; font-weight: bold; letter-spacing: 1px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .miss-title::before, .miss-title::after {
+    content: ''; flex: 1; height: 1px; background: #eee;
+  }
+  .miss-cards { display: flex; gap: 8px; }
+  .miss-card {
+    flex: 1; background: #fff; border-radius: 14px; padding: 10px 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.08);
+    display: flex; align-items: center; gap: 8px;
+    cursor: pointer; transition: all .15s;
+    border: 2px solid transparent;
+  }
+  .miss-card:active { transform: scale(.96); }
+  .miss-card:hover { border-color: #FF9A56; }
+  .miss-card.done { opacity: .5; cursor: default; border-color: transparent; }
+  .miss-card-icon { font-size: 26px; flex-shrink: 0; }
+  .miss-card-info { flex: 1; min-width: 0; }
+  .miss-card-date { font-size: 11px; color: #999; }
+  .miss-card-name { font-size: 13px; font-weight: bold; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .miss-card-btn {
+    font-size: 11px; font-weight: bold; color: #fff; background: linear-gradient(135deg,#FF9A56,#FF5E7E);
+    border-radius: 999px; padding: 3px 8px; white-space: nowrap; flex-shrink: 0;
+  }
+  .miss-card-btn.done-btn { background: #4CAF50; cursor: default; }
+  .miss-empty { font-size: 13px; color: #ccc; text-align: center; padding: 6px 0; }
+
+  /* 打卡成功弹层 */
+  .success-overlay {
+    display: none; position: fixed; inset: 0; z-index: 300;
+    background: rgba(0,0,0,.55); align-items: center; justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .success-overlay.show { display: flex; }
+  .success-panel {
+    background: #fff; border-radius: 28px; width: 90%; max-width: 360px;
+    text-align: center; padding: 32px 24px 28px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.25);
+    animation: popIn .5s cubic-bezier(.36,1.56,.64,1);
+  }
+  @keyframes popIn { from{transform:scale(.6);opacity:0} to{transform:scale(1);opacity:1} }
+  .success-emoji { font-size: 72px; margin-bottom: 8px; }
+  .success-title { font-size: 24px; font-weight: bold; color: #333; margin-bottom: 6px; }
+  .success-sub { font-size: 15px; color: #888; margin-bottom: 20px; }
+  .success-stars { font-size: 32px; margin-bottom: 20px; animation: starBounce .6s .3s both; }
+  @keyframes starBounce { from{transform:scale(0)} 60%{transform:scale(1.2)} to{transform:scale(1)} }
+  .success-btn {
+    border: none; border-radius: 999px; padding: 14px 36px; font-size: 17px; font-weight: bold;
+    background: linear-gradient(135deg,#FF9A56,#FF5E7E); color: #fff; cursor: pointer;
+    font-family: inherit; box-shadow: 0 4px 16px rgba(255,94,126,.4);
+    transition: transform .15s; display: inline-block;
+  }
+  .success-btn:active { transform: scale(.93); }
+
+  /* ====== 休息提醒弹层 ====== */
+  .rest-overlay {
+    display: none; position: fixed; inset: 0; z-index: 400;
+    background: rgba(0,0,0,.65); align-items: center; justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .rest-overlay.show { display: flex; }
+  .rest-panel {
+    background: #fff; border-radius: 28px; width: 90%; max-width: 360px;
+    text-align: center; padding: 32px 24px 28px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.3);
+    animation: popIn .5s cubic-bezier(.36,1.56,.64,1);
+  }
+  .rest-emoji { font-size: 72px; margin-bottom: 8px; }
+  .rest-title { font-size: 22px; font-weight: bold; color: #333; margin-bottom: 8px; }
+  .rest-sub { font-size: 15px; color: #888; margin-bottom: 10px; line-height: 1.6; }
+  .rest-tips {
+    background: #FFF8F0; border-radius: 14px; padding: 12px 16px; margin-bottom: 20px;
+    text-align: left; font-size: 14px; color: #666; line-height: 1.8;
+  }
+  .rest-tips li { margin-bottom: 4px; }
+  .rest-btns { display: flex; gap: 10px; justify-content: center; }
+  .rest-btn {
+    flex: 1; border: none; border-radius: 999px; padding: 14px 12px; font-size: 16px; font-weight: bold;
+    cursor: pointer; font-family: inherit; transition: transform .15s;
+  }
+  .rest-btn:active { transform: scale(.93); }
+  .rest-btn-primary {
+    background: linear-gradient(135deg,#4CAF50,#81C784); color: #fff;
+    box-shadow: 0 4px 14px rgba(76,175,80,.4);
+  }
+  .rest-btn-secondary {
+    background: #f5f5f5; color: #666;
+  }
+  .rest-countdown {
+    font-size: 36px; font-weight: bold; color: #FF5E7E; margin: 4px 0 10px;
+  }
 
   /* ====== 年级切换 ====== */
   .grade-tabs { display: flex; gap: 10px; justify-content: center; padding: 14px 14px 4px; }
   .grade-tab {
-    flex: 1; max-width: 175px; border: none; border-radius: 16px; padding: 12px 14px; font-size: 18px;
+    flex: 1; max-width: 175px; border: none; border-radius: 16px; padding: 11px 14px; font-size: 17px;
     cursor: pointer; background: #fff; color: #888; font-weight: bold; font-family: inherit;
     box-shadow: 0 3px 12px rgba(0,0,0,.09); transition: all .2s;
   }
   .grade-tab .sub { display: block; font-size: 13px; font-weight: normal; color: #aaa; margin-top: 2px; }
-  .grade-tab.active { background: linear-gradient(135deg, #ff9a56, #ff5e7e); color: #fff; box-shadow: 0 4px 16px rgba(255,94,126,.4); }
+  .grade-tab.active { background: linear-gradient(135deg, #FF9A56, #FF5E7E); color: #fff; box-shadow: 0 4px 16px rgba(255,94,126,.4); }
   .grade-tab.active .sub { color: rgba(255,255,255,.8); }
 
   /* ====== 子分类 ====== */
@@ -107,6 +216,13 @@
   .card:active { transform: scale(.93); }
   .card .thumb { height: 92px; display: flex; align-items: center; justify-content: center; font-size: 50px; }
   .card .name { padding: 9px 11px 12px; font-size: 14px; color: #444; text-align: center; font-weight: 600; line-height: 1.4; }
+  .card-wrap { position: relative; }
+  .card.done-card::after {
+    content: '✓'; position: absolute; top: 6px; right: 6px;
+    background: #4CAF50; color: #fff; border-radius: 50%;
+    width: 22px; height: 22px; font-size: 12px;
+    display: flex; align-items: center; justify-content: center;
+  }
   .empty { grid-column: 1 / -1; text-align: center; color: #9b8f80; padding: 50px 20px; font-size: 15px; }
 
   /* ====== 播放器 ====== */
@@ -120,8 +236,34 @@
     font-size: 15px; cursor: pointer; font-family: inherit; white-space: nowrap;
   }
   .player-bar .ptitle { flex: 1; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .subtitle-btn {
+    border: none; background: #444; color: #fff; border-radius: 999px; padding: 7px 14px;
+    font-size: 14px; cursor: pointer; font-family: inherit; white-space: nowrap;
+    transition: background .2s; flex-shrink: 0;
+  }
+  .subtitle-btn.on { background: #FF9A56; color: #fff; }
+  .subtitle-btn:hover { background: #555; }
+  .subtitle-btn.on:hover { background: #FF7B3A; }
   .player-wrap { flex: 1; position: relative; background: #000; }
   .player-wrap iframe, .player-wrap video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+  /* 护眼计时条 */
+  .eye-bar-wrap {
+    background: #1c1c1e; padding: 0 12px 6px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .eye-bar-label { font-size: 12px; color: #888; white-space: nowrap; }
+  .eye-bar-track {
+    flex: 1; height: 6px; background: #333; border-radius: 3px; overflow: hidden;
+  }
+  .eye-bar-fill {
+    height: 100%; background: linear-gradient(90deg,#4CAF50,#FFEB3B,#FF9800,#FF5252);
+    border-radius: 3px; transition: width 1s linear;
+    min-width: 2px;
+  }
+  .eye-bar-time { font-size: 12px; color: #aaa; white-space: nowrap; min-width: 36px; text-align: right; }
+  .eye-bar-warn { color: #FF5252; }
+
   .player-tip { text-align: center; color: #9b8f80; font-size: 13px; padding: 8px 20px; }
 
   /* ====== 播放列表弹层 ====== */
@@ -157,6 +299,17 @@
   }
   .ep-card:active { transform: scale(.95); }
   .ep-card:hover { border-color: #4caf50; background: #e8f5e9; }
+
+  /* ====== 庆祝礼花粒子 ====== */
+  .confetti-wrap { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 999; }
+  .confetti-piece {
+    position: absolute; width: 10px; height: 10px; border-radius: 2px;
+    animation: confettiFall linear forwards;
+  }
+  @keyframes confettiFall {
+    0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+    100%{ transform: translateY(110vh) rotate(720deg); opacity: 0; }
+  }
 </style>
 </head>
 <body>
@@ -166,8 +319,59 @@
     <p>每天坚持一点点，英语进步看得见 ✨</p>
   </header>
 
-  <!-- 打卡区 -->
-  <section class="checkin-section" id="checkinSection"></section>
+  <!-- 打卡任务区 -->
+  <section class="task-section">
+    <div class="week-bar" id="weekBar"></div>
+    <div class="task-card" id="taskCard">
+      <div class="task-card-top">
+        <span class="task-card-icon" id="taskIcon">🐷</span>
+        <div class="task-card-info">
+          <div class="task-tag" id="taskTag">🎯 今日任务</div>
+          <div class="task-title" id="taskTitle">加载中...</div>
+          <div class="task-sub" id="taskSub">正在读取...</div>
+        </div>
+        <div class="task-arrow" id="taskArrow">▶️</div>
+      </div>
+      <div class="task-card-bottom">
+        <div class="task-hint" id="taskHint">
+          <span class="play-icon">▶️</span>
+          <span id="taskHintText">点击开始学习，看完自动打卡！</span>
+        </div>
+      </div>
+    </div>
+    <!-- 补打卡区域 -->
+    <div class="miss-section" id="missSection"></div>
+  </section>
+
+  <!-- 打卡成功弹层 -->
+  <div class="success-overlay" id="successOverlay">
+    <div class="success-panel">
+      <div class="success-emoji" id="successEmoji">🎉</div>
+      <div class="success-title" id="successTitle">太棒了！</div>
+      <div class="success-sub" id="successSub">已完成今日学习！</div>
+      <div class="success-stars" id="successStars">⭐⭐⭐</div>
+      <button class="success-btn" onclick="closeSuccess()">继续探索 📚</button>
+    </div>
+  </div>
+
+  <!-- 休息提醒弹层 -->
+  <div class="rest-overlay" id="restOverlay">
+    <div class="rest-panel">
+      <div class="rest-emoji">🧒👀</div>
+      <div class="rest-title">该休息一下啦！⏰</div>
+      <div class="rest-sub">已经认真学习了 <strong>30分钟</strong><br>眼睛需要休息一下哦～</div>
+      <div class="rest-tips">
+        <li>🌿 站起来伸个懒腰</li>
+        <li>🏃 到窗边或门口活动5分钟</li>
+        <li>👀 看看远处，让眼睛放松</li>
+        <li>💧 可以喝点水</li>
+      </div>
+      <div class="rest-btns">
+        <button class="rest-btn rest-btn-secondary" onclick="closeRest(false)">休息一下 💚</button>
+        <button class="rest-btn rest-btn-primary" onclick="closeRest(true)">继续看 ▶️</button>
+      </div>
+    </div>
+  </div>
 
   <!-- 年级切换 -->
   <nav class="grade-tabs" id="gradeTabs"></nav>
@@ -194,18 +398,25 @@
     <div class="player-bar">
       <button class="back" id="backBtn">← 返回</button>
       <span class="ptitle" id="ptitle"></span>
+      <button class="subtitle-btn" id="subBtn" onclick="toggleSubtitle()">字幕</button>
+    </div>
+    <div class="eye-bar-wrap" id="eyeBarWrap">
+      <span class="eye-bar-label">⏱️</span>
+      <div class="eye-bar-track"><div class="eye-bar-fill" id="eyeBarFill" style="width:0%"></div></div>
+      <span class="eye-bar-time" id="eyeBarTime">0′</span>
     </div>
     <div class="player-wrap" id="playerWrap"></div>
-    <p class="player-tip">💡 点视频右下角可以全屏</p>
+    <p class="player-tip">💡 点视频右下角可以全屏 · 看完或关闭播放器自动打卡 ✨</p>
   </div>
+
+  <!-- 礼花容器 -->
+  <div class="confetti-wrap" id="confettiWrap"></div>
 
 <script>
 // ============================================================
-//  📌📌📌 加视频就看这里! 📌📌📌
-//  每条视频写一行,格式:
-//   { title:"视频名字", grade:"小学"|"初中", cat:"子分类", emoji:"图标", type:"bili",  url:"BV号" }
-//   { title:"视频名字", grade:"小学"|"初中", cat:"子分类", emoji:"图标", type:"local", url:"videos/文件名.mp4" }
-//  grade: "小学" 或 "初中" | type: "bili"=B站; "local"=本地mp4
+//  📌 加视频就看这里! 📌
+//  type: "bili"=B站; "local"=本地mp4
+//  grade: "小学" 或 "初中"
 // ============================================================
 
 const GRADES = [
@@ -234,27 +445,23 @@ const GRADES = [
 
 const VIDEOS = [
   // ==================== 小学(9岁) ====================
-  { title: "小猪佩奇 中英双语 第1集", grade: "小学", cat: "趣味动画", emoji: "🐷", type: "bili", url: "BV1yW411b7jB" },
-  { title: "小猪佩奇 英文原版·中英字幕", grade: "小学", cat: "趣味动画", emoji: "🐷", type: "bili", url: "BV1vq4y1Y7nN" },
-  { title: "布鲁伊 英文版 · 家庭幽默故事", grade: "小学", cat: "趣味动画", emoji: "🐶", type: "bili", url: "BV1aT4y1P7KR" },
-  { title: "SSS 字母歌合集(102集)", grade: "小学", cat: "英文儿歌", emoji: "🎵", type: "bili", url: "BV177411T77W" },
-  { title: "SSS 自然拼读动画(71集)", grade: "小学", cat: "字母拼读", emoji: "🔤", type: "bili", url: "BV142A4z2EEV" },
+  // 【小猪佩奇英文原版第1季全52集】BV1R5411H7Ze — 播放器右上角可切换字幕开关
+  { id: "v1", title: "🐷 小猪佩奇 英文原版 第1季全52集", grade: "小学", cat: "趣味动画", emoji: "🐷", type: "bili", url: "BV1R5411H7Ze" },
+  { id: "v3", title: "布鲁伊 英文版 · 家庭幽默故事",     grade: "小学", cat: "趣味动画", emoji: "🐶", type: "bili", url: "BV1aT4y1P7KR" },
+  { id: "v4", title: "SSS 字母歌合集(102集)",          grade: "小学", cat: "英文儿歌", emoji: "🎵", type: "bili", url: "BV177411T77W" },
+  { id: "v5", title: "SSS 自然拼读动画(71集)",          grade: "小学", cat: "字母拼读", emoji: "🔤", type: "bili", url: "BV142A4z2EEV" },
 
   // ==================== 初中(14岁) ====================
-  { title: "BBC Learning English · 日常口语", grade: "初中", cat: "综合听说", emoji: "🎧", type: "bili", url: "BV1Ux411y7fE" },
-  { title: "English with Lucy · 地道发音教程", grade: "初中", cat: "综合听说", emoji: "🎧", type: "bili", url: "BV1qK411V7FP" },
-  { title: "TED-Ed 英文演讲精读", grade: "初中", cat: "阅读写作", emoji: "📝", type: "bili", url: "BV1Bx411Z7Dn" },
-  { title: "英语语法精讲合集(初中通用)", grade: "初中", cat: "语法精讲", emoji: "📐", type: "bili", url: "BV1Vx411b7R3" },
-  { title: "中考英语真题讲解合集", grade: "初中", cat: "真题练习", emoji: "✍️", type: "bili", url: "BV1Vx411b7R3" },
+  { id: "c1", title: "BBC Learning English · 日常口语",  grade: "初中", cat: "综合听说", emoji: "🎧", type: "bili", url: "BV1Ux411y7fE" },
+  { id: "c2", title: "English with Lucy · 地道发音教程", grade: "初中", cat: "综合听说", emoji: "🎧", type: "bili", url: "BV1qK411V7FP" },
+  { id: "c3", title: "TED-Ed 英文演讲精读",             grade: "初中", cat: "阅读写作", emoji: "📝", type: "bili", url: "BV1Bx411Z7Dn" },
+  { id: "c4", title: "英语语法精讲合集(初中通用)",        grade: "初中", cat: "语法精讲", emoji: "📐", type: "bili", url: "BV1Vx411b7R3" },
+  { id: "c5", title: "中考英语真题讲解合集",              grade: "初中", cat: "真题练习", emoji: "✍️", type: "bili", url: "BV1Vx411b7R3" },
 
-  // ==================== 美丽中国 Amazing China 专辑(入口) ====================
+  // ==================== 美丽中国 Amazing China 专辑 ====================
   {
-    title: "🌍 美丽中国 Amazing China (全60集)",
-    grade: "初中",
-    cat: "美丽中国",
-    emoji: "🏔️",
+    id: "amazing", title: "🌍 美丽中国 Amazing China (全60集)", grade: "初中", cat: "美丽中国", emoji: "🏔️",
     type: "playlist",
-    // 下面 episodes 数组里的每一集会自动按 page 播放对应分P
     episodes: [
       { title: "01 安集海大峡谷",           page: 1  },
       { title: "02 巴音布鲁克草原",           page: 2  },
@@ -319,159 +526,485 @@ const VIDEOS = [
     ],
     bv: "BV1du411h7tX"
   },
-
-  // 本地视频示例: 删除前面的 // 即可启用
-  // { title: "我的视频", grade: "小学", cat: "趣味动画", emoji: "⭐", type: "local", url: "videos/文件名.mp4" },
 ];
 
 // ============================================================
-//  打卡系统(不用动下面)
+//  打卡系统
 // ============================================================
 const $ = s => document.querySelector(s);
 
-// 取本地日期字符串 YYYY-MM-DD
+const WATCH_LIMIT = 30 * 60; // 30分钟秒数
+
 function localDateStr(d) {
   const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0');
   return y + '-' + m + '-' + dd;
 }
-
 function todayStr() { return localDateStr(new Date()); }
 
-// 读取打卡记录
 function getLogs(grade) {
   try { return JSON.parse(localStorage.getItem('ci_' + grade) || '[]'); }
   catch { return []; }
 }
-
-// 保存打卡记录
 function saveLogs(grade, logs) {
   localStorage.setItem('ci_' + grade, JSON.stringify(logs));
 }
 
-// 计算连续打卡天数
 function calcStreak(logs) {
   if (!logs.length) return 0;
   const today = todayStr();
   const yesterday = localDateStr(new Date(Date.now() - 86400000));
   const sorted = [...new Set(logs)].sort().reverse();
   if (sorted[0] !== today && sorted[0] !== yesterday) return 0;
-  let streak = 0, cur = sorted[0] === today ? todayStr() : localDateStr(new Date(Date.now() - 86400000));
+  let streak = 0;
+  let cur = sorted[0] === today ? todayStr() : localDateStr(new Date(Date.now() - 86400000));
   const seen = new Set(sorted);
   while (seen.has(cur)) { streak++; cur = localDateStr(new Date(new Date(cur).getTime() - 86400000)); }
   return streak;
 }
 
-// 获取打卡总天数
-function totalDays(logs) {
-  return new Set(logs).size;
-}
-
-// 今天是否已打卡
-function isCheckedToday(logs) {
-  return logs.includes(todayStr());
-}
-
-// 渲染打卡区
-function renderCheckin(grade) {
-  const logs = getLogs(grade);
-  const streak = calcStreak(logs);
-  const total = totalDays(logs);
-  const checked = isCheckedToday(logs);
-  const gradeDef = GRADES.find(g => g.key === grade);
-  const ciSection = $("#checkinSection");
-
-  let btnHTML, btnClass, btnText;
-  if (checked) {
-    btnClass = 'ci-btn ci-btn-done';
-    btnText = '✅ 已打卡';
-  } else if (streak > 0 && !logs.includes(localDateStr(new Date(Date.now() - 86400000)))) {
-    btnClass = 'ci-btn ci-btn-today';
-    btnText = '🎯 今日打卡';
-  } else {
-    btnClass = 'ci-btn ci-btn-miss';
-    btnText = '📝 补打卡';
-  }
-
-  const streakIcon = streak >= 7 ? '🔥' : streak >= 3 ? '💪' : '⭐';
-
-  ciSection.innerHTML = `
-    <div class="checkin-card">
-      <div class="ci-icon-wrap">
-        <span class="ci-icon">${gradeDef.name.split(' ')[0]}</span>
-        ${checked ? '<span class="ci-badge">✓</span>' : ''}
-      </div>
-      <div class="ci-info">
-        <div class="ci-grade-name">${gradeDef.name.split(' ').slice(1).join(' ')}</div>
-        <div class="ci-status">${checked ? '今日已完成!' : '今天还没打卡哦~'}</div>
-        <div class="ci-streak-row">
-          <span class="ci-fire">${streakIcon}</span>
-          <span class="ci-streak-num">${streak}</span>
-          <span class="ci-streak-label">天连续</span>
-          <span style="color:#ccc;font-size:13px;margin-left:8px">共${total}天</span>
-        </div>
-      </div>
-      <button class="${btnClass}" id="ciBtn">${btnText}</button>
-    </div>
-  `;
-
-  // 绑定打卡按钮
-  $("#ciBtn").onclick = () => {
-    const l = getLogs(grade);
-    if (!l.includes(todayStr())) {
-      l.push(todayStr());
-      saveLogs(grade, l);
-    }
-    renderCheckin(grade);
-    renderHistory(grade);
-  };
-
-  // 渲染历史
-  renderHistory(grade);
-}
-
-function renderHistory(grade) {
-  const logs = getLogs(grade);
-  const today = todayStr();
-  const logSet = new Set(logs);
-
-  // 最近28天
+function getWeekDays() {
   const days = [];
-  for (let i = 27; i >= 0; i--) {
-    days.push(localDateStr(new Date(Date.now() - i * 86400000)));
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(now.getTime() + (mondayOffset + i) * 86400000);
+    days.push({ str: localDateStr(d), label: ['一','二','三','四','五','六','日'][i] });
+  }
+  return days;
+}
+
+// 根据日期获取那天的任务视频
+function getTaskForDate(grade, dateStr) {
+  const seed = dateStr.split('-').join('') + grade.charCodeAt(0);
+  const gradeVideos = VIDEOS.filter(v => v.grade === grade && v.type !== 'playlist');
+  if (!gradeVideos.length) return null;
+  const cats = [...new Set(gradeVideos.map(v => v.cat))];
+  const refDate = new Date(dateStr);
+  const weekOfYear = Math.floor((refDate - new Date(refDate.getFullYear(), 0, 1)) / 86400000 / 7);
+  const weekIdx = weekOfYear % cats.length;
+  const targetCat = cats[(weekIdx + cats.length) % cats.length];
+  const catVideos = gradeVideos.filter(v => v.cat === targetCat);
+  return catVideos[parseInt(seed) % catVideos.length] || gradeVideos[parseInt(seed) % gradeVideos.length];
+}
+
+function renderWeekBar(grade) {
+  const logs = getLogs(grade);
+  const logSet = new Set(logs);
+  const today = todayStr();
+  const weekDays = getWeekDays();
+
+  let html = '<div class="week-label">本周</div><div class="week-dots">';
+  weekDays.forEach(({ str, label }) => {
+    let cls = 'w-dot';
+    const isMiss = str < today && !logSet.has(str); // 过去未打卡
+    if (logSet.has(str)) cls += ' done';
+    else if (str === today) cls += ' today';
+    else if (isMiss) cls += ' miss';
+    else cls += ' future';
+    const mark = logSet.has(str) ? '✓' : (str === today ? '今' : (isMiss ? '漏' : label));
+    html += '<div class="' + cls + '" title="' + str + '">' + mark + '</div>';
+  });
+  html += '</div>';
+  const streak = calcStreak(logs);
+  html += '<div style="font-size:12px;color:#FF9A56;font-weight:bold;white-space:nowrap">' + (streak > 0 ? '🔥 ' + streak + '天' : '加油') + '</div>';
+  $("#weekBar").innerHTML = html;
+}
+
+// 渲染补打卡区
+function renderMissSection(grade) {
+  const logs = getLogs(grade);
+  const logSet = new Set(logs);
+  const today = todayStr();
+  const miss = [];
+
+  for (let i = 1; i <= 2; i++) {
+    const d = new Date(Date.now() - i * 86400000);
+    const str = localDateStr(d);
+    if (!logSet.has(str)) {
+      miss.push({ str, i });
+    }
   }
 
-  let html = '<div class="ci-history"><div class="ci-history-title">打卡记录 (近28天)</div><div class="ci-dots">';
-  days.forEach(d => {
-    const dayNum = d.slice(8,10);
-    if (d === today && logSet.has(d)) {
-      html += '<div class="ci-dot ci-dot-today" title="'+d+'">✓</div>';
-    } else if (logSet.has(d)) {
-      html += '<div class="ci-dot ci-dot-checked" title="'+d+'">'+dayNum+'</div>';
-    } else {
-      html += '<div class="ci-dot ci-dot-empty" title="'+d+'">'+dayNum+'</div>';
+  const section = $("#missSection");
+  if (!miss.length) {
+    section.innerHTML = '';
+    return;
+  }
+
+  let html = '<div class="miss-title">📋 补打卡</div><div class="miss-cards">';
+  miss.forEach(({ str, i }) => {
+    const task = getTaskForDate(grade, str);
+    const dateLabel = i === 1 ? '昨天' : '前天';
+    const shortDate = str.slice(5); // MM-DD
+    if (task) {
+      html += `
+        <div class="miss-card" onclick="openMissTask('${str}', '${task.id}')">
+          <span class="miss-card-icon">${task.emoji}</span>
+          <div class="miss-card-info">
+            <div class="miss-card-date">${dateLabel} · ${shortDate}</div>
+            <div class="miss-card-name">${task.title}</div>
+          </div>
+          <span class="miss-card-btn">补看 ▶</span>
+        </div>`;
     }
   });
-  html += '</div></div>';
+  html += '</div>';
+  section.innerHTML = html;
+}
 
-  // 复用/创建 history 容器
-  let histEl = $("#checkinHistory");
-  if (!histEl) {
-    histEl = document.createElement("div");
-    histEl.id = "checkinHistory";
-    $("#checkinSection").after(histEl);
+// 打开补打卡任务（不打卡，只看视频）
+function openMissTask(dateStr, vidId) {
+  const grade = currentGrade;
+  const task = getTaskForDate(grade, dateStr);
+  if (!task) return;
+  // 把这个视频作为补打卡任务播放，播放完或关闭时询问是否补打卡
+  playForMakeup(dateStr, task);
+}
+
+// 渲染今日任务卡片
+function renderTaskCard(grade) {
+  const logs = getLogs(grade);
+  const checked = logs.includes(todayStr());
+  const task = getTodayTask(grade);
+
+  if (!task) return;
+  const gradeDef = GRADES.find(g => g.key === grade);
+
+  $("#taskCard").onclick = () => openTask();
+
+  if (checked) {
+    $("#taskCard").classList.add('is-done');
+    $("#taskIcon").textContent = '✅';
+    $("#taskTag").textContent = '✅ 今日已完成';
+    $("#taskTag").classList.add('done-tag');
+    $("#taskTitle").textContent = task.title;
+    $("#taskSub").textContent = gradeDef.name.split(' ').slice(1).join(' ') + ' · ' + task.cat;
+    $("#taskArrow").textContent = '🔄';
+    $("#taskHint").classList.add('done-hint');
+    $("#taskHintText").textContent = '太棒了！明天继续加油 💪';
+    $("#taskHint").querySelector('.play-icon').textContent = '🎉';
+  } else {
+    $("#taskCard").classList.remove('is-done');
+    $("#taskIcon").textContent = task.emoji;
+    $("#taskTag").textContent = '🎯 今日任务';
+    $("#taskTag").classList.remove('done-tag');
+    $("#taskTitle").textContent = task.title;
+    $("#taskSub").textContent = gradeDef.name.split(' ').slice(1).join(' ') + ' · ' + task.cat;
+    $("#taskArrow").textContent = '▶️';
+    $("#taskHint").classList.remove('done-hint');
+    $("#taskHintText").textContent = '点击开始学习，看完自动打卡 ✨';
+    $("#taskHint").querySelector('.play-icon').textContent = '▶️';
   }
-  histEl.outerHTML = html;
-  // 重新获取引用(插入后 outerHTML 会移除旧元素,已用 innerHTML 代替)
-  const newHist = document.createElement("div");
-  newHist.id = "checkinHistory";
-  newHist.innerHTML = html.slice(html.indexOf('>')+1, html.lastIndexOf('</div>'));
-  const old = document.getElementById("checkinHistory");
-  if (old) old.replaceWith(newHist);
-  else $("#checkinSection").after(newHist);
+  window._currentTask = task;
+}
+
+function getTodayTask(grade) {
+  return getTaskForDate(grade, todayStr());
+}
+
+function openTask() {
+  const task = window._currentTask;
+  if (!task) return;
+  if (task.type === 'playlist') {
+    showPlaylist(task, 1);
+  } else {
+    startWatch(task.id);
+    play(task);
+  }
 }
 
 // ============================================================
-//  年级 + 视频列表(不用动下面)
+//  播放器 + 护眼计时
+// ============================================================
+let _watchedTaskId = null;
+let _watchedDateStr = null; // 'today' or 'YYYY-MM-DD'
+let _playerClosed = false;
+let _eyeTimer = null;
+let _eyeSeconds = 0;
+let _restShown = false;
+let _continueAfterRest = false;
+
+// 字幕切换
+let _currentBvid = null;
+let _currentPage = 1;
+let _subOn = false;
+
+function buildBiliSrc(bvid, page, sub) {
+  // cc=1 开启B站字幕轨道（前提是视频有字幕）；danmaku=0 关闭弹幕
+  return 'https://player.bilibili.com/player.html?bvid=' + bvid
+    + '&page=' + page + '&high_quality=1&danmaku=0'
+    + (sub ? '&cc=1' : '')
+    + '&autoplay=1';
+}
+
+function toggleSubtitle() {
+  _subOn = !_subOn;
+  const btn = $("#subBtn");
+  if (_subOn) {
+    btn.textContent = "字幕开";
+    btn.classList.add("on");
+  } else {
+    btn.textContent = "字幕";
+    btn.classList.remove("on");
+  }
+  // 重新加载 iframe 切换字幕
+  if (_currentBvid) {
+    const frame = $("#biliFrame");
+    if (frame) frame.src = buildBiliSrc(_currentBvid, _currentPage, _subOn);
+  }
+}
+
+function startWatch(vid, dateStr) {
+  _watchedTaskId = vid;
+  _watchedDateStr = dateStr || 'today';
+  _playerClosed = false;
+  _eyeSeconds = 0;
+  _restShown = false;
+  _continueAfterRest = false;
+}
+
+function stopEyeTimer() {
+  clearInterval(_eyeTimer);
+  _eyeTimer = null;
+}
+
+function startEyeTimer() {
+  stopEyeTimer();
+  _eyeTimer = setInterval(() => {
+    _eyeSeconds++;
+    updateEyeBar();
+
+    // 本地视频暂停处理
+    const localVid = $("#localVideo");
+    if (localVid && localVid.paused && _eyeSeconds > 0) return;
+
+    if (!_restShown && _eyeSeconds >= WATCH_LIMIT) {
+      _restShown = true;
+      showRest();
+    }
+  }, 1000);
+}
+
+function updateEyeBar() {
+  const pct = Math.min(100, (_eyeSeconds / WATCH_LIMIT) * 100);
+  const fill = $("#eyeBarFill");
+  const time = $("#eyeBarTime");
+  if (fill) fill.style.width = pct + '%';
+  const mins = Math.floor(_eyeSeconds / 60);
+  const secs = _eyeSeconds % 60;
+  if (time) {
+    if (pct >= 100) {
+      time.textContent = '30′00″';
+      time.classList.add('eye-bar-warn');
+    } else {
+      time.textContent = mins + '′' + String(secs).padStart(2, '0') + '″';
+      time.classList.remove('eye-bar-warn');
+    }
+  }
+}
+
+function pauseForRest() {
+  const localVid = $("#localVideo");
+  if (localVid) localVid.pause();
+  // B站无法暂停，只能弹窗提示
+}
+
+function showRest() {
+  pauseForRest();
+  $("#restOverlay").classList.add('show');
+}
+
+function closeRest(continueWatch) {
+  $("#restOverlay").classList.remove('show');
+  if (continueWatch) {
+    // 继续看：重置计时，从0开始重新计时
+    _eyeSeconds = 0;
+    _restShown = false;
+    updateEyeBar();
+    const localVid = $("#localVideo");
+    if (localVid) localVid.play();
+  } else {
+    // 休息：直接关闭播放器，走打卡流程
+    doCheckinForWatched();
+    closePlayer();
+  }
+}
+
+function doCheckinForWatched() {
+  const grade = currentGrade;
+  const logs = getLogs(grade);
+  const today = todayStr();
+
+  if (_watchedDateStr === 'today' || _watchedDateStr === today) {
+    // 看的是今日任务，打今日卡
+    if (!logs.includes(today)) {
+      logs.push(today);
+      saveLogs(grade, logs);
+    }
+  } else {
+    // 看的是补打卡任务，询问是否补打卡
+    if (!logs.includes(_watchedDateStr)) {
+      logs.push(_watchedDateStr);
+      saveLogs(grade, logs);
+    }
+  }
+
+  renderWeekBar(grade);
+  renderTaskCard(grade);
+  renderMissSection(grade);
+  renderGrid();
+  showSuccess();
+  launchConfetti();
+}
+
+function play(v) {
+  const page = v.page || 1;
+  $("#ptitle").textContent = (v.emoji || '🎬') + ' ' + v.title;
+  // 重置字幕状态
+  _subOn = false;
+  $("#subBtn").textContent = "字幕";
+  $("#subBtn").classList.remove("on");
+  if (v.type === "bili") {
+    _currentBvid = v.url;
+    _currentPage = page;
+    $("#playerWrap").innerHTML = '<iframe id="biliFrame" src="' + buildBiliSrc(v.url, page, false) + '" allowfullscreen="true" scrolling="no"></iframe>';
+  } else {
+    _currentBvid = null;
+    $("#playerWrap").innerHTML = '<video id="localVideo" src="' + v.url + '" controls autoplay playsinline webkit-playsinline></video>';
+  }
+  $("#playerMask").classList.add('show');
+  startEyeTimer();
+
+  if (v.type === 'local') {
+    const vidEl = $("#localVideo");
+    if (vidEl) {
+      vidEl.onended = () => {
+        doCheckinForWatched();
+        closePlayer();
+      };
+    }
+  }
+}
+
+// 补打卡播放（看完或关闭时直接补卡，不弹窗）
+function playForMakeup(dateStr, v) {
+  const page = v.page || 1;
+  $("#ptitle").textContent = (v.emoji || '🎬') + ' ' + v.title;
+  // 重置字幕状态
+  _subOn = false;
+  $("#subBtn").textContent = "字幕";
+  $("#subBtn").classList.remove("on");
+  if (v.type === "bili") {
+    _currentBvid = v.url;
+    _currentPage = page;
+    $("#playerWrap").innerHTML = '<iframe id="biliFrame" src="' + buildBiliSrc(v.url, page, false) + '" allowfullscreen="true" scrolling="no"></iframe>';
+  } else {
+    _currentBvid = null;
+    $("#playerWrap").innerHTML = '<video id="localVideo" src="' + v.url + '" controls autoplay playsinline webkit-playsinline></video>';
+  }
+  $("#playerMask").classList.add('show');
+  startWatch(v.id, dateStr);
+  startEyeTimer();
+
+  if (v.type === 'local') {
+    const vidEl = $("#localVideo");
+    if (vidEl) {
+      vidEl.onended = () => {
+        doCheckinForWatched();
+        closePlayer();
+      };
+    }
+  }
+}
+
+function closePlayer() {
+  stopEyeTimer();
+  _playerClosed = true;
+  _currentBvid = null;
+  _subOn = false;
+  $("#playerMask").classList.remove('show');
+  setTimeout(() => {
+    $("#playerWrap").innerHTML = '';
+    if (_watchedTaskId) {
+      doCheckinForWatched();
+      _watchedTaskId = null;
+    }
+  }, 300);
+}
+
+$("#backBtn").onclick = closePlayer;
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && _watchedTaskId) {
+    doCheckinForWatched();
+  }
+});
+
+// ============================================================
+//  打卡成功弹层
+// ============================================================
+function showSuccess() {
+  const streak = calcStreak(getLogs(currentGrade));
+  const emoji = streak >= 7 ? '🏆' : streak >= 3 ? '🎉' : '⭐';
+  const title = streak >= 7 ? '连续7天！太厉害啦！' : streak >= 3 ? streak + '天连击！继续加油！' : '太棒了！';
+  const stars = streak >= 7 ? '🏆🏆🏆' : streak >= 3 ? '⭐⭐⭐' : '⭐⭐';
+  $("#successEmoji").textContent = emoji;
+  $("#successTitle").textContent = title;
+  $("#successSub").textContent = '已完成今日学习，继续保持！';
+  $("#successStars").textContent = stars;
+  $("#successOverlay").classList.add('show');
+}
+
+function closeSuccess() {
+  $("#successOverlay").classList.remove('show');
+}
+
+function launchConfetti() {
+  const colors = ['#FF9A56','#FF5E7E','#4CAF50','#4facfe','#FFD700','#FF69B4','#81C784'];
+  const wrap = $("#confettiWrap");
+  wrap.innerHTML = '';
+  for (let i = 0; i < 50; i++) {
+    const el = document.createElement('div');
+    el.className = 'confetti-piece';
+    el.style.left = Math.random() * 100 + '%';
+    el.style.background = colors[Math.floor(Math.random() * colors.length)];
+    el.style.width = (6 + Math.random() * 8) + 'px';
+    el.style.height = (6 + Math.random() * 8) + 'px';
+    el.style.animationDuration = (1.5 + Math.random() * 2) + 's';
+    el.style.animationDelay = Math.random() * 0.8 + 's';
+    wrap.appendChild(el);
+  }
+  setTimeout(() => { wrap.innerHTML = ''; }, 4000);
+}
+
+// ============================================================
+//  播放列表弹层
+// ============================================================
+function showPlaylist(v, defaultPage) {
+  $("#playlistTitle").textContent = v.emoji + ' ' + v.title;
+  const grid = $("#playlistGrid");
+  grid.innerHTML = '';
+  v.episodes.forEach(ep => {
+    const d = document.createElement("div");
+    d.className = "ep-card";
+    d.textContent = ep.title;
+    d.onclick = () => {
+      $("#playlistOverlay").classList.remove("show");
+      const vidId = v.id + '_ep' + ep.page;
+      startWatch(vidId);
+      play({ emoji: v.emoji, title: ep.title, type: "bili", url: v.bv, page: ep.page });
+    };
+    grid.appendChild(d);
+  });
+  $("#playlistOverlay").classList.add("show");
+}
+
+$("#playlistClose").onclick = () => $("#playlistOverlay").classList.remove("show");
+$("#playlistOverlay").onclick = e => { if (e.target === $("#playlistOverlay")) $("#playlistOverlay").classList.remove("show"); };
+
+// ============================================================
+//  年级 + 视频列表
 // ============================================================
 let currentGrade = "小学";
 let currentCat = "全部";
@@ -488,8 +1021,9 @@ function buildGradeTabs() {
       currentGrade = g.key;
       buildCats(g);
       renderGrid();
-      renderCheckin(g.key);
-      $("#playlistOverlay").classList.remove("show");
+      renderWeekBar(g.key);
+      renderTaskCard(g.key);
+      renderMissSection(g.key);
     };
     wrap.appendChild(btn);
   });
@@ -507,7 +1041,6 @@ function buildCats(gradeObj) {
       b.classList.add("active");
       currentCat = c.name;
       renderGrid();
-      $("#playlistOverlay").classList.remove("show");
     };
     wrap.appendChild(b);
   });
@@ -516,6 +1049,8 @@ function buildCats(gradeObj) {
 function renderGrid() {
   const grid = $("#grid");
   grid.innerHTML = "";
+  const logs = getLogs(currentGrade);
+  const checkedToday = logs.includes(todayStr());
   let list = VIDEOS.filter(v => v.grade === currentGrade);
   if (currentCat !== "全部") list = list.filter(v => v.cat === currentCat);
   if (!list.length) {
@@ -525,11 +1060,25 @@ function renderGrid() {
   list.forEach(v => {
     const d = document.createElement("div");
     d.className = "card";
-    d.innerHTML = '<div class="thumb">' + v.emoji + '</div><div class="name">' + v.title + '</div>';
+    if (checkedToday && v.id === getTodayTask(currentGrade)?.id) {
+      d.classList.add("done-card");
+    }
+    const wrap = document.createElement("div");
+    wrap.className = "card-wrap";
+    const thumb = document.createElement("div");
+    thumb.className = "thumb";
+    thumb.textContent = v.emoji;
+    const name = document.createElement("div");
+    name.className = "name";
+    name.textContent = v.title;
+    d.appendChild(wrap);
+    wrap.appendChild(thumb);
+    wrap.appendChild(name);
     d.onclick = () => {
       if (v.type === "playlist") {
-        showPlaylist(v);
+        showPlaylist(v, 1);
       } else {
+        startWatch(v.id);
         play(v);
       }
     };
@@ -537,52 +1086,15 @@ function renderGrid() {
   });
 }
 
-// 展示专辑集列表
-function showPlaylist(v) {
-  $("#playlistTitle").textContent = v.emoji + " " + v.title;
-  const grid = $("#playlistGrid");
-  grid.innerHTML = "";
-  v.episodes.forEach(ep => {
-    const d = document.createElement("div");
-    d.className = "ep-card";
-    d.textContent = ep.title;
-    d.onclick = () => {
-      $("#playlistOverlay").classList.remove("show");
-      play({
-        emoji: v.emoji,
-        title: ep.title,
-        type: "bili",
-        url: v.bv,
-        page: ep.page
-      });
-    };
-    grid.appendChild(d);
-  });
-  $("#playlistOverlay").classList.add("show");
-}
-
-$("#playlistClose").onclick = () => $("#playlistOverlay").classList.remove("show");
-$("#playlistOverlay").onclick = e => { if (e.target === $("#playlistOverlay")) $("#playlistOverlay").classList.remove("show"); };
-
-function play(v) {
-  $("#ptitle").textContent = v.emoji + " " + v.title;
-  const page = v.page || 1;
-  $("#playerWrap").innerHTML = v.type === "bili"
-    ? '<iframe src="https://player.bilibili.com/player.html?bvid=' + v.url + '&page=' + page + '&high_quality=1&danmaku=0&autoplay=1" allowfullscreen="true" scrolling="no"></iframe>'
-    : '<video src="' + v.url + '" controls autoplay playsinline webkit-playsinline></video>';
-  $("#playerMask").classList.add("show");
-}
-
-$("#backBtn").onclick = () => {
-  $("#playerMask").classList.remove("show");
-  $("#playerWrap").innerHTML = "";
-};
-
-// 初始化
+// ============================================================
+//  初始化
+// ============================================================
 buildGradeTabs();
 buildCats(GRADES[0]);
 renderGrid();
-renderCheckin(currentGrade);
+renderWeekBar(currentGrade);
+renderTaskCard(currentGrade);
+renderMissSection(currentGrade);
 </script>
 </body>
 </html>
