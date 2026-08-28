@@ -678,7 +678,10 @@
   }
 
   function bindGlobal() {
-    document.querySelectorAll('[data-back]').forEach(b => b.onclick = () => history.back());
+    document.querySelectorAll('[data-back]').forEach(b => b.onclick = () => {
+      if (b.dataset.to) location.hash = b.dataset.to;   // 显式指定返回目标（不依赖浏览器历史）
+      else history.back();
+    });
     if (typeof window.__afterRender === 'function') window.__afterRender();
   }
 
@@ -751,7 +754,7 @@
   function viewMomPin() {
     return `
       <div class="topbar">
-        <button class="icon-btn" data-back>${ICN.back}</button>
+        <button class="icon-btn" data-back data-to="entry">${ICN.back}</button>
         <h1>妈妈请进</h1>
         <div style="width:36px"></div>
       </div>
@@ -1010,7 +1013,7 @@
   function viewKidSelect() {
     return `
       <div class="topbar">
-        <button class="icon-btn" data-back>${ICN.back}</button>
+        <button class="icon-btn" data-back data-to="entry">${ICN.back}</button>
         <h1>选一个娃</h1>
         <div style="width:36px"></div>
       </div>
@@ -1039,7 +1042,7 @@
     if (!c) { location.hash='kid-select'; return ''; }
     return `
       <div class="topbar">
-        <button class="icon-btn" data-back>${ICN.back}</button>
+        <button class="icon-btn" data-back data-to="kid-select">${ICN.back}</button>
         <h1>${c.avatar} ${esc(c.name)} 的密码</h1>
         <div style="width:36px"></div>
       </div>
@@ -1139,7 +1142,7 @@
     const funUnlocked = kidTasksDone(c);
     return `
       <div class="topbar">
-        <button class="icon-btn" data-back>${ICN.back}</button>
+        <button class="icon-btn" data-back data-to="kid-tasks">${ICN.back}</button>
         <h1>📚 资源库</h1>
         <button class="icon-btn" onclick="location.hash='kid-tasks'" title="回首页">${ICN.home}</button>
       </div>
@@ -1198,7 +1201,7 @@
     const TYPE_TABS = [['all', '全部'], ['video', '🎬 视频'], ['audio', '🎵 音频'], ['pdf', '📄 文件']];
     return `
       <div class="topbar">
-        <button class="icon-btn" data-back>${ICN.back}</button>
+        <button class="icon-btn" data-back data-to="${isMom ? 'mom-resources' : 'kid-resources'}">${ICN.back}</button>
         <h1>${s.emoji} ${s.name}</h1>
         <div class="actions">
           ${isMom ? `<button class="icon-btn" onclick="openResourceModal('${p.key}')" title="添加资源">${ICN.add}</button>` : `<div style="width:36px"></div>`}
