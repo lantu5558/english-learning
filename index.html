@@ -161,6 +161,33 @@
     .dic-wrong-item { display:flex; justify-content:space-between; align-items:center; padding:9px 12px; border-radius:10px; background:var(--bg-card); border:1px solid var(--border); margin-bottom:6px; font-size:14px; }
     .dic-wrong-item .right { color:var(--green-600); font-weight:600; }
     .dic-wrong-item .mine { color:var(--red-600); text-decoration:line-through; }
+    /* ---- 任务类型 ---- */
+    .kind-row { display:flex; gap:6px; }
+    .kind-pill { flex:1; padding:9px 4px; border-radius:10px; background:var(--gray-100); color:var(--gray-600); font-size:13px; font-weight:600; text-align:center; cursor:pointer; border:1.5px solid transparent; }
+    .kind-pill span { display:block; font-size:11px; font-weight:400; margin-top:3px; opacity:.85; }
+    .kind-pill.on { background:var(--pink-50); color:var(--pink-600); border-color:var(--pink-200); }
+    .kind-tag { display:inline-block; font-size:10px; padding:1px 6px; border-radius:6px; margin-right:5px; font-weight:600; vertical-align:middle; }
+    .kt-read { background:var(--cyan-50); color:var(--cyan-600); }
+    .kt-video { background:var(--indigo-50); color:var(--indigo-600); }
+    .btn-sm { width:auto; padding:7px 14px; font-size:13px; margin-top:8px; }
+    /* ---- 看视频任务播放器（严格模式）---- */
+    .sv-stage { position:relative; width:100%; border-radius:12px; overflow:hidden; background:#000; }
+    .sv-stage video { display:block; width:100%; max-height:52vh; background:#000; }
+    .sv-cover { position:absolute; left:0; top:0; right:0; bottom:0; background:rgba(0,0,0,.35); color:#fff; border:none; font-size:40px; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+    .sv-cover span { font-size:13px; margin-top:6px; }
+    .sv-bar { height:8px; border-radius:4px; background:var(--gray-200); overflow:hidden; margin-top:10px; }
+    .sv-bar-in { height:100%; width:0; background:linear-gradient(90deg,var(--indigo-400),var(--indigo-600)); border-radius:4px; }
+    .sv-time { display:flex; justify-content:space-between; font-size:12px; color:var(--gray-600); margin-top:5px; }
+    .sv-ctrl { display:flex; gap:6px; margin-top:10px; }
+    .sv-ctrl button { flex:1; padding:9px 2px; border-radius:9px; border:1px solid var(--border); background:var(--bg-card); font-size:13px; cursor:pointer; }
+    .sv-tip { text-align:center; font-size:12px; color:var(--gray-600); margin-top:10px; }
+    /* ---- 作业栏 ---- */
+    .hw-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:11px 12px; margin-bottom:8px; }
+    .hw-head { display:flex; align-items:center; gap:6px; margin-bottom:5px; }
+    .hw-who { font-size:12px; font-weight:600; color:var(--gray-600); }
+    .hw-text { font-size:14px; line-height:1.65; white-space:normal; word-break:break-word; }
+    .hw-imgs { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+    .hw-img { width:72px; height:72px; object-fit:cover; border-radius:8px; border:1px solid var(--border); cursor:pointer; }
 
     /* ===== 星星乐园 ===== */
     .fun-hero { background: linear-gradient(135deg, #7C4DFF, #448AFF); color:#fff; border-radius: var(--radius-lg); padding:18px 16px; margin-bottom:12px; text-align:center; }
@@ -483,6 +510,7 @@
       { id: 'wt1', childId: 'c1', date: '2026-08-27', setId: 'ws1', count: 5, points: 5, done: false, wordState: {} },
     ],
     dictations: [],
+    homeworks: [],
     // 上网白名单：孩子点开外部链接时，仅白名单域名可直接访问，其余需妈妈密码解锁
     safeDomains: ['bilibili.com', 'weiyun.com', 'basic.smartedu.cn', 'open.163.com', 'docs.qq.com'],
   };
@@ -515,6 +543,7 @@
   if (!DATA.wordSets) DATA.wordSets = JSON.parse(JSON.stringify(DEFAULT_DATA.wordSets));
   if (!DATA.wordTasks) DATA.wordTasks = [];
   if (!DATA.dictations) DATA.dictations = [];   // 老版本本地数据没有听写模块，补上空数组
+  if (!DATA.homeworks) DATA.homeworks = [];    // 老版本本地数据没有作业栏
   (DATA.resources || []).forEach(r => { if (!r.category) r.category = 'learn'; });
 
   // ========== 云端同步（textdb.dev 家庭通道，轮询 5 秒） ==========
@@ -571,7 +600,7 @@
   // ---- 合并式同步 ----
   // 坑（重要）：原来是「谁后写谁赢」的整包覆盖 —— 妈妈刚加的词库，只要孩子端在
   // 这 2.8 秒里打了一次卡，整包就被冲掉。改成按 id 取并集，两边的新增都能活下来。
-  const MERGE_KEYS = ['resources', 'wordSets', 'wordTasks', 'dictations', 'tasks', 'rewards', 'pointsHistory', 'children'];
+  const MERGE_KEYS = ['resources', 'wordSets', 'wordTasks', 'dictations', 'homeworks', 'tasks', 'rewards', 'pointsHistory', 'children'];
   function mergeData(base, incoming, localWins) {
     let out;
     try { out = JSON.parse(JSON.stringify(base || {})); } catch (e) { out = {}; }
@@ -626,6 +655,12 @@
       if (!SUBJECTS[r.subject]) r.subject = 'suyang';
     });
     (d.tasks || []).forEach(t => {
+      // 老任务没 kind 字段：按打卡方式推断；挂了视频的算看视频任务
+      if (!t.kind) {
+        const r = (t.resId && d.resources) ? d.resources.find(x => x.id === t.resId) : null;
+        const rv = r || (t.resUrl ? { type: /\.(mp4|webm|m4v|mov|m3u8)$/i.test(t.resUrl) ? 'video' : '' } : null);
+        t.kind = (t.proof === 'audio') ? 'read' : (rv && rv.type === 'video' && !t.proof ? 'video' : 'normal');
+      }
       if (!('proof' in t)) t.proof = '';
       if (!('remindAt' in t)) t.remindAt = '';
       if (!('doneAt' in t)) t.doneAt = null;
@@ -1054,6 +1089,8 @@
           }).join('') : '<div class="empty"><div class="emoji">📝</div>还没布置任务</div>'}
         </div>
 
+        ${hwSection(true)}
+
         <div class="section">
           <h3>积分记录 <span class="badge">今日</span></h3>
           ${DATA.pointsHistory.filter(h => h.date === TODAY).map(h => {
@@ -1328,14 +1365,33 @@
           <h3>今日任务</h3>
           ${todays.length ? todays.map(t => {
             const res = taskRes(t);
+            const kind = t.kind || 'normal';
+            const ktag = kind === 'video' ? '<span class="kind-tag kt-video">📺 看视频</span>'
+                       : kind === 'read' ? '<span class="kind-tag kt-read">🎤 朗读</span>' : '';
+            let extra = '';
+            if (kind === 'video') {
+              const strict = !!(res && isDirectVideo(res.url));
+              const pg = t.videoProgress || 0;
+              extra = t.done ? ''
+                : `<div class="meta" style="color:${strict?'var(--green-600)':'var(--orange-600)'}">${strict ? '🔒 防快进 · 最高 1.5 倍速' : '⚠️ 看完要自己点「我看完了」'}${pg>0&&pg<100?` · 上次看到 ${Math.round(pg)}%`:''}</div>
+                   <button class="btn-primary btn-sm" onclick="event.stopPropagation();openTaskVideo('${t.id}')">▶ ${pg>0&&pg<100?'继续观看':'观看视频'}</button>`;
+            } else if (res) {
+              const label = kind === 'read' ? '📄 看材料' : '📎 看资料';
+              extra = `<div class="meta" style="color:var(--pink-600)" onclick="event.stopPropagation();openTaskRes(event,'${t.id}')">${label}：${esc(res.title)}</div>`;
+            }
+            if (t.done && kind === 'video') {
+              extra = `<div class="meta" style="color:var(--green-600)">✅ 已看完，自动打卡</div>`;
+            }
             return `
             <div class="task ${t.done?'done':''}" onclick="toggleTask('${t.id}')">
               <div class="checkbox">${t.done?ICN.check:''}</div>
-              <div class="title"><div class="name">${esc(t.title)}</div>${t.remindAt&&!t.done?`<div class="meta" style="color:var(--amber-600)">⏰ ${t.remindAt} 提醒打卡</div>`:''}${t.done&&t.doneAt?`<div class="meta" style="color:var(--gray-600)">✅ ${fmtClock(t.doneAt)} 完成</div>`:''}${t.proof?`<div class="meta" style="color:var(--amber-600)">${t.proof==='photo'?'📷 需拍照打卡':'🎙 需朗读录音打卡'}${t.proofData?' · 已提交✓':''}</div>`:''}${res?`<div class="meta" style="color:var(--pink-600)" onclick="openTaskRes(event,'${t.id}')">📎 看资料：${esc(res.title)}</div>`:''}</div>
+              <div class="title"><div class="name">${ktag}${esc(t.title)}</div>${t.remindAt&&!t.done?`<div class="meta" style="color:var(--amber-600)">⏰ ${t.remindAt} 提醒打卡</div>`:''}${t.done&&t.doneAt?`<div class="meta" style="color:var(--gray-600)">✅ ${fmtClock(t.doneAt)} 完成</div>`:''}${t.proof&&!t.done?`<div class="meta" style="color:var(--amber-600)">${t.proof==='photo'?'📷 需拍照打卡':'🎙 需朗读录音打卡'}${t.proofData?' · 已提交✓':''}</div>`:''}${extra}</div>
               <div class="pts">+${t.points}</div>
             </div>
           `}).join('') : '<div class="empty"><div class="emoji">🎉</div>今天没有任务，等妈妈布置</div>'}
         </div>
+
+        ${hwSection(false)}
       </div>
       ${kidTabBar('tasks')}
     `;
@@ -1505,6 +1561,8 @@
     if (!t) return;
     const kid = kidCheck();
     const isKid = kid && t.childId === kid.id;
+    // 看视频任务：孩子点卡片 = 打开播放器，不能直接勾完（看完才自动打卡）
+    if (isKid && !t.done && (t.kind || 'normal') === 'video') { openTaskVideo(id); return; }
     if (t.proof) {
       if (isKid) {
         if (t.done) { if (t.proofData) openProofView(t); return; } // 已打卡只能回看凭证，不能取消
@@ -2099,6 +2157,162 @@
     if (window.__wq_autospeak) { const t = window.__wq_autospeak; window.__wq_autospeak = null; setTimeout(() => speak(t), 350); }
     if (typeof window.__dicAuto === 'function') { const f = window.__dicAuto; window.__dicAuto = null; f(); }
   };
+
+  // ========== 作业栏（妈妈记录用，孩子能看到，但不打卡计分）==========
+  // scope: 'today' 今日校内作业 / 'week' 本周校外作业
+  const HW_SCOPE = { today: { label: '今日作业', icon: '📝', hint: '当天校内作业' },
+                     week:  { label: '本周作业', icon: '🗓', hint: '当周校外机构作业' } };
+  function hwList(scope, childId) {
+    return (DATA.homeworks || []).filter(h =>
+      (!scope || h.scope === scope) &&
+      (!childId || h.childId === childId) &&
+      (h.scope === 'week' || !h.date || h.date === TODAY)   // 今日作业只显示当天的
+    ).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  }
+  // 作业卡片：妈妈端带删除，孩子端只读
+  function hwCard(h, isMom) {
+    const k = DATA.children.find(c => c.id === h.childId);
+    const imgs = h.imgs || [];
+    return `<div class="hw-card">
+      <div class="hw-head">
+        <span class="hw-who">${k ? k.avatar + ' ' + esc(k.name) : ''}</span>
+        ${h.subject && SUBJECTS[h.subject] ? `<span class="badge-subj" style="background:var(--gray-100);color:var(--gray-600)">${SUBJECTS[h.subject].emoji} ${SUBJECTS[h.subject].name}</span>` : ''}
+        ${isMom ? `<button class="icon-btn" style="margin-left:auto;background:#FFEBEE;color:#C62828;width:28px;height:28px;font-size:12px" onclick="delHomework('${h.id}')">${ICN.trash}</button>` : ''}
+      </div>
+      ${h.text ? `<div class="hw-text">${esc(h.text).replace(/\n/g, '<br/>')}</div>` : ''}
+      ${imgs.length ? `<div class="hw-imgs">${imgs.map((src, i) =>
+        `<img class="hw-img" src="${src}" alt="作业图${i + 1}" onclick="viewHwImg('${h.id}', ${i})" />`).join('')}</div>` : ''}
+    </div>`;
+  }
+  function hwSection(isMom) {
+    const parts = [];
+    ['today', 'week'].forEach(scope => {
+      let list;
+      if (isMom) list = hwList(scope, null);
+      else { const c = kidCheck(); list = c ? hwList(scope, c.id) : []; }
+      if (!list.length) return;
+      const cfg = HW_SCOPE[scope];
+      parts.push(`<div class="section">
+        <h3>${cfg.icon} ${cfg.label} <span class="badge">${list.length}</span></h3>
+        ${list.map(h => hwCard(h, isMom)).join('')}
+      </div>`);
+    });
+    if (!parts.length) {
+      return `<div class="section">
+        <h3>📝 作业 ${isMom ? '<button class="text-pink" style="font-size:12px" onclick="openHomeworkModal()">' + ICN.add + ' 添加</button>' : ''}</h3>
+        <div class="empty" style="padding:16px">还没有作业记录</div>
+      </div>`;
+    }
+    const addBtn = isMom ? `<div class="section">
+      <button class="btn-secondary" style="width:100%" onclick="openHomeworkModal()">${ICN.add} 添加作业</button>
+      <p class="text-mute" style="text-align:center;font-size:12px;margin-top:8px">作业只做记录、不打卡计分</p>
+    </div>` : `<p class="text-mute" style="text-align:center;font-size:12px;margin:10px 0">作业不用打卡，做完就行</p>`;
+    return parts.join('') + addBtn;
+  }
+  let HW_STASH = null;   // 正在编辑的作业图片
+  function openHomeworkModal() {
+    HW_STASH = [];
+    const modal = document.createElement('div');
+    modal.className = 'modal-mask';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+      <div class="modal">
+        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+        <h3>添加作业</h3>
+        <div class="field"><label>给谁</label>
+          <select id="hw-child">${DATA.children.map(c => `<option value="${c.id}">${c.avatar} ${esc(c.name)}</option>`).join('')}</select></div>
+        <div class="field"><label>哪一类</label>
+          <select id="hw-scope">
+            <option value="today">📝 今日作业（校内，每天更新）</option>
+            <option value="week">🗓 本周作业（校外机构，挂着不用天天发）</option>
+          </select></div>
+        <div class="field"><label>科目（可选）</label>
+          <select id="hw-subject"><option value="">不分类</option>${Object.entries(SUBJECTS).map(([k, v]) => `<option value="${k}">${v.emoji} ${v.name}</option>`).join('')}</select></div>
+        <div class="field"><label>作业内容</label>
+          <textarea id="hw-text" rows="4" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);font-size:14px" placeholder="例：&#10;数学：练习册 P12-13&#10;语文：抄写第3课生字 3 遍&#10;英语：跟读 Unit2 课文"></textarea></div>
+        <div class="field"><label>作业照片（可选，最多 3 张）</label>
+          <input type="file" accept="image/*" multiple onchange="hwPickImgs(this)" />
+          <div id="hw-imgprev" class="hw-imgs" style="margin-top:8px"></div>
+          <p class="wq-hint" style="text-align:left;margin-top:6px">会自动压缩后再存，避免拖慢同步</p></div>
+        <div class="btn-row">
+          <button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">取消</button>
+          <button class="btn-primary" onclick="addHomework()">保存</button>
+        </div>
+      </div>`;
+    document.getElementById('modal-root').appendChild(modal);
+  }
+  // 压缩到宽 720、JPEG 0.6，单张通常 40~90KB，避免撑爆同步数据
+  function compressImg(file, maxW, quality, cb) {
+    const fr = new FileReader();
+    fr.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxW / (img.width || maxW));
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(img.width * scale));
+        c.height = Math.max(1, Math.round(img.height * scale));
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        cb(c.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => cb(null);
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  }
+  function hwPickImgs(input) {
+    const files = Array.from(input.files || []).slice(0, 3);
+    if (!files.length) return;
+    HW_STASH = HW_STASH || [];
+    let left = files.length;
+    files.forEach(f => compressImg(f, 720, 0.6, d => {
+      if (d && HW_STASH.length < 3) HW_STASH.push(d);
+      if (--left === 0) hwRenderPrev();
+    }));
+  }
+  function hwRenderPrev() {
+    const box = document.getElementById('hw-imgprev');
+    if (!box) return;
+    box.innerHTML = (HW_STASH || []).map((src, i) =>
+      `<div style="position:relative"><img class="hw-img" src="${src}" />
+       <button type="button" onclick="hwDelImg(${i})" style="position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;background:#C62828;color:#fff;border:none;font-size:12px">✕</button></div>`).join('');
+  }
+  function hwDelImg(i) {
+    if (!HW_STASH) return;
+    HW_STASH.splice(i, 1);
+    hwRenderPrev();
+  }
+  function addHomework() {
+    const childId = document.getElementById('hw-child').value;
+    const scope = document.getElementById('hw-scope').value;
+    const subject = document.getElementById('hw-subject').value || '';
+    const text = (document.getElementById('hw-text').value || '').trim();
+    if (!text && !(HW_STASH || []).length) { toast('写点内容或加张图'); return; }
+    if (!Array.isArray(DATA.homeworks)) DATA.homeworks = [];
+    DATA.homeworks.push({
+      id: 'hw' + Date.now(), childId, scope, subject, text,
+      imgs: (HW_STASH || []).slice(0, 3),
+      date: TODAY, createdAt: Date.now(),
+    });
+    saveData(DATA); HW_STASH = null;
+    const m = document.querySelector('.modal-mask'); if (m) m.remove();
+    render(); toast('作业已记下，孩子端能看到');
+  }
+  function delHomework(id) {
+    if (!confirm('删除这条作业？')) return;
+    DATA.homeworks = (DATA.homeworks || []).filter(h => h.id !== id);
+    saveData(DATA); render();
+  }
+  function viewHwImg(hwId, i) {
+    const h = (DATA.homeworks || []).find(x => x.id === hwId);
+    if (!h || !(h.imgs || [])[i]) return;
+    const mask = document.createElement('div');
+    mask.className = 'modal-mask';
+    mask.onclick = () => mask.remove();
+    mask.innerHTML = `<div class="modal" style="background:transparent;box-shadow:none">
+      <img src="${h.imgs[i]}" style="width:100%;border-radius:12px" />
+      <button class="btn-secondary" style="width:100%;margin-top:12px" onclick="this.closest('.modal-mask').remove()">关闭</button></div>`;
+    document.getElementById('modal-root').appendChild(mask);
+  }
 
   // ========== 听写（英语单词 / 语文词语）==========
   // 词库带 lang：'en' 读英文（英语听写）、'zh' 读中文（语文听写）。老词库默认 en。
@@ -2808,7 +3022,11 @@
   }
 
   // ========== 模态：添加任务 ==========
+  let TASK_KIND = 'normal';   // normal 普通 / read 朗读 / video 看视频
   function openTaskModal() {
+    TASK_KIND = 'normal';
+    const pdfRes = DATA.resources.filter(r => r.type === 'pdf' || r.type === 'link');
+    const vidRes = DATA.resources.filter(r => r.type === 'video');
     const modal = document.createElement('div');
     modal.className = 'modal-mask';
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
@@ -2816,6 +3034,14 @@
       <div class="modal">
         <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
         <h3>布置新任务</h3>
+        <div class="field">
+          <label>任务类型</label>
+          <div class="kind-row">
+            <div class="kind-pill on" id="kp-normal" onclick="setTaskKind('normal')">✅ 普通任务<span>勾选 / 拍照打卡</span></div>
+            <div class="kind-pill" id="kp-read" onclick="setTaskKind('read')">🎤 朗读任务<span>录音 + 可挂材料</span></div>
+            <div class="kind-pill" id="kp-video" onclick="setTaskKind('video')">📺 看视频<span>看完自动打卡</span></div>
+          </div>
+        </div>
         <div class="field">
           <label>给谁</label>
           <select id="t-child">${DATA.children.map(c => `<option value="${c.id}">${c.avatar} ${esc(c.name)}</option>`).join('')}</select>
@@ -2831,7 +3057,34 @@
             ${Object.entries(SUBJECTS).map(([k, v]) => `<option value="${k}">${v.emoji} ${v.name}</option>`).join('')}
           </select>
         </div>
-        <div class="field">
+
+        <!-- 朗读任务：可挂 PDF 材料 -->
+        <div class="field" id="f-read" style="display:none">
+          <label>配套材料（可选）</label>
+          <select id="t-pdf" onchange="onTaskPdfChange()">
+            <option value="">没有材料，孩子用自己课本</option>
+            ${pdfRes.map(r => `<option value="${r.id}">📄 ${esc(r.title)}</option>`).join('')}
+          </select>
+          <input id="t-pdf-url" placeholder="或粘贴 PDF / 网页链接" style="margin-top:8px" />
+          <p class="wq-hint" style="text-align:left;margin-top:6px">孩子打卡时会先看到这份材料，边看边朗读。没有就留空，孩子用自己的课本</p>
+        </div>
+
+        <!-- 看视频任务 -->
+        <div class="field" id="f-video" style="display:none">
+          <label>选一个视频</label>
+          <select id="t-vid" onchange="onTaskVidChange()">
+            <option value="">— 请选择 —</option>
+            ${vidRes.map(r => `<option value="${r.id}">📺 ${esc(r.title)}${r.episodes&&r.episodes.length>=2?`（${r.episodes.length}集）`:''}</option>`).join('')}
+          </select>
+          <div id="t-vid-ep-area" style="display:none;margin-top:8px">
+            <select id="t-vid-ep"><option value="-1">整部（孩子自己选集）</option></select>
+          </div>
+          <input id="t-vid-url" placeholder="或直接粘贴视频链接" style="margin-top:8px" oninput="onTaskVidChange()" />
+          <div id="t-vid-mode" class="wq-hint" style="text-align:left;margin-top:6px"></div>
+        </div>
+
+        <!-- 普通任务：打卡方式 + 可选资料 -->
+        <div class="field" id="f-proof">
           <label>打卡方式</label>
           <select id="t-proof">
             <option value="">直接勾选完成（不强制凭证）</option>
@@ -2840,7 +3093,7 @@
           </select>
           <p class="wq-hint" style="text-align:left;margin-top:6px">选科目会自动推荐：数学/物化 → 拍照，语文/英语 → 朗读</p>
         </div>
-        <div class="field">
+        <div class="field" id="f-res">
           <label>配套学习资料（可选）</label>
           <select id="t-res" onchange="onTaskResChange()">
             <option value="">不挂资料，孩子自己找</option>
@@ -2886,11 +3139,59 @@
     `;
     document.getElementById('modal-root').appendChild(modal);
   }
+  const TASK_KIND_TIP = {
+    normal: '勾选 / 拍照打卡，可挂一份资料',
+    read:   '录音打卡，孩子边看材料边朗读',
+    video:  '看完视频自动打卡，防快进',
+  };
+  function setTaskKind(k) {
+    TASK_KIND = k;
+    ['normal', 'read', 'video'].forEach(x => {
+      const el = document.getElementById('kp-' + x);
+      if (el) el.classList.toggle('on', x === k);
+    });
+    const show = (id, on) => { const e = document.getElementById(id); if (e) e.style.display = on ? 'block' : 'none'; };
+    show('f-read', k === 'read');
+    show('f-video', k === 'video');
+    show('f-proof', k === 'normal');
+    show('f-res', k === 'normal');
+    const t = document.getElementById('t-title');
+    const ph = { normal: '例：口算 20 题', read: '例：英语跟读 10 分钟', video: '例：看《书本里的旅行》第3集' };
+    if (t && !t.value) t.placeholder = ph[k] || '';
+    if (k === 'video') onTaskVidChange();
+    toast(TASK_KIND_TIP[k] || '');
+  }
   function proofSuggest() {
     const s = document.getElementById('t-subject').value;
     const map = { math: 'photo', wuhua: 'photo', chinese: 'audio', english: 'audio' };
     document.getElementById('t-proof').value = map[s] || '';
   }
+  // 视频任务：提示这条视频走严格模式还是宽松模式
+  function onTaskVidChange() {
+    const box = document.getElementById('t-vid-mode');
+    if (!box) return;
+    const id = (document.getElementById('t-vid') || {}).value || '';
+    const url = (document.getElementById('t-vid-url') || {}).value || '';
+    const epArea = document.getElementById('t-vid-ep-area');
+    let r = id ? DATA.resources.find(x => x.id === id) : null;
+    let u = r ? r.url : url;
+    if (r && r.episodes && r.episodes.length >= 2) {
+      const sel = document.getElementById('t-vid-ep');
+      if (sel) sel.innerHTML = '<option value="-1">整部（孩子自己选集）</option>' +
+        r.episodes.map((ep, i) => `<option value="${i}">第${i + 1}集 · ${esc(ep.title)}</option>`).join('');
+      if (epArea) epArea.style.display = 'block';
+    } else if (epArea) epArea.style.display = 'none';
+    if (!u) { box.textContent = ''; return; }
+    if (isDirectVideo(u)) {
+      box.innerHTML = '🔒 <b>严格模式</b>：不能拖进度条、最高 1.5 倍速、看到最后才算完成';
+      box.style.color = 'var(--green-600)';
+    } else {
+      box.innerHTML = '⚠️ <b>宽松模式</b>：这个视频在别的网站（如 B站），我们管不了它的播放器，孩子需自己点「我看完了」。把视频传到阿里云就能变严格模式';
+      box.style.color = 'var(--orange-600)';
+    }
+  }
+  function onTaskPdfChange() {}
+
   // 选了资源后，若该资源是合集，显示"选哪一集"下拉；若是 B站单链接，显示"第几集"输入
   function onTaskResChange() {
     const resId = document.getElementById('t-res').value;
@@ -2910,25 +3211,48 @@
     }
   }
   function addTask() {
+    const kind = TASK_KIND || 'normal';
     const childId = document.getElementById('t-child').value;
     const title = document.getElementById('t-title').value.trim();
     const points = parseInt(document.getElementById('t-points').value) || 3;
     const subject = document.getElementById('t-subject').value || '';
-    const proof = document.getElementById('t-proof').value || '';
-    const resId = document.getElementById('t-res').value || '';
-    const resUrl = document.getElementById('t-res-url').value.trim();
     const remindAt = document.getElementById('t-remind').value || '';
-    const epIndex = (document.getElementById('t-ep') && document.getElementById('t-ep').value !== '-1') ? parseInt(document.getElementById('t-ep').value) : -1;
-    const epNum = parseInt((document.getElementById('t-epnum') || {}).value) || 0;
     const repeat = parseInt((document.getElementById('t-repeat') || {}).value) || 1;
     if (!title) { toast('写个标题'); return; }
-    if (resId && resUrl) { toast('资料二选一：选了资源库就不用再贴链接'); return; }
+
+    let proof = '', resId = '', resUrl = '', epIndex = -1, epNum = 0;
+    if (kind === 'read') {
+      proof = 'audio';   // 朗读任务固定走录音打卡
+      resId = (document.getElementById('t-pdf') || {}).value || '';
+      resUrl = ((document.getElementById('t-pdf-url') || {}).value || '').trim();
+      if (resId && resUrl) { toast('材料二选一：选了资源库就不用再贴链接'); return; }
+    } else if (kind === 'video') {
+      proof = '';        // 看视频任务不设凭证，看完自动打卡
+      resId = (document.getElementById('t-vid') || {}).value || '';
+      resUrl = ((document.getElementById('t-vid-url') || {}).value || '').trim();
+      const epSel = document.getElementById('t-vid-ep');
+      epIndex = (epSel && epSel.value !== '-1') ? parseInt(epSel.value) : -1;
+      if (!resId && !resUrl) { toast('给看视频任务挑一个视频'); return; }
+    } else {
+      proof = document.getElementById('t-proof').value || '';
+      resId = document.getElementById('t-res').value || '';
+      resUrl = document.getElementById('t-res-url').value.trim();
+      epIndex = (document.getElementById('t-ep') && document.getElementById('t-ep').value !== '-1') ? parseInt(document.getElementById('t-ep').value) : -1;
+      epNum = parseInt((document.getElementById('t-epnum') || {}).value) || 0;
+      if (resId && resUrl) { toast('资料二选一：选了资源库就不用再贴链接'); return; }
+    }
+
     const groupId = 'g' + Date.now();
     for (let i = 0; i < repeat; i++) {
-      DATA.tasks.push({ id: 't' + Date.now() + '-' + i, groupId, childId, date: addDays(TODAY, i), title, points, done: false, resId, resUrl, subject, proof, proofData: null, remindAt, doneAt: null, epIndex, epNum });
+      DATA.tasks.push({ id: 't' + Date.now() + '-' + i, groupId, childId, date: addDays(TODAY, i), title, points,
+        done: false, kind, resId, resUrl, subject, proof, proofData: null, remindAt, doneAt: null, epIndex, epNum,
+        videoProgress: 0 });
     }
     saveData(DATA); document.querySelector('.modal-mask').remove(); render();
-    toast(repeat > 1 ? ('已布置未来 ' + repeat + ' 天的任务') : '已布置');
+    const tip = kind === 'read' ? '朗读任务已布置，孩子边看材料边录音'
+      : kind === 'video' ? '看视频任务已布置，看完自动打卡'
+      : '已布置';
+    toast(repeat > 1 ? (tip + '，连续 ' + repeat + ' 天') : tip);
   }
   // 取任务挂的资料（资源库引用 或 自定义链接）
   function taskRes(t) {
@@ -2947,6 +3271,232 @@
     if (t.resUrl) return { title: '学习资料', url: t.resUrl, type: 'link' };
     return null;
   }
+  // ========== 看视频任务：播放器 ==========
+  // OSS 直链 → 严格模式（禁拖进度条 / 最高 1.5 倍速 / 看到最后才算完成）
+  // B站等外站 → 宽松模式（管不了别人的播放器，孩子自己点「我看完了」）
+  function taskVideoUrl(t) {
+    const res = taskRes(t);
+    if (!res || !res.url) return null;
+    if (res.episodes && res.episodes.length >= 2 && res.epIndex >= 0 && res.episodes[res.epIndex]) {
+      const ep = res.episodes[res.epIndex];
+      return { url: ep.url, title: res.title + ' · 第' + (res.epIndex + 1) + '集', res };
+    }
+    return { url: res.url, title: res.title, res };
+  }
+  function openTaskVideo(taskId) {
+    const t = DATA.tasks.find(x => x.id === taskId);
+    if (!t) return;
+    const v = taskVideoUrl(t);
+    if (!v) { toast('这个任务还没挂视频，让妈妈去编辑一下'); return; }
+    if (isDirectVideo(v.url)) { openStrictVideo(t, v.title, v.url); return; }
+    const b = parseBilibili(v.url);
+    if (b) { openLooseVideo(t, v.title, b); return; }
+    // 其他网页：外站一律宽松模式
+    openLooseVideo(t, v.title, null, v.url);
+  }
+
+  // ---- 严格模式（平台自己的播放器，完全可控）----
+  let SV = null;   // { task, video, maxSeen, finished, rate }
+  const SV_RATES = [1, 1.25, 1.5];   // 最高 1.5 倍速
+  function openStrictVideo(task, title, url) {
+    closeSv();
+    const mask = document.createElement('div');
+    mask.className = 'modal-mask';
+    mask.id = 'sv-mask';
+    mask.innerHTML = `
+      <div class="modal">
+        <h3 style="padding-right:34px">${esc(title)}</h3>
+        <div class="sv-stage" id="sv-stage">
+          <video id="sv-video" playsinline preload="auto" src="${escA(url)}" disablepictureinpicture controlslist="nodownload"></video>
+          <button class="sv-cover" id="sv-cover" onclick="svToggle()">▶<span>点击开始播放</span></button>
+        </div>
+        <div class="sv-bar"><div class="sv-bar-in" id="sv-bar-in"></div></div>
+        <div class="sv-time"><span id="sv-cur">00:00</span><span id="sv-pct">0%</span><span id="sv-dur">--:--</span></div>
+        <div class="sv-ctrl">
+          <button type="button" onclick="svSeek(-10)">⏪ 10秒</button>
+          <button type="button" id="sv-playbtn" onclick="svToggle()">⏸ 暂停</button>
+          <button type="button" id="sv-rate" onclick="svRate()">1.0×</button>
+          <button type="button" onclick="svFull()">⛶ 全屏</button>
+        </div>
+        <div class="sv-tip">🔒 不能拖进度条、最高 1.5 倍速，看到最后自动打卡 +${task.points} 分</div>
+      </div>`;
+    document.getElementById('modal-root').appendChild(mask);
+    SV = { task, video: document.getElementById('sv-video'), maxSeen: 0, finished: false, rate: 0 };
+    const v = SV.video;
+    if (!v) { closeSv(); return; }
+    v.playbackRate = SV_RATES[0];
+    v.addEventListener('loadedmetadata', svResume);
+    v.addEventListener('timeupdate', svTick);
+    v.addEventListener('ended', svFinish);
+    v.addEventListener('play', () => { svBtn('⏸ 暂停'); const c = document.getElementById('sv-cover'); if (c) c.style.display = 'none'; });
+    v.addEventListener('pause', () => svBtn('▶ 继续'));
+    v.addEventListener('contextmenu', e => e.preventDefault());
+    v.addEventListener('keydown', e => {   // 拦掉键盘快进（方向键 / J / L）
+      const k = (e.key || '').toLowerCase();
+      if (['arrowright', 'arrowleft', 'arrowup', 'arrowdown', 'j', 'l', ' ', 'k'].indexOf(k) >= 0) e.preventDefault();
+    });
+    const p = v.play();
+    if (p && p.catch) p.catch(() => {});
+  }
+  function svBtn(txt) { const b = document.getElementById('sv-playbtn'); if (b) b.textContent = txt; }
+  function fmtDur(sec) {
+    if (!isFinite(sec) || sec < 0) sec = 0;
+    const m = Math.floor(sec / 60), ss = Math.floor(sec % 60);
+    return (m < 10 ? '0' : '') + m + ':' + (ss < 10 ? '0' : '') + ss;
+  }
+  function svMeta() {
+    const v = SV && SV.video;
+    if (!v) return;
+    const d = document.getElementById('sv-dur');
+    if (d) d.textContent = fmtDur(v.duration);
+  }
+  // 续播：上次没看完退出了，这次从记住的地方接着看。
+  // 坑（重要）：光设置 currentTime 不够 —— 必须同时把 maxSeen 抬上去，
+  // 否则 svTick 会把这个跳跃当成「拖进度条」，一把拽回 0 秒，死循环。
+  function svResume() {
+    const v = SV && SV.video;
+    if (!v) return;
+    svMeta();
+    const p = SV.task ? (SV.task.videoProgress || 0) : 0;
+    if (!isFinite(v.duration) || v.duration <= 0) return;
+    if (p > 3 && p < 98) {
+      const at = v.duration * p / 100;
+      SV.maxSeen = at;            // 先抬 maxSeen，再跳，否则会被判定成快进
+      try { v.currentTime = at; } catch (e) {}
+      const bar = document.getElementById('sv-bar-in');
+      if (bar) bar.style.width = p + '%';
+      const pc = document.getElementById('sv-pct');
+      if (pc) pc.textContent = Math.round(p) + '%';
+      toast('接着上次的 ' + Math.round(p) + '% 往下看');
+    }
+  }
+  function svTick() {
+    const v = SV && SV.video;
+    if (!v || !v.duration || SV.finished) return;
+    // 检测到跳跃 → 有人在拖进度条，拽回最远看到的位置
+    if (v.currentTime > SV.maxSeen + 3) {
+      v.currentTime = SV.maxSeen;
+      toast('不能快进哦，认真看完 🎬');
+      return;
+    }
+    if (v.currentTime > SV.maxSeen) SV.maxSeen = v.currentTime;
+    if (v.playbackRate > 1.5) v.playbackRate = 1.5;   // 倍速封顶
+    const pct = Math.max(0, Math.min(100, v.currentTime / v.duration * 100));
+    const bar = document.getElementById('sv-bar-in');
+    if (bar) bar.style.width = pct + '%';
+    const cur = document.getElementById('sv-cur'); if (cur) cur.textContent = fmtDur(v.currentTime);
+    const pc = document.getElementById('sv-pct'); if (pc) pc.textContent = Math.round(pct) + '%';
+    SV.task.videoProgress = pct;
+    if (pct >= 98) svFinish();
+  }
+  function svToggle() {
+    const v = SV && SV.video;
+    if (!v) return;
+    if (v.paused) { const p = v.play(); if (p && p.catch) p.catch(() => {}); }
+    else v.pause();
+  }
+  function svSeek(delta) {
+    const v = SV && SV.video;
+    if (!v || !v.duration) return;
+    // 只允许后退（回看没听清的地方），前进一律拒绝
+    const target = Math.max(0, Math.min(SV.maxSeen, v.currentTime + delta));
+    if (target > v.currentTime + 0.1 && target > SV.maxSeen) { toast('不能快进哦'); return; }
+    v.currentTime = target;
+  }
+  function svRate() {
+    const v = SV && SV.video;
+    if (!v) return;
+    SV.rate = (SV.rate + 1) % SV_RATES.length;
+    v.playbackRate = SV_RATES[SV.rate];
+    const b = document.getElementById('sv-rate');
+    if (b) b.textContent = SV_RATES[SV.rate].toFixed(2).replace(/0$/, '') + '×';
+    if (SV_RATES[SV.rate] === 1.5) toast('最快就是 1.5 倍速啦');
+  }
+  function svFull() {
+    const v = SV && SV.video;
+    if (!v) return;
+    try {
+      if (v.requestFullscreen) v.requestFullscreen();
+      else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
+      else if (v.webkitRequestFullscreen) v.webkitRequestFullscreen();
+    } catch (e) {}
+  }
+  function svFinish() {
+    if (!SV || SV.finished) return;
+    SV.finished = true;
+    const t = SV.task;
+    t.videoProgress = 100;
+    if (!t.done) {
+      t.done = true; t.doneAt = Date.now();
+      t.proofData = { type: 'video', data: null, at: Date.now() };
+      const k = DATA.children.find(c => c.id === t.childId);
+      if (k) {
+        k.points += t.points;
+        DATA.pointsHistory.unshift({ id: 'h' + Date.now(), childId: k.id, date: t.date || TODAY, title: t.title, points: t.points, at: Date.now() });
+      }
+      saveData(DATA);
+      toast(`看完啦！+${t.points} 分 🎉`);
+    }
+    const tip = document.querySelector('#sv-mask .sv-tip');
+    if (tip) { tip.textContent = '✅ 已看完，自动打卡完成！'; tip.style.color = 'var(--green-600)'; }
+    setTimeout(closeSv, 1500);
+  }
+  function closeSv() {
+    if (SV && SV.video) {
+      try { SV.video.pause(); } catch (e) {}
+      const pct = SV.task.videoProgress || 0;
+      if (!SV.finished && pct > 3 && pct < 98) {
+        SV.task.videoProgress = pct;
+        try { saveLocalOnly(DATA); } catch (e) {}
+        toast('没看完不算打卡哦，下次接着看（已记到 ' + Math.round(pct) + '%）');
+      }
+    }
+    SV = null;
+    const m = document.getElementById('sv-mask');
+    if (m) m.remove();
+    try { render(); } catch (e) {}
+  }
+
+  // ---- 宽松模式（B站等外站，管不了播放器，孩子自己确认）----
+  function openLooseVideo(task, title, bili, rawUrl) {
+    let iframe = '';
+    if (bili) {
+      const u = biliUrls(bili);
+      iframe = `<div class="video-wrap"><iframe src="${escA(u.desktop)}" scrolling="no" frameborder="no" allowfullscreen="true" allow="autoplay; fullscreen; encrypted-media; picture-in-picture"></iframe></div>`;
+    } else {
+      iframe = `<div class="video-wrap"><iframe src="${escA(rawUrl)}" frameborder="no" allowfullscreen="true"></iframe></div>`;
+    }
+    const mask = document.createElement('div');
+    mask.className = 'modal-mask';
+    mask.id = 'lv-mask';
+    mask.innerHTML = `
+      <div class="modal">
+        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+        <h3 style="padding-right:34px">${esc(title)}</h3>
+        ${iframe}
+        <p class="wq-hint" style="margin-top:10px">这个视频在别的网站上，我们管不了它的播放器，所以没法自动判断有没有看完</p>
+        <button class="btn-primary" style="width:100%;margin-top:10px" onclick="lvDone('${task.id}')">✅ 我看完了，打卡 +${task.points} 分</button>
+      </div>`;
+    document.getElementById('modal-root').appendChild(mask);
+  }
+  function lvDone(taskId) {
+    const t = DATA.tasks.find(x => x.id === taskId);
+    if (!t || t.done) { const m = document.getElementById('lv-mask'); if (m) m.remove(); return; }
+    t.done = true; t.doneAt = Date.now();
+    t.videoProgress = 100;
+    t.proofData = { type: 'video', data: null, at: Date.now() };
+    const k = DATA.children.find(c => c.id === t.childId);
+    if (k) {
+      k.points += t.points;
+      DATA.pointsHistory.unshift({ id: 'h' + Date.now(), childId: k.id, date: t.date || TODAY, title: t.title, points: t.points, at: Date.now() });
+    }
+    saveData(DATA);
+    const m = document.getElementById('lv-mask');
+    if (m) m.remove();
+    toast(`打卡完成 +${t.points} 分 🎉`);
+    render();
+  }
+
   function openTaskRes(e, taskId) {
     e.stopPropagation();
     const t = DATA.tasks.find(x => x.id === taskId);
@@ -3849,6 +4399,10 @@
   }
 
   // ========== 启动 ==========
+  // 坑（重要）：normalizeData 以前只在「收到远端数据」时跑，本地老数据永远补不上 kind，
+  // 结果妈妈在网页上布置的看视频任务，孩子端 t.kind 是 undefined，退化成普通任务、
+  // 点了就直接勾完，根本不放视频。这里启动时对本地数据也补一遍。
+  try { DATA = normalizeData(DATA); } catch (e) {}
   window.addEventListener('hashchange', render);
   render();
 
