@@ -2836,6 +2836,11 @@
     if (b.kind === 'bvid') src = 'https://player.bilibili.com/player.html?bvid=' + b.id + p + '&autoplay=0&danmaku=0';
     else if (b.kind === 'aid') src = 'https://player.bilibili.com/player.html?aid=' + b.id + p + '&autoplay=0&danmaku=0';
     else src = 'https://player.bilibili.com/player.html?ep_id=' + b.id + '&autoplay=0&danmaku=0';
+    // 内嵌播放失败时的备用网页地址（平板/学习机常拦截 iframe）
+    let pageUrl = 'https://www.bilibili.com/';
+    if (b.kind === 'bvid') pageUrl = 'https://www.bilibili.com/video/' + b.id + (b.p ? ('?p=' + b.p) : '');
+    else if (b.kind === 'aid') pageUrl = 'https://www.bilibili.com/video/av' + b.id + (b.p ? ('?p=' + b.p) : '');
+    else pageUrl = 'https://www.bilibili.com/bangumi/play/ep' + b.id;
     const modal = document.createElement('div');
     modal.className = 'modal-mask video-mask';
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
@@ -2843,11 +2848,19 @@
       <div class="modal video-modal">
         <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
         <h3>${esc(title)}</h3>
-        <div class="video-wrap"><iframe src="${src}" scrolling="no" frameborder="no" allowfullscreen="true"></iframe></div>
+        <div class="video-wrap"><iframe src="${src}" scrolling="no" frameborder="no" allowfullscreen="true" allow="autoplay; fullscreen; encrypted-media; picture-in-picture"></iframe></div>
         <div class="video-meta">B站视频 · 由 bilibili 提供播放</div>
+        <div class="bili-fallback" style="display:none;margin-top:10px;padding:12px;background:#fff4e6;border:1px solid #ffd9a8;border-radius:10px;font-size:13px;line-height:1.7">
+          <div style="margin-bottom:8px;color:#8a5a00">⏳ 画面一直转圈？平板和学习机常常拦截 B站的内嵌播放，可任选一种方式：</div>
+          <a href="${escA(pageUrl)}" target="_blank" rel="noopener" style="display:inline-block;padding:9px 15px;background:#ff6b9d;color:#fff;border-radius:9px;text-decoration:none;font-weight:600">① 用浏览器打开</a>
+          <span style="display:inline-block;margin:6px 0;color:#8a5a00">② 或在设备设置里关闭「阻止跨站跟踪」后重试</span>
+        </div>
       </div>
     `;
     document.getElementById('modal-root').appendChild(modal);
+    // 8 秒还没进展就自动亮出备用方案
+    const fb = modal.querySelector('.bili-fallback');
+    setTimeout(function () { if (fb && document.body.contains(fb)) fb.style.display = 'block'; }, 8000);
   }
 
   // 内嵌直链视频播放（video 标签，不跳转）
