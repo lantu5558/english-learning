@@ -1,1100 +1,2331 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>📚 宝贝英语学习站</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  body {
-    font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-    background: #FFF8F0;
-    min-height: 100vh;
-    padding-bottom: 90px;
-    overflow-x: hidden;
-  }
+<html lang="zh-CN" data-page-node-id="LEgEVcHrSE3TVcHk0NZ5nh">
+<head data-page-node-id="Hxh8YfG9t1qVb1kEnFJjRF">
+  <meta charset="UTF-8" data-page-node-id="M5jkisBDE12QvIG3lIxnzF">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" data-page-node-id="Zc03W49pe63O8KKhOZDOBm">
+  <meta name="theme-color" content="#FF6B9D" data-page-node-id="D4ZB9Ou0JsQl1ESxd6AHel">
+  <meta name="apple-mobile-web-app-capable" content="yes" data-page-node-id="DKqz9MDn9fSdvSmG5EULDL">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" data-page-node-id="u0NDmHAb3lxgPEvacmzQmJ">
+  <meta name="apple-mobile-web-app-title" content="乐宝麦宝" data-page-node-id="sb5vLYiTIUkq1HZpDWGCd2">
+  <link rel="manifest" href="manifest.json" data-page-node-id="PyH3pkqJZns3ERarCpwwcm">
+  <link rel="apple-touch-icon" href="icon.svg" data-page-node-id="xvKHm3jN2c0LXltPe7vssy">
+  <title>乐宝麦宝学习平台</title>
+  <style>
+    /* ===== 设计令牌 ===== */
+    :root {
+      --pink-50:#FFF0F5; --pink-100:#FFE0EC; --pink-200:#FFC1D9; --pink-400:#FF6B9D; --pink-600:#D6336C; --pink-800:#A61E4D;
+      --orange-50:#FFF4E6; --orange-200:#FFD9A8; --orange-400:#FF9800; --orange-600:#E65100;
+      --cyan-50:#E0F7FA; --cyan-200:#80DEEA; --cyan-400:#00BCD4; --cyan-600:#00838F;
+      --purple-50:#F3E5F5; --purple-200:#CE93D8; --purple-400:#9C27B0; --purple-600:#6A1B9A;
+      --green-50:#E8F5E9; --green-400:#4CAF50; --green-600:#2E7D32;
+      --amber-50:#FFF8E1; --amber-400:#FFC107; --amber-600:#FF8F00;
+      --red-50:#FFEBEE; --red-400:#EF5350; --red-600:#C62828;
+      --indigo-50:#E8EAF6; --indigo-400:#5C6BC0; --indigo-600:#3949AB;
+      --teal-50:#E0F2F1; --teal-400:#26A69A; --teal-600:#00695C;
+      --gray-50:#FAFAFA; --gray-100:#F5F5F5; --gray-200:#EEEEEE; --gray-400:#BDBDBD; --gray-600:#757575; --gray-800:#424242; --gray-900:#212121;
+      --bg-page:#FAFAFA; --bg-card:#FFFFFF; --border:#E5E5E5; --border-soft:#F0F0F0;
+      --shadow-sm:0 1px 2px rgba(0,0,0,0.04);
+      --radius-sm:8px; --radius-md:12px; --radius-lg:16px; --radius-xl:24px;
+    }
 
-  /* ====== 背景装饰 ====== */
-  body::before {
-    content: '';
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    height: 360px;
-    background: linear-gradient(170deg, #FFD6E8 0%, #C3E8FF 55%, #FFF8F0 100%);
-    z-index: -1;
-    border-radius: 0 0 40px 40px;
-  }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin:0; padding:0; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif; color:var(--gray-900); background:var(--bg-page); font-size:14px; line-height:1.5; }
+    button { font-family: inherit; cursor:pointer; border:none; background:none; padding:0; color:inherit; }
+    input { font-family: inherit; font-size:14px; }
 
-  /* ====== 顶部标题 ====== */
-  .top { text-align: center; padding: 22px 16px 10px; }
-  .top h1 { font-size: 30px; color: #FF5E7E; letter-spacing: 1px; text-shadow: 1px 2px 0 #fff; }
-  .top > p { margin-top: 4px; color: #8a7a6a; font-size: 14px; }
+    /* ===== 应用容器（手机框） ===== */
+    .app { max-width: 480px; margin: 0 auto; min-height: 100vh; background: var(--bg-page); position: relative; padding-bottom: 76px; }
+    @media (min-width: 768px) {
+      body { background: #ECEFF1; padding: 24px 0; }
+      .app { border-radius: var(--radius-xl); box-shadow: 0 8px 32px rgba(0,0,0,0.08); overflow: hidden; }
+    }
 
-  /* ====== 打卡任务区 ====== */
-  .task-section { max-width: 500px; margin: 12px auto 0; padding: 0 14px; }
+    /* ===== 顶部导航 ===== */
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px; background: var(--bg-card);
+      border-bottom: 1px solid var(--border-soft);
+      position: sticky; top: 0; z-index: 50;
+    }
+    .topbar h1 { margin:0; font-size: 17px; font-weight: 600; }
+    .topbar .actions { display:flex; gap:8px; }
+    .icon-btn { width:36px; height:36px; border-radius: 10px; display:flex; align-items:center; justify-content:center; background: var(--gray-100); }
+    .icon-btn svg { width:18px; height:18px; }
 
-  /* 周进度条 */
-  .week-bar {
-    display: flex; align-items: center; gap: 6px;
-    background: #fff; border-radius: 16px; padding: 10px 14px;
-    box-shadow: 0 2px 10px rgba(0,0,0,.08); margin-bottom: 10px;
-  }
-  .week-label { font-size: 13px; color: #888; white-space: nowrap; font-weight: bold; }
-  .week-dots { display: flex; gap: 5px; flex: 1; justify-content: center; }
-  .w-dot {
-    width: 30px; height: 30px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 12px; font-weight: bold; transition: transform .2s;
-  }
-  .w-dot.done { background: linear-gradient(135deg,#4CAF50,#81C784); color: #fff; }
-  .w-dot.today { background: linear-gradient(135deg,#FF9A56,#FF5E7E); color: #fff; animation: pulse 2s infinite; }
-  .w-dot.miss { background: linear-gradient(135deg,#FF8A80,#FF5252); color: #fff; animation: pulseSlow 3s infinite; }
-  .w-dot.future { background: #f0f0f0; color: #ccc; }
-  @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.12)} }
-  @keyframes pulseSlow { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+    /* ===== 底部 Tab Bar ===== */
+    .tabbar {
+      position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+      max-width: 480px; width: 100%;
+      background: rgba(255,255,255,0.95); backdrop-filter: saturate(180%) blur(20px);
+      border-top: 1px solid var(--border-soft);
+      display: flex; padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
+      z-index: 50;
+    }
+    .tab { flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; padding: 6px 0; color: var(--gray-600); }
+    .tab.active { color: var(--pink-600); }
+    .tab svg { width:22px; height:22px; }
+    .tab span { font-size: 11px; }
 
-  /* 今日任务卡片 */
-  .task-card {
-    background: #fff; border-radius: 22px;
-    box-shadow: 0 6px 24px rgba(255,94,126,.18);
-    overflow: hidden; cursor: pointer; transition: transform .15s;
-  }
-  .task-card:active { transform: scale(.97); }
-  .task-card.is-done { box-shadow: 0 6px 24px rgba(76,175,80,.18); }
+    /* ===== 通用卡片 / 容器 ===== */
+    .page { padding: 12px 16px 16px; }
+    .section { background: var(--bg-card); border-radius: var(--radius-lg); padding: 14px; margin-bottom: 12px; border: 0.5px solid var(--border-soft); }
+    .section h3 { margin: 0 0 10px; font-size: 14px; font-weight: 600; display:flex; align-items:center; justify-content: space-between; }
+    .section h3 .badge { font-size: 11px; padding: 2px 8px; border-radius: 8px; background: var(--pink-50); color: var(--pink-600); font-weight: 500; }
 
-  .task-card-top {
-    display: flex; align-items: center; gap: 14px;
-    padding: 18px 18px 14px;
-  }
-  .task-card-icon { font-size: 44px; line-height: 1; flex-shrink: 0; }
-  .task-card-info { flex: 1; min-width: 0; }
-  .task-tag {
-    display: inline-block; background: linear-gradient(135deg,#FF9A56,#FF5E7E);
-    color: #fff; font-size: 11px; font-weight: bold; border-radius: 999px;
-    padding: 2px 10px; margin-bottom: 4px; letter-spacing: .5px;
-  }
-  .task-tag.done-tag { background: linear-gradient(135deg,#4CAF50,#81C784); }
-  .task-title { font-size: 17px; font-weight: bold; color: #333; margin-bottom: 2px; line-height: 1.3; }
-  .task-sub { font-size: 13px; color: #999; }
-  .task-arrow { font-size: 22px; color: #ccc; flex-shrink: 0; transition: transform .2s; }
-  .task-card:hover .task-arrow { transform: translateX(4px); }
+    /* ===== 入口页 ===== */
+    .entry-hero {
+      background: linear-gradient(135deg, var(--pink-400) 0%, #C2185B 100%);
+      color: #fff; padding: 48px 24px 64px; text-align: center;
+      border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+    }
+    .entry-hero .logo {
+      width: 72px; height: 72px; border-radius: 20px; margin: 0 auto 16px;
+      background: rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; font-size: 32px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+    .entry-hero h2 { margin: 0 0 4px; font-size: 24px; font-weight: 600; }
+    .entry-hero p { margin: 0; opacity: 0.9; font-size: 13px; }
 
-  .task-card-bottom {
-    padding: 10px 18px 14px;
-    border-top: 1.5px dashed #f0e8e0;
-  }
-  .task-hint { font-size: 13px; color: #bbb; display: flex; align-items: center; gap: 6px; }
-  .task-hint.done-hint { color: #4CAF50; }
+    .role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 16px; margin-top: -32px; }
+    .role-card {
+      background: var(--bg-card); border-radius: var(--radius-lg); padding: 20px 16px;
+      border: 0.5px solid var(--border-soft); text-align: center; cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .role-card:active { transform: scale(0.97); }
+    .role-card .icon { width: 56px; height: 56px; border-radius: 16px; margin: 0 auto 10px; display:flex; align-items:center; justify-content:center; }
+    .role-card.mom .icon { background: var(--purple-50); color: var(--purple-600); }
+    .role-card.kid .icon { background: var(--pink-50); color: var(--pink-600); }
+    .role-card h4 { margin: 0 0 2px; font-size: 15px; }
+    .role-card p { margin: 0; font-size: 12px; color: var(--gray-600); }
+    .role-card svg { width: 28px; height: 28px; }
 
-  /* ====== 补打卡区域 ====== */
-  .miss-section {
-    max-width: 500px; margin: 8px auto 0; padding: 0 14px;
-    display: flex; flex-direction: column; gap: 7px;
-  }
-  .miss-title {
-    font-size: 13px; color: #bbb; font-weight: bold; letter-spacing: 1px;
-    display: flex; align-items: center; gap: 6px;
-  }
-  .miss-title::before, .miss-title::after {
-    content: ''; flex: 1; height: 1px; background: #eee;
-  }
-  .miss-cards { display: flex; gap: 8px; }
-  .miss-card {
-    flex: 1; background: #fff; border-radius: 14px; padding: 10px 10px;
-    box-shadow: 0 2px 10px rgba(0,0,0,.08);
-    display: flex; align-items: center; gap: 8px;
-    cursor: pointer; transition: all .15s;
-    border: 2px solid transparent;
-  }
-  .miss-card:active { transform: scale(.96); }
-  .miss-card:hover { border-color: #FF9A56; }
-  .miss-card.done { opacity: .5; cursor: default; border-color: transparent; }
-  .miss-card-icon { font-size: 26px; flex-shrink: 0; }
-  .miss-card-info { flex: 1; min-width: 0; }
-  .miss-card-date { font-size: 11px; color: #999; }
-  .miss-card-name { font-size: 13px; font-weight: bold; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .miss-card-btn {
-    font-size: 11px; font-weight: bold; color: #fff; background: linear-gradient(135deg,#FF9A56,#FF5E7E);
-    border-radius: 999px; padding: 3px 8px; white-space: nowrap; flex-shrink: 0;
-  }
-  .miss-card-btn.done-btn { background: #4CAF50; cursor: default; }
-  .miss-empty { font-size: 13px; color: #ccc; text-align: center; padding: 6px 0; }
+    /* ===== 密码 / PIN 输入 ===== */
+    .pin-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-width: 280px; margin: 0 auto; }
+    .pin-key {
+      aspect-ratio: 1.6/1; border-radius: var(--radius-md);
+      background: var(--bg-card); border: 0.5px solid var(--border);
+      font-size: 22px; font-weight: 500;
+    }
+    .pin-key:active { background: var(--gray-100); }
+    .pin-display { display: flex; justify-content: center; gap: 12px; margin: 24px 0 32px; }
+    .pin-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--gray-200); }
+    .pin-dot.filled { background: var(--pink-400); }
+    .pin-title { text-align: center; margin: 32px 0 4px; font-size: 18px; font-weight: 600; }
+    .pin-sub { text-align: center; margin: 0 0 24px; color: var(--gray-600); font-size: 13px; }
+    .avatar-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 0 16px; margin-bottom: 24px; }
+    .avatar-cell {
+      aspect-ratio: 1/1; border-radius: var(--radius-md);
+      background: var(--gray-100); display:flex; align-items:center; justify-content:center;
+      font-size: 28px; cursor: pointer; border: 2px solid transparent;
+    }
+    .avatar-cell.active { border-color: var(--pink-400); background: var(--pink-50); }
 
-  /* 打卡成功弹层 */
-  .success-overlay {
-    display: none; position: fixed; inset: 0; z-index: 300;
-    background: rgba(0,0,0,.55); align-items: center; justify-content: center;
-    backdrop-filter: blur(4px);
-  }
-  .success-overlay.show { display: flex; }
-  .success-panel {
-    background: #fff; border-radius: 28px; width: 90%; max-width: 360px;
-    text-align: center; padding: 32px 24px 28px;
-    box-shadow: 0 20px 60px rgba(0,0,0,.25);
-    animation: popIn .5s cubic-bezier(.36,1.56,.64,1);
-  }
-  @keyframes popIn { from{transform:scale(.6);opacity:0} to{transform:scale(1);opacity:1} }
-  .success-emoji { font-size: 72px; margin-bottom: 8px; }
-  .success-title { font-size: 24px; font-weight: bold; color: #333; margin-bottom: 6px; }
-  .success-sub { font-size: 15px; color: #888; margin-bottom: 20px; }
-  .success-stars { font-size: 32px; margin-bottom: 20px; animation: starBounce .6s .3s both; }
-  @keyframes starBounce { from{transform:scale(0)} 60%{transform:scale(1.2)} to{transform:scale(1)} }
-  .success-btn {
-    border: none; border-radius: 999px; padding: 14px 36px; font-size: 17px; font-weight: bold;
-    background: linear-gradient(135deg,#FF9A56,#FF5E7E); color: #fff; cursor: pointer;
-    font-family: inherit; box-shadow: 0 4px 16px rgba(255,94,126,.4);
-    transition: transform .15s; display: inline-block;
-  }
-  .success-btn:active { transform: scale(.93); }
+    /* ===== 单词打卡 ===== */
+    .wq-bar { height: 8px; border-radius: 4px; background: var(--gray-100); overflow: hidden; }
+    .wq-bar-in { height: 100%; background: linear-gradient(90deg, var(--pink-400), var(--pink-600)); border-radius: 4px; transition: width .3s; }
+    .wq-done { background: var(--green-50); color: var(--green-600); border-radius: var(--radius-md); padding: 12px; text-align: center; font-weight: 500; }
+    .wq-word-card { background: linear-gradient(135deg, var(--pink-400), #C2185B); color: #fff; border-radius: var(--radius-lg); padding: 28px 16px; text-align: center; margin-bottom: 12px; }
+    .wq-word-card .w { font-size: 34px; font-weight: 700; letter-spacing: 1px; }
+    .wq-word-card .cn { font-size: 15px; opacity: .92; margin-top: 4px; }
+    .wq-sound-btn { width: 64px; height: 64px; border-radius: 50%; background: rgba(255,255,255,.25); color: #fff; display: flex; align-items: center; justify-content: center; margin: 14px auto 0; font-size: 28px; }
+    .wq-sound-btn:active { transform: scale(.92); }
+    .wq-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+    .wq-choice { background: var(--bg-card); border: 1.5px solid var(--border); border-radius: var(--radius-md); padding: 14px 8px; font-size: 15px; text-align: center; }
+    .wq-choice:active { transform: scale(.97); }
+    .wq-choice.ok { border-color: var(--green-400); background: var(--green-50); color: var(--green-600); }
+    .wq-choice.bad { border-color: #ef5350; background: #FFEBEE; color: #C62828; animation: wqshake .3s; }
+    @keyframes wqshake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
+    .wq-step-tag { display: inline-block; font-size: 11px; padding: 2px 10px; border-radius: 8px; background: var(--pink-50); color: var(--pink-600); font-weight: 600; margin-bottom: 8px; }
+    .wq-spell { width: 100%; text-align: center; font-size: 22px; letter-spacing: 3px; padding: 12px; border-radius: var(--radius-md); border: 1.5px solid var(--border); text-transform: lowercase; }
+    .wq-spell.bad { border-color: #ef5350; animation: wqshake .3s; }
+    .wq-hint { text-align: center; color: var(--gray-600); font-size: 12px; margin-top: 8px; }
 
-  /* ====== 休息提醒弹层 ====== */
-  .rest-overlay {
-    display: none; position: fixed; inset: 0; z-index: 400;
-    background: rgba(0,0,0,.65); align-items: center; justify-content: center;
-    backdrop-filter: blur(4px);
-  }
-  .rest-overlay.show { display: flex; }
-  .rest-panel {
-    background: #fff; border-radius: 28px; width: 90%; max-width: 360px;
-    text-align: center; padding: 32px 24px 28px;
-    box-shadow: 0 20px 60px rgba(0,0,0,.3);
-    animation: popIn .5s cubic-bezier(.36,1.56,.64,1);
-  }
-  .rest-emoji { font-size: 72px; margin-bottom: 8px; }
-  .rest-title { font-size: 22px; font-weight: bold; color: #333; margin-bottom: 8px; }
-  .rest-sub { font-size: 15px; color: #888; margin-bottom: 10px; line-height: 1.6; }
-  .rest-tips {
-    background: #FFF8F0; border-radius: 14px; padding: 12px 16px; margin-bottom: 20px;
-    text-align: left; font-size: 14px; color: #666; line-height: 1.8;
-  }
-  .rest-tips li { margin-bottom: 4px; }
-  .rest-btns { display: flex; gap: 10px; justify-content: center; }
-  .rest-btn {
-    flex: 1; border: none; border-radius: 999px; padding: 14px 12px; font-size: 16px; font-weight: bold;
-    cursor: pointer; font-family: inherit; transition: transform .15s;
-  }
-  .rest-btn:active { transform: scale(.93); }
-  .rest-btn-primary {
-    background: linear-gradient(135deg,#4CAF50,#81C784); color: #fff;
-    box-shadow: 0 4px 14px rgba(76,175,80,.4);
-  }
-  .rest-btn-secondary {
-    background: #f5f5f5; color: #666;
-  }
-  .rest-countdown {
-    font-size: 36px; font-weight: bold; color: #FF5E7E; margin: 4px 0 10px;
-  }
+    /* ===== 星星乐园 ===== */
+    .fun-hero { background: linear-gradient(135deg, #7C4DFF, #448AFF); color:#fff; border-radius: var(--radius-lg); padding:18px 16px; margin-bottom:12px; text-align:center; }
+    .fun-hero .big { font-size:26px; font-weight:700; }
+    .fun-hero .gate { font-size:12px; opacity:.92; margin-top:4px; }
+    .game-card { display:flex; align-items:center; gap:12px; background:var(--bg-card); border:0.5px solid var(--border-soft); border-radius:var(--radius-lg); padding:14px; margin-bottom:10px; cursor:pointer; }
+    .game-card:active { transform: scale(.98); }
+    .game-card .gicon { width:52px; height:52px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:26px; background:var(--purple-50); }
+    .game-card .ginfo { flex:1; }
+    .game-card .ginfo h4 { margin:0; font-size:15px; }
+    .game-card .ginfo p { margin:2px 0 0; font-size:12px; color:var(--gray-600); }
+    .game-card .cost { font-size:12px; font-weight:600; color:var(--amber-600); background:var(--amber-50); border-radius:8px; padding:4px 8px; white-space:nowrap; }
+    .wheel-wrap { position:relative; width:250px; height:250px; margin:16px auto 6px; }
+    .wheel { width:100%; height:100%; border-radius:50%; border:8px solid #fff; box-shadow:0 4px 16px rgba(0,0,0,.18); transition: transform 3.2s cubic-bezier(.15,.85,.25,1); }
+    .wheel-pointer { position:absolute; top:-14px; left:50%; transform:translateX(-50%); font-size:26px; z-index:2; }
+    .wheel-label { position:absolute; left:50%; top:50%; font-size:12px; font-weight:600; color:#fff; transform-origin:0 0; white-space:nowrap; text-shadow:0 1px 2px rgba(0,0,0,.3); }
+    .wheel-hub { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:52px; height:52px; border-radius:50%; background:#fff; display:flex; align-items:center; justify-content:center; font-size:24px; box-shadow:0 2px 8px rgba(0,0,0,.15); z-index:2; }
+    .mine-grid { display:grid; grid-template-columns:repeat(8,1fr); gap:3px; max-width:340px; margin:12px auto; }
+    .mine-cell { aspect-ratio:1/1; border-radius:6px; background:linear-gradient(135deg,#B0BEC5,#78909C); display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:700; cursor:pointer; transition: transform .1s; }
+    .mine-cell:active { transform: scale(.92); }
+    .mine-cell.open { background:var(--bg-card); border:0.5px solid var(--border-soft); cursor:default; }
+    .mine-cell.boom { background:var(--red-50); }
+    .mine-cell.mn-1 { color:#1976D2; } .mine-cell.mn-2 { color:#388E3C; } .mine-cell.mn-3 { color:#D32F2F; } .mine-cell.mn-4 { color:#6A1B9A; }
+    .mine-cell.mn-5 { color:#E65100; } .mine-cell.mn-6 { color:#00838F; } .mine-cell.mn-7 { color:#37474F; } .mine-cell.mn-8 { color:#7B1FA2; }
+    .diff-row { display:flex; gap:8px; margin-bottom:10px; }
+    .diff-pill { flex:1; text-align:center; padding:9px 0; border-radius:14px; background:var(--bg-card); border:1.5px solid var(--border-soft); font-size:13px; font-weight:600; cursor:pointer; }
+    .diff-pill.on { background:var(--purple-50); border-color:var(--purple-400); color:var(--purple-600); }
+    .mem-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; max-width:330px; margin:12px auto; }
+    .mem-card { aspect-ratio:3/4; border-radius:10px; background:linear-gradient(135deg,var(--purple-200),var(--purple-400)); display:flex; align-items:center; justify-content:center; font-size:26px; color:transparent; cursor:pointer; transition: transform .15s; }
+    .mem-card:active { transform: scale(.95); }
+    .mem-card.open { background:var(--bg-card); border:1.5px solid var(--purple-200); color:inherit; }
+    .mem-card.done { background:var(--green-50); border:1.5px solid var(--green-400); color:inherit; }
+    .game-status { text-align:center; font-size:14px; font-weight:600; margin:8px 0; }
+    .proof-badge { display:inline-flex; align-items:center; gap:3px; font-size:11px; padding:2px 8px; border-radius:10px; background:var(--amber-50); color:var(--amber-600); font-weight:600; }
+    .proof-shot { width:100%; max-height:280px; object-fit:contain; border-radius:12px; background:var(--gray-100); }
+    .rec-dot { display:inline-block; width:10px; height:10px; border-radius:50%; background:#E53935; animation:blink 1s infinite; margin-right:6px; }
+    @keyframes blink { 50% { opacity:.15; } }
+    .game-score-bar { display:flex; justify-content:space-between; align-items:center; background:var(--bg-card); border:0.5px solid var(--border-soft); border-radius:var(--radius-md); padding:10px 14px; margin-bottom:10px; font-size:13px; }
 
-  /* ====== 年级切换 ====== */
-  .grade-tabs { display: flex; gap: 10px; justify-content: center; padding: 14px 14px 4px; }
-  .grade-tab {
-    flex: 1; max-width: 175px; border: none; border-radius: 16px; padding: 11px 14px; font-size: 17px;
-    cursor: pointer; background: #fff; color: #888; font-weight: bold; font-family: inherit;
-    box-shadow: 0 3px 12px rgba(0,0,0,.09); transition: all .2s;
-  }
-  .grade-tab .sub { display: block; font-size: 13px; font-weight: normal; color: #aaa; margin-top: 2px; }
-  .grade-tab.active { background: linear-gradient(135deg, #FF9A56, #FF5E7E); color: #fff; box-shadow: 0 4px 16px rgba(255,94,126,.4); }
-  .grade-tab.active .sub { color: rgba(255,255,255,.8); }
+    /* ===== 任务卡片 ===== */
+    .task { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: var(--radius-md); background: var(--gray-50); margin-bottom: 8px; cursor: pointer; }
+    .task:last-child { margin-bottom: 0; }
+    .task .checkbox {
+      width: 26px; height: 26px; border-radius: 8px; border: 2px solid var(--gray-400);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .task.done .checkbox { background: var(--green-400); border-color: var(--green-400); }
+    .task.done .checkbox svg { color: #fff; }
+    .task .title { flex:1; }
+    .task .title .name { font-size: 14px; font-weight: 500; }
+    .task .title .meta { font-size: 11px; color: var(--gray-600); margin-top: 2px; }
+    .task.done .name { text-decoration: line-through; color: var(--gray-600); }
+    .task .pts { font-size: 12px; padding: 4px 8px; border-radius: 6px; background: var(--amber-50); color: var(--amber-600); font-weight: 500; }
+    .task.done .pts { background: var(--green-50); color: var(--green-600); }
 
-  /* ====== 子分类 ====== */
-  .cats { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; padding: 12px 12px 4px; }
-  .cat-btn {
-    border: none; border-radius: 999px; padding: 7px 15px; font-size: 15px; cursor: pointer;
-    background: #fff; color: #666; box-shadow: 0 2px 8px rgba(0,0,0,.08); font-family: inherit; transition: all .15s;
-  }
-  .cat-btn.active { background: linear-gradient(135deg, #4facfe, #00c6fb); color: #fff; font-weight: bold; }
+    /* ===== 学科色块 ===== */
+    .subject-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .subject-card {
+      border-radius: var(--radius-md); padding: 14px; color: #fff; cursor: pointer;
+      position: relative; overflow: hidden; min-height: 84px;
+    }
+    .subject-card .emoji { font-size: 24px; }
+    .subject-card .name { font-weight: 600; margin-top: 4px; font-size: 14px; }
+    .subject-card .count { font-size: 11px; opacity: 0.85; margin-top: 2px; }
+    .subject-card.s-pink { background: linear-gradient(135deg, #FF6B9D, #D6336C); }
+    .subject-card.s-orange { background: linear-gradient(135deg, #FF9800, #E65100); }
+    .subject-card.s-cyan { background: linear-gradient(135deg, #00BCD4, #00838F); }
+    .subject-card.s-purple { background: linear-gradient(135deg, #9C27B0, #6A1B9A); }
+    .subject-card.s-green { background: linear-gradient(135deg, #4CAF50, #2E7D32); }
+    .subject-card.s-amber { background: linear-gradient(135deg, #FFC107, #FF8F00); }
+    .subject-card.s-red { background: linear-gradient(135deg, #EF5350, #C62828); }
+    .subject-card.s-indigo { background: linear-gradient(135deg, #5C6BC0, #3949AB); }
+    .subject-card.s-teal { background: linear-gradient(135deg, #26A69A, #00695C); }
+    /* 旧配色类保留（勋章等处仍在用） */
+    .subject-card.s-chinese { background: linear-gradient(135deg, #FF6B9D, #D6336C); }
+    .subject-card.s-math { background: linear-gradient(135deg, #FF9800, #E65100); }
+    .subject-card.s-english { background: linear-gradient(135deg, #00BCD4, #00838F); }
+    .subject-card.s-science { background: linear-gradient(135deg, #9C27B0, #6A1B9A); }
+    .subject-card.s-music { background: linear-gradient(135deg, #4CAF50, #2E7D32); }
+    .subject-card.s-art { background: linear-gradient(135deg, #FFC107, #FF8F00); }
 
-  /* ====== 视频网格 ====== */
-  .grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
-    gap: 13px; padding: 14px 14px; max-width: 960px; margin: 0 auto;
-  }
-  .card {
-    background: #fff; border-radius: 18px; overflow: hidden; cursor: pointer;
-    box-shadow: 0 4px 14px rgba(0,0,0,.10); transition: transform .15s;
-  }
-  .card:active { transform: scale(.93); }
-  .card .thumb { height: 92px; display: flex; align-items: center; justify-content: center; font-size: 50px; }
-  .card .name { padding: 9px 11px 12px; font-size: 14px; color: #444; text-align: center; font-weight: 600; line-height: 1.4; }
-  .card-wrap { position: relative; }
-  .card.done-card::after {
-    content: '✓'; position: absolute; top: 6px; right: 6px;
-    background: #4CAF50; color: #fff; border-radius: 50%;
-    width: 22px; height: 22px; font-size: 12px;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .empty { grid-column: 1 / -1; text-align: center; color: #9b8f80; padding: 50px 20px; font-size: 15px; }
+    /* ===== 资源项 ===== */
+    .resource {
+      display: flex; gap: 12px; padding: 10px; border-radius: var(--radius-md);
+      background: var(--bg-card); border: 0.5px solid var(--border-soft); margin-bottom: 8px;
+      align-items: center;
+    }
+    .resource .thumb {
+      width: 56px; height: 56px; border-radius: var(--radius-sm); background: var(--gray-100);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--gray-600);
+    }
+    .resource .thumb svg { width: 24px; height: 24px; }
+    .resource .info { flex: 1; min-width: 0; }
+    .resource .info .name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .resource .info .meta { font-size: 11px; color: var(--gray-600); margin-top: 2px; }
+    .resource .badge-subj { font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-right: 4px; }
 
-  /* ====== 播放器 ====== */
-  .player-mask {
-    position: fixed; inset: 0; z-index: 99; display: none; flex-direction: column; background: #111;
-  }
-  .player-mask.show { display: flex; }
-  .player-bar { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #1c1c1e; color: #fff; }
-  .player-bar .back {
-    border: none; background: #333; color: #fff; border-radius: 999px; padding: 8px 16px;
-    font-size: 15px; cursor: pointer; font-family: inherit; white-space: nowrap;
-  }
-  .player-bar .ptitle { flex: 1; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .subtitle-btn {
-    border: none; background: #444; color: #fff; border-radius: 999px; padding: 7px 14px;
-    font-size: 14px; cursor: pointer; font-family: inherit; white-space: nowrap;
-    transition: background .2s; flex-shrink: 0;
-  }
-  .subtitle-btn.on { background: #FF9A56; color: #fff; }
-  .subtitle-btn:hover { background: #555; }
-  .subtitle-btn.on:hover { background: #FF7B3A; }
-  .player-wrap { flex: 1; position: relative; background: #000; }
-  .player-wrap iframe, .player-wrap video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+    /* ===== 妈妈后台 —— 孩子打卡卡片 ===== */
+    .kid-row {
+      display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: var(--radius-md);
+      background: var(--gray-50); margin-bottom: 8px;
+    }
+    .kid-row .avatar { width: 40px; height: 40px; border-radius: 50%; display:flex; align-items:center; justify-content:center; font-size: 20px; background: var(--pink-50); }
+    .kid-row .info { flex: 1; }
+    .kid-row .info .name { font-weight: 600; font-size: 14px; }
+    .kid-row .info .progress { font-size: 11px; color: var(--gray-600); margin-top: 2px; }
+    .kid-row .progress-bar { width: 80px; height: 4px; background: var(--gray-200); border-radius: 2px; overflow: hidden; margin-top: 4px; }
+    .kid-row .progress-bar div { height: 100%; background: var(--pink-400); }
+    .kid-row .pts { font-size: 14px; font-weight: 600; color: var(--pink-600); }
 
-  /* 护眼计时条 */
-  .eye-bar-wrap {
-    background: #1c1c1e; padding: 0 12px 6px;
-    display: flex; align-items: center; gap: 10px;
-  }
-  .eye-bar-label { font-size: 12px; color: #888; white-space: nowrap; }
-  .eye-bar-track {
-    flex: 1; height: 6px; background: #333; border-radius: 3px; overflow: hidden;
-  }
-  .eye-bar-fill {
-    height: 100%; background: linear-gradient(90deg,#4CAF50,#FFEB3B,#FF9800,#FF5252);
-    border-radius: 3px; transition: width 1s linear;
-    min-width: 2px;
-  }
-  .eye-bar-time { font-size: 12px; color: #aaa; white-space: nowrap; min-width: 36px; text-align: right; }
-  .eye-bar-warn { color: #FF5252; }
+    /* ===== 奖励视频 ===== */
+    .reward {
+      display: flex; gap: 12px; padding: 12px; border-radius: var(--radius-md);
+      background: var(--bg-card); border: 0.5px solid var(--border-soft); margin-bottom: 8px;
+      align-items: center; position: relative;
+    }
+    .reward.locked { opacity: 0.6; }
+    .reward.locked::after {
+      content: '🔒'; position: absolute; top: 50%; right: 16px; transform: translateY(-50%); font-size: 20px;
+    }
+    .reward .thumb {
+      width: 64px; height: 64px; border-radius: var(--radius-sm);
+      background: linear-gradient(135deg, var(--purple-50), var(--pink-50));
+      display: flex; align-items: center; justify-content: center; font-size: 28px; flex-shrink: 0;
+    }
+    .reward .info { flex: 1; min-width: 0; }
+    .reward .info .name { font-size: 14px; font-weight: 500; }
+    .reward .info .threshold { font-size: 11px; color: var(--gray-600); margin-top: 2px; }
 
-  .player-tip { text-align: center; color: #9b8f80; font-size: 13px; padding: 8px 20px; }
+    /* ===== 顶部数据卡 ===== */
+    .stat-card {
+      background: linear-gradient(135deg, var(--pink-400), var(--purple-400));
+      color: #fff; padding: 20px; border-radius: var(--radius-lg); margin-bottom: 12px;
+    }
+    .stat-card .label { font-size: 12px; opacity: 0.9; }
+    .stat-card .big { font-size: 32px; font-weight: 600; margin: 4px 0 8px; }
+    .stat-card .meta { font-size: 12px; opacity: 0.9; display:flex; gap: 16px; }
+    .stat-card .meta div span { font-weight: 600; }
 
-  /* ====== 播放列表弹层 ====== */
-  .playlist-overlay {
-    display: none; position: fixed; inset: 0; z-index: 200;
-    background: rgba(0,0,0,.45); align-items: center; justify-content: center;
-  }
-  .playlist-overlay.show { display: flex; }
-  .playlist-panel {
-    background: #fff; border-radius: 20px; width: 95%; max-width: 600px;
-    max-height: 88vh; display: flex; flex-direction: column;
-    box-shadow: 0 12px 48px rgba(0,0,0,.2);
-  }
-  .playlist-head {
-    display: flex; align-items: center; gap: 10px;
-    padding: 16px 18px; border-bottom: 1px solid #eee;
-    background: linear-gradient(135deg,#e8f5e9,#fff); border-radius: 20px 20px 0 0;
-  }
-  .playlist-head h2 { flex: 1; font-size: 17px; color: #333; margin: 0; }
-  .playlist-close {
-    background: #eee; border: none; border-radius: 50%; width: 34px; height: 34px;
-    font-size: 18px; cursor: pointer; color: #666; display: flex; align-items: center; justify-content: center;
-  }
-  .playlist-close:active { background: #ddd; }
-  .playlist-grid {
-    display: grid; grid-template-columns: repeat(auto-fill,minmax(120px,1fr));
-    gap: 10px; padding: 14px; overflow-y: auto; flex: 1;
-  }
-  .ep-card {
-    background: #f8f9fa; border-radius: 12px; padding: 10px 8px; text-align: center;
-    cursor: pointer; border: 2px solid transparent; transition: all .15s;
-    font-size: 13px; font-weight: 600; color: #444; line-height: 1.4;
-  }
-  .ep-card:active { transform: scale(.95); }
-  .ep-card:hover { border-color: #4caf50; background: #e8f5e9; }
+    /* ===== FAB ===== */
+    .fab {
+      position: fixed; bottom: 90px; right: 16px; width: 52px; height: 52px;
+      border-radius: 50%; background: var(--pink-400); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 16px rgba(255,107,157,0.4); z-index: 40;
+    }
+    .fab svg { width: 24px; height: 24px; }
 
-  /* ====== 庆祝礼花粒子 ====== */
-  .confetti-wrap { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 999; }
-  .confetti-piece {
-    position: absolute; width: 10px; height: 10px; border-radius: 2px;
-    animation: confettiFall linear forwards;
-  }
-  @keyframes confettiFall {
-    0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
-    100%{ transform: translateY(110vh) rotate(720deg); opacity: 0; }
-  }
-</style>
+    /* ===== 表单 ===== */
+    .field { margin-bottom: 12px; }
+    .field label { display: block; font-size: 12px; color: var(--gray-600); margin-bottom: 4px; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 10px 12px; border-radius: var(--radius-sm);
+      border: 0.5px solid var(--border); background: var(--bg-card); font-size: 14px;
+    }
+    .field input:focus, .field select:focus { outline: none; border-color: var(--pink-400); }
+    .btn-primary {
+      width: 100%; padding: 12px; border-radius: var(--radius-md);
+      background: var(--pink-400); color: #fff; font-size: 14px; font-weight: 500;
+    }
+    .btn-primary:disabled { opacity: 0.4; }
+    .btn-secondary {
+      width: 100%; padding: 12px; border-radius: var(--radius-md);
+      background: var(--gray-100); color: var(--gray-900); font-size: 14px; font-weight: 500;
+    }
+    .btn-row { display:flex; gap: 8px; margin-top: 16px; }
+    .btn-row button { flex: 1; }
+
+    /* ===== Modal ===== */
+    .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: flex-end; justify-content: center; }
+    .modal { background: var(--bg-card); width: 100%; max-width: 480px; border-radius: var(--radius-xl) var(--radius-xl) 0 0; padding: 20px 16px calc(20px + env(safe-area-inset-bottom)); max-height: 80vh; overflow-y: auto; }
+    .modal h3 { margin: 0 0 16px; font-size: 16px; font-weight: 600; text-align: center; }
+    .modal .close { float: right; margin-top: -8px; }
+
+    /* ===== Toast ===== */
+    .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: #fff; padding: 10px 16px; border-radius: var(--radius-md); font-size: 13px; z-index: 200; }
+
+    /* ===== 工具 ===== */
+    .empty { text-align: center; padding: 40px 16px; color: var(--gray-600); }
+    .empty .emoji { font-size: 40px; margin-bottom: 8px; opacity: 0.5; }
+    .row { display:flex; align-items: center; gap: 8px; }
+    .row.between { justify-content: space-between; }
+    .mt-8 { margin-top: 8px; } .mt-12 { margin-top: 12px; } .mt-16 { margin-top: 16px; }
+    .text-mute { color: var(--gray-600); font-size: 12px; }
+    .text-pink { color: var(--pink-600); }
+    .hidden { display: none !important; }
+  </style>
 </head>
-<body>
+<body data-page-node-id="3DqP1Xb73JvetEw9f46gVv">
+  <div class="app" id="app" data-page-node-id="AMKSOzx8OjbQJx9NetwFqg"></div>
+  <div id="modal-root" data-page-node-id="OWVpZfowmlQcsVCHItZRhX"></div>
+  <div id="toast-root" data-page-node-id="kgNMfaHHBwedS2CX0gAPIz"></div>
 
-  <header class="top">
-    <h1>📚 宝贝英语学习站</h1>
-    <p>每天坚持一点点，英语进步看得见 ✨</p>
-  </header>
-
-  <!-- 打卡任务区 -->
-  <section class="task-section">
-    <div class="week-bar" id="weekBar"></div>
-    <div class="task-card" id="taskCard">
-      <div class="task-card-top">
-        <span class="task-card-icon" id="taskIcon">🐷</span>
-        <div class="task-card-info">
-          <div class="task-tag" id="taskTag">🎯 今日任务</div>
-          <div class="task-title" id="taskTitle">加载中...</div>
-          <div class="task-sub" id="taskSub">正在读取...</div>
-        </div>
-        <div class="task-arrow" id="taskArrow">▶️</div>
-      </div>
-      <div class="task-card-bottom">
-        <div class="task-hint" id="taskHint">
-          <span class="play-icon">▶️</span>
-          <span id="taskHintText">点击开始学习，看完自动打卡！</span>
-        </div>
-      </div>
-    </div>
-    <!-- 补打卡区域 -->
-    <div class="miss-section" id="missSection"></div>
-  </section>
-
-  <!-- 打卡成功弹层 -->
-  <div class="success-overlay" id="successOverlay">
-    <div class="success-panel">
-      <div class="success-emoji" id="successEmoji">🎉</div>
-      <div class="success-title" id="successTitle">太棒了！</div>
-      <div class="success-sub" id="successSub">已完成今日学习！</div>
-      <div class="success-stars" id="successStars">⭐⭐⭐</div>
-      <button class="success-btn" onclick="closeSuccess()">继续探索 📚</button>
-    </div>
-  </div>
-
-  <!-- 休息提醒弹层 -->
-  <div class="rest-overlay" id="restOverlay">
-    <div class="rest-panel">
-      <div class="rest-emoji">🧒👀</div>
-      <div class="rest-title">该休息一下啦！⏰</div>
-      <div class="rest-sub">已经认真学习了 <strong>30分钟</strong><br>眼睛需要休息一下哦～</div>
-      <div class="rest-tips">
-        <li>🌿 站起来伸个懒腰</li>
-        <li>🏃 到窗边或门口活动5分钟</li>
-        <li>👀 看看远处，让眼睛放松</li>
-        <li>💧 可以喝点水</li>
-      </div>
-      <div class="rest-btns">
-        <button class="rest-btn rest-btn-secondary" onclick="closeRest(false)">休息一下 💚</button>
-        <button class="rest-btn rest-btn-primary" onclick="closeRest(true)">继续看 ▶️</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 年级切换 -->
-  <nav class="grade-tabs" id="gradeTabs"></nav>
-
-  <!-- 子分类 -->
-  <nav class="cats" id="cats"></nav>
-
-  <!-- 视频列表 -->
-  <main class="grid" id="grid"></main>
-
-  <!-- 播放列表弹层 -->
-  <div class="playlist-overlay" id="playlistOverlay">
-    <div class="playlist-panel">
-      <div class="playlist-head">
-        <h2 id="playlistTitle">🌍 美丽中国</h2>
-        <button class="playlist-close" id="playlistClose">✕</button>
-      </div>
-      <div class="playlist-grid" id="playlistGrid"></div>
-    </div>
-  </div>
-
-  <!-- 播放器 -->
-  <div class="player-mask" id="playerMask">
-    <div class="player-bar">
-      <button class="back" id="backBtn">← 返回</button>
-      <span class="ptitle" id="ptitle"></span>
-      <button class="subtitle-btn" id="subBtn" onclick="toggleSubtitle()">字幕</button>
-    </div>
-    <div class="eye-bar-wrap" id="eyeBarWrap">
-      <span class="eye-bar-label">⏱️</span>
-      <div class="eye-bar-track"><div class="eye-bar-fill" id="eyeBarFill" style="width:0%"></div></div>
-      <span class="eye-bar-time" id="eyeBarTime">0′</span>
-    </div>
-    <div class="player-wrap" id="playerWrap"></div>
-    <p class="player-tip">💡 点视频右下角可以全屏 · 看完或关闭播放器自动打卡 ✨</p>
-  </div>
-
-  <!-- 礼花容器 -->
-  <div class="confetti-wrap" id="confettiWrap"></div>
-
-<script>
-// ============================================================
-//  📌 加视频就看这里! 📌
-//  type: "bili"=B站; "local"=本地mp4
-//  grade: "小学" 或 "初中"
-// ============================================================
-
-const GRADES = [
-  {
-    name: "🌟 小学版", sub: "适合9岁左右", key: "小学",
-    cats: [
-      { name: "全部",     emoji: "🌈" },
-      { name: "趣味动画", emoji: "🎬" },
-      { name: "英文儿歌", emoji: "🎵" },
-      { name: "字母拼读", emoji: "🔤" },
-      { name: "基础词汇", emoji: "📒" },
-    ]
-  },
-  {
-    name: "📖 初中版", sub: "适合14岁左右", key: "初中",
-    cats: [
-      { name: "全部",     emoji: "🌈" },
-      { name: "综合听说", emoji: "🎧" },
-      { name: "阅读写作", emoji: "📝" },
-      { name: "语法精讲", emoji: "📐" },
-      { name: "真题练习", emoji: "✍️" },
-      { name: "美丽中国", emoji: "🌍" },
-    ]
-  }
-];
-
-const VIDEOS = [
-  // ==================== 小学(9岁) ====================
-  // 【小猪佩奇英文原版第1季全52集】BV1R5411H7Ze — 播放器右上角可切换字幕开关
-  { id: "v1", title: "🐷 小猪佩奇 英文原版 第1季全52集", grade: "小学", cat: "趣味动画", emoji: "🐷", type: "bili", url: "BV1R5411H7Ze" },
-  { id: "v3", title: "布鲁伊 英文版 · 家庭幽默故事",     grade: "小学", cat: "趣味动画", emoji: "🐶", type: "bili", url: "BV1aT4y1P7KR" },
-  { id: "v4", title: "SSS 字母歌合集(102集)",          grade: "小学", cat: "英文儿歌", emoji: "🎵", type: "bili", url: "BV177411T77W" },
-  { id: "v5", title: "SSS 自然拼读动画(71集)",          grade: "小学", cat: "字母拼读", emoji: "🔤", type: "bili", url: "BV142A4z2EEV" },
-
-  // ==================== 初中(14岁) ====================
-  { id: "c1", title: "BBC Learning English · 日常口语",  grade: "初中", cat: "综合听说", emoji: "🎧", type: "bili", url: "BV1Ux411y7fE" },
-  { id: "c2", title: "English with Lucy · 地道发音教程", grade: "初中", cat: "综合听说", emoji: "🎧", type: "bili", url: "BV1qK411V7FP" },
-  { id: "c3", title: "TED-Ed 英文演讲精读",             grade: "初中", cat: "阅读写作", emoji: "📝", type: "bili", url: "BV1Bx411Z7Dn" },
-  { id: "c4", title: "英语语法精讲合集(初中通用)",        grade: "初中", cat: "语法精讲", emoji: "📐", type: "bili", url: "BV1Vx411b7R3" },
-  { id: "c5", title: "中考英语真题讲解合集",              grade: "初中", cat: "真题练习", emoji: "✍️", type: "bili", url: "BV1Vx411b7R3" },
-
-  // ==================== 美丽中国 Amazing China 专辑 ====================
-  {
-    id: "amazing", title: "🌍 美丽中国 Amazing China (全60集)", grade: "初中", cat: "美丽中国", emoji: "🏔️",
-    type: "playlist",
-    episodes: [
-      { title: "01 安集海大峡谷",           page: 1  },
-      { title: "02 巴音布鲁克草原",           page: 2  },
-      { title: "03 冰川下的鲜红岩石",           page: 3  },
-      { title: "04 冰之花",                  page: 4  },
-      { title: "05 不冻之河",                page: 5  },
-      { title: "06 吹来的大地",              page: 6  },
-      { title: "07 磁铁山脉里的天坑与地漏",     page: 7  },
-      { title: "08 大风雕刻的魔鬼城",          page: 8  },
-      { title: "09 大漠奇观·月牙泉",          page: 9  },
-      { title: "10 大熊猫的野外家园",          page: 10 },
-      { title: "11 东方阿尔卑斯",             page: 11 },
-      { title: "12 多彩之湖",                page: 12 },
-      { title: "13 飞越长城",                page: 13 },
-      { title: "14 共同生活在这片土地上",       page: 14 },
-      { title: "15 海岸线上的水墨画",          page: 15 },
-      { title: "16 航拍中国",                page: 16 },
-      { title: "17 河西走廊",                page: 17 },
-      { title: "18 黑龙江的冰泳",             page: 18 },
-      { title: "19 候鸟的乐园",               page: 19 },
-      { title: "20 沪沽山",                  page: 20 },
-      { title: "21 花海",                   page: 21 },
-      { title: "22 华夏绿洲",                page: 22 },
-      { title: "23 黄沙帝国的遗产",            page: 23 },
-      { title: "24 活着的海草",               page: 24 },
-      { title: "25 火山之后",                page: 25 },
-      { title: "26 火焰山",                  page: 26 },
-      { title: "27 吉林雾凇",                page: 27 },
-      { title: "28 敬信湿地",                page: 28 },
-      { title: "29 喀斯特地貌",               page: 29 },
-      { title: "30 库尔德宁",                page: 30 },
-      { title: "31 辽河口",                  page: 31 },
-      { title: "32 流动的湖",                page: 32 },
-      { title: "33 绿洲",                   page: 33 },
-      { title: "34 秘境喀纳斯湖",             page: 34 },
-      { title: "35 牧民之家",                page: 35 },
-      { title: "36 纳马夸兰",                page: 36 },
-      { title: "37 南方的海",                page: 37 },
-      { title: "38 你的名字叫湖泊",            page: 38 },
-      { title: "39 Puget Sound",            page: 39 },
-      { title: "40 去了就不会忘的地方",          page: 40 },
-      { title: "41 三江七岸",                page: 41 },
-      { title: "42 沙漠的眼泪",               page: 42 },
-      { title: "43 沙漠中的海底",             page: 43 },
-      { title: "44 生命的童话",               page: 44 },
-      { title: "45 水天之间的巨型盆景",          page: 45 },
-      { title: "46 四川红石",                page: 46 },
-      { title: "47 四姑娘山",                page: 47 },
-      { title: "48 太平洋的温暖",             page: 48 },
-      { title: "49 透明的大海",               page: 49 },
-      { title: "50 吐着泡泡的娃娃鱼",           page: 50 },
-      { title: "51 雪豹",                   page: 51 },
-      { title: "52 雪地",                   page: 52 },
-      { title: "53 盐城湿地",                page: 53 },
-      { title: "54 养蜂人之家",               page: 54 },
-      { title: "55 长江",                   page: 55 },
-      { title: "56 中国的彩虹山",             page: 56 },
-      { title: "57 中国海岸",                page: 57 },
-      { title: "58 中国的热带雨林",            page: 58 },
-      { title: "59 中国之美",                page: 59 },
-      { title: "60 壮美长白山",               page: 60 },
+  <script>
+  // ========== 数据层 (localStorage, 后续接 KV) ==========
+  const LS_KEY = 'lebao-data-v1';
+  const DEFAULT_DATA = {
+    momPassword: '8888',
+    children: [
+      { id: 'c1', name: '姐姐', avatar: '👧', pin: '1111', points: 128, streak: 5 },
+      { id: 'c2', name: '弟弟', avatar: '👦', pin: '2222', points: 86, streak: 3 },
     ],
-    bv: "BV1du411h7tX"
-  },
-];
+    tasks: [
+      { id: 't1', childId: 'c1', date: '2026-08-27', title: '英语跟读 10 分钟', points: 5, done: false },
+      { id: 't2', childId: 'c1', date: '2026-08-27', title: '口算 20 题', points: 5, done: false },
+      { id: 't3', childId: 'c1', date: '2026-08-27', title: '读绘本《小猪佩奇》', points: 3, done: true },
+      { id: 't4', childId: 'c2', date: '2026-08-27', title: '识字游戏', points: 3, done: false },
+      { id: 't5', childId: 'c2', date: '2026-08-27', title: '搭积木 15 分钟', points: 2, done: true },
+      { id: 't6', childId: 'c2', date: '2026-08-27', title: '听英语儿歌', points: 3, done: false },
+    ],
+    resources: [
+      { id: 'r1', type: 'video', subject: 'chinese', title: '小猪佩奇 第1集', url: 'https://share.weiyun.com/xxx', category: 'learn' },
+      { id: 'r2', type: 'video', subject: 'chinese', title: '小猪佩奇 第2集', url: 'https://share.weiyun.com/xxx', category: 'learn' },
+      { id: 'r3', type: 'pdf', subject: 'chinese', title: '人教版语文一年级上册.pdf', url: 'https://share.weiyun.com/xxx', category: 'learn' },
+      { id: 'r4', type: 'audio', subject: 'english', title: 'Super Simple Songs - Baby Shark', url: 'https://share.weiyun.com/xxx', category: 'learn' },
+      { id: 'r5', type: 'video', subject: 'math', title: '数学启蒙：认识数字 1-10', url: 'https://share.weiyun.com/xxx', category: 'learn' },
+      { id: 'r6', type: 'pdf', subject: 'math', title: '口算题卡 100题.pdf', url: 'https://share.weiyun.com/xxx', category: 'learn' },
+      { id: 'r7', type: 'video', subject: 'english', title: 'Peppa Pig S1E1 (英字)', url: 'https://share.weiyun.com/xxx', category: 'learn' },
+      { id: 'r8', type: 'audio', subject: 'chinese', title: '成语故事音频 50 集', url: 'https://share.weiyun.com/xxx', category: 'learn' },
+      { id: 'r9', type: 'video', subject: 'physics', title: '物理启蒙：水的三态', url: 'https://share.weiyun.com/xxx', category: 'learn' },
+      { id: 'r10', type: 'video', subject: 'english', title: '🎁 奖励：佩奇和乔治的搞笑片段', url: 'https://share.weiyun.com/xxx', category: 'fun' },
+    ],
+    rewards: [
+      { id: 'rw1', title: '奖励：小猪佩奇 第27集', emoji: '🐷', threshold: 50, url: 'https://share.weiyun.com/xxx' },
+      { id: 'rw2', title: '奖励：冰雪奇缘片段', emoji: '❄️', threshold: 100, url: 'https://share.weiyun.com/xxx' },
+      { id: 'rw3', title: '奖励：汪汪队立大功', emoji: '🐶', threshold: 150, url: 'https://share.weiyun.com/xxx' },
+      { id: 'rw4', title: '奖励：海底小纵队', emoji: '🐙', threshold: 200, url: 'https://share.weiyun.com/xxx' },
+      { id: 'rw5', title: '奖励：超级飞侠', emoji: '✈️', threshold: 300, url: 'https://share.weiyun.com/xxx' },
+    ],
+    pointsHistory: [
+      { id: 'h1', childId: 'c1', date: '2026-08-27', title: '读绘本《小猪佩奇》', points: 3 },
+      { id: 'h2', childId: 'c2', date: '2026-08-27', title: '搭积木 15 分钟', points: 2 },
+    ],
+    wordSets: [
+      { id: 'ws1', title: '佩奇主题基础词', words: [
+        { w: 'pig', cn: '猪' }, { w: 'mud', cn: '泥巴' }, { w: 'puddle', cn: '水坑' },
+        { w: 'jump', cn: '跳' }, { w: 'run', cn: '跑' }, { w: 'family', cn: '家人' },
+        { w: 'happy', cn: '开心的' }, { w: 'rain', cn: '雨' }, { w: 'boots', cn: '靴子' },
+        { w: 'play', cn: '玩' }, { w: 'friend', cn: '朋友' }, { w: 'love', cn: '爱' },
+      ]},
+    ],
+    wordTasks: [
+      { id: 'wt1', childId: 'c1', date: '2026-08-27', setId: 'ws1', count: 5, points: 5, done: false, wordState: {} },
+    ],
+  };
 
-// ============================================================
-//  打卡系统
-// ============================================================
-const $ = s => document.querySelector(s);
-
-const WATCH_LIMIT = 30 * 60; // 30分钟秒数
-
-function localDateStr(d) {
-  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0');
-  return y + '-' + m + '-' + dd;
-}
-function todayStr() { return localDateStr(new Date()); }
-
-function getLogs(grade) {
-  try { return JSON.parse(localStorage.getItem('ci_' + grade) || '[]'); }
-  catch { return []; }
-}
-function saveLogs(grade, logs) {
-  localStorage.setItem('ci_' + grade, JSON.stringify(logs));
-}
-
-function calcStreak(logs) {
-  if (!logs.length) return 0;
-  const today = todayStr();
-  const yesterday = localDateStr(new Date(Date.now() - 86400000));
-  const sorted = [...new Set(logs)].sort().reverse();
-  if (sorted[0] !== today && sorted[0] !== yesterday) return 0;
-  let streak = 0;
-  let cur = sorted[0] === today ? todayStr() : localDateStr(new Date(Date.now() - 86400000));
-  const seen = new Set(sorted);
-  while (seen.has(cur)) { streak++; cur = localDateStr(new Date(new Date(cur).getTime() - 86400000)); }
-  return streak;
-}
-
-function getWeekDays() {
-  const days = [];
-  const now = new Date();
-  const dayOfWeek = now.getDay();
-  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(now.getTime() + (mondayOffset + i) * 86400000);
-    days.push({ str: localDateStr(d), label: ['一','二','三','四','五','六','日'][i] });
+  function loadData() {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    saveData(DEFAULT_DATA);
+    return JSON.parse(JSON.stringify(DEFAULT_DATA));
   }
-  return days;
-}
+  function saveData(d) { localStorage.setItem(LS_KEY, JSON.stringify(d)); scheduleSyncPush(); }
+  function saveLocalOnly(d) { localStorage.setItem(LS_KEY, JSON.stringify(d)); }
+  let DATA = loadData();
+  // 兼容旧数据：补齐单词模块字段
+  if (!DATA.wordSets) DATA.wordSets = JSON.parse(JSON.stringify(DEFAULT_DATA.wordSets));
+  if (!DATA.wordTasks) DATA.wordTasks = [];
+  (DATA.resources || []).forEach(r => { if (!r.category) r.category = 'learn'; });
 
-// 根据日期获取那天的任务视频
-function getTaskForDate(grade, dateStr) {
-  const seed = dateStr.split('-').join('') + grade.charCodeAt(0);
-  const gradeVideos = VIDEOS.filter(v => v.grade === grade && v.type !== 'playlist');
-  if (!gradeVideos.length) return null;
-  const cats = [...new Set(gradeVideos.map(v => v.cat))];
-  const refDate = new Date(dateStr);
-  const weekOfYear = Math.floor((refDate - new Date(refDate.getFullYear(), 0, 1)) / 86400000 / 7);
-  const weekIdx = weekOfYear % cats.length;
-  const targetCat = cats[(weekIdx + cats.length) % cats.length];
-  const catVideos = gradeVideos.filter(v => v.cat === targetCat);
-  return catVideos[parseInt(seed) % catVideos.length] || gradeVideos[parseInt(seed) % gradeVideos.length];
-}
+  // ========== 云端同步（textdb.dev 家庭通道，轮询 5 秒） ==========
+  const SYNC = {
+    code: localStorage.getItem('flp-sync-code') || '',
+    status: 'off', // off | on | err
+    busy: false, pending: false, poll: null, lastTs: 0,
+  };
+  function normalizeData(d) {
+    if (!d) return d;
+    if (!d.wordSets) d.wordSets = JSON.parse(JSON.stringify(DEFAULT_DATA.wordSets));
+    if (!d.wordTasks) d.wordTasks = [];
+    (d.resources || []).forEach(r => { if (!r.category) r.category = 'learn'; });
+    (d.tasks || []).forEach(t => {
+      if (!('proof' in t)) t.proof = '';
+      if (!('remindAt' in t)) t.remindAt = '';
+      if (!('doneAt' in t)) t.doneAt = null;
+      if (!('subject' in t)) t.subject = '';
+    });
+    return d;
+  }
+  function syncUrl() { return 'https://textdb.dev/api/data/flp-lebaomaibao-' + encodeURIComponent(SYNC.code.trim()); }
+  function scheduleSyncPush() {
+    if (!SYNC.code || SYNC.status !== 'on') return;
+    SYNC.pending = true;
+    if (!SYNC.busy) doSyncPush();
+  }
+  async function doSyncPush() {
+    if (!SYNC.code || SYNC.busy) return;
+    SYNC.busy = true; SYNC.pending = false;
+    try {
+      const ts = Date.now();
+      SYNC.lastTs = ts;
+      await fetch(syncUrl(), { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ _ts: ts, d: DATA }) });
+      SYNC.status = 'on';
+    } catch (e) { SYNC.status = 'err'; }
+    SYNC.busy = false;
+    if (SYNC.pending) doSyncPush();
+  }
+  async function fetchRemote() {
+    const res = await fetch(syncUrl() + '?t=' + Date.now());
+    let raw = (await res.text()).replace(/=+\s*$/, '');
+    if (!raw || raw === 'null') return null;
+    return JSON.parse(raw);
+  }
+  async function syncPull(silent) {
+    if (!SYNC.code || SYNC.status !== 'on' || SYNC.busy) return false;
+    SYNC.busy = true;
+    let applied = false;
+    try {
+      const remote = await fetchRemote();
+      if (remote && remote._ts && remote._ts > SYNC.lastTs && remote.d) {
+        SYNC.lastTs = remote._ts;
+        DATA = normalizeData(remote.d);
+        saveLocalOnly(DATA);
+        applied = true;
+        if (!silent) toast('☁️ 已同步最新数据');
+        render();
+      }
+      SYNC.status = 'on';
+    } catch (e) { SYNC.status = 'err'; }
+    SYNC.busy = false;
+    if (SYNC.pending) doSyncPush();
+    return applied;
+  }
+  function startSyncPoll() {
+    if (SYNC.poll) clearInterval(SYNC.poll);
+    SYNC.poll = setInterval(() => { syncPull().catch(() => {}); }, 5000);
+  }
+  async function enableSync() {
+    const code = document.getElementById('sync-code').value.trim();
+    if (!code) { toast('先起一个家庭同步码，比如 lebao2026'); return; }
+    SYNC.code = code;
+    localStorage.setItem('flp-sync-code', code);
+    await adoptRemote(true);
+  }
+  async function adoptRemote(first) {
+    SYNC.status = 'on';
+    try {
+      const remote = await fetchRemote();
+      const hasRemote = remote && remote._ts && remote.d;
+      const differs = hasRemote && JSON.stringify(normalizeData(remote.d)) !== JSON.stringify(DATA);
+      if (hasRemote && differs) {
+        const useRemote = first && confirm('云端已有这台设备之外的同步数据。\n\n「确定」= 采用云端数据（推荐，其他设备的打卡会拉过来）\n「取消」= 用本机数据覆盖云端');
+        if (useRemote || !first) {
+          SYNC.lastTs = remote._ts;
+          DATA = normalizeData(remote.d);
+          saveLocalOnly(DATA);
+          render();
+        } else {
+          await doSyncPush();
+        }
+      } else {
+        await doSyncPush();
+      }
+      SYNC.status = 'on';
+      if (first) toast('✅ 云端同步已开启，全家设备连成一体');
+      startSyncPoll();
+    } catch (e) {
+      SYNC.status = 'err';
+      toast('同步通道暂时连不上，会自动重试');
+      startSyncPoll();
+    }
+    render();
+  }
+  function disableSync() {
+    SYNC.code = '';
+    localStorage.removeItem('flp-sync-code');
+    if (SYNC.poll) { clearInterval(SYNC.poll); SYNC.poll = null; }
+    SYNC.status = 'off';
+    render();
+    toast('已关闭同步，数据回到本机模式');
+  }
+  // 开机自动续连：远端更新则拉取，远端为空则推送本地
+  if (SYNC.code) {
+    SYNC.status = 'on';
+    startSyncPoll();
+    (async () => { try { const r = await fetchRemote(); if (!r || !r.d) await doSyncPush(); else await syncPull(true); } catch (e) {} })();
+  }
 
-function renderWeekBar(grade) {
-  const logs = getLogs(grade);
-  const logSet = new Set(logs);
-  const today = todayStr();
-  const weekDays = getWeekDays();
+  // ========== 工具 ==========
+  const TODAY = '2026-08-27'; // 演示日期；上线后用 new Date()
+  const SUBJECTS = {
+    chinese:   { name: '语文', emoji: '📖', color: 'pink' },
+    math:      { name: '数学', emoji: '🔢', color: 'orange' },
+    english:   { name: '英语', emoji: '🎤', color: 'cyan' },
+    physics:   { name: '物理', emoji: '⚛️', color: 'purple' },
+    chemistry: { name: '化学', emoji: '🧪', color: 'green' },
+    history:   { name: '历史', emoji: '📜', color: 'amber' },
+    politics:  { name: '政治', emoji: '🚩', color: 'red' },
+    debate:    { name: '辩论', emoji: '🗣️', color: 'indigo' },
+    music:     { name: '音乐', emoji: '🎵', color: 'teal' },
+  };
+  const SUBJECT_FALLBACK = { name: '其他', emoji: '📦', color: 'gray' };
+  function toast(msg) {
+    const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
+    document.getElementById('toast-root').appendChild(t);
+    setTimeout(() => t.remove(), 1800);
+  }
+  function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
-  let html = '<div class="week-label">本周</div><div class="week-dots">';
-  weekDays.forEach(({ str, label }) => {
-    let cls = 'w-dot';
-    const isMiss = str < today && !logSet.has(str); // 过去未打卡
-    if (logSet.has(str)) cls += ' done';
-    else if (str === today) cls += ' today';
-    else if (isMiss) cls += ' miss';
-    else cls += ' future';
-    const mark = logSet.has(str) ? '✓' : (str === today ? '今' : (isMiss ? '漏' : label));
-    html += '<div class="' + cls + '" title="' + str + '">' + mark + '</div>';
-  });
-  html += '</div>';
-  const streak = calcStreak(logs);
-  html += '<div style="font-size:12px;color:#FF9A56;font-weight:bold;white-space:nowrap">' + (streak > 0 ? '🔥 ' + streak + '天' : '加油') + '</div>';
-  $("#weekBar").innerHTML = html;
-}
+  // ========== 图标 ==========
+  const ICN = {
+    back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>',
+    add:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>',
+    check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg>',
+    edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>',
+    trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>',
+    vid:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>',
+    pdf:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>',
+    aud:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+    home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2h-4v-7h-6v7H5a2 2 0 01-2-2z"/></svg>',
+    book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 016.5 22H20V2H6.5A2.5 2.5 0 004 4.5v15z"/></svg>',
+    gift: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/></svg>',
+    sett: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>',
+    mom:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+    kid:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M5 21v-1a7 7 0 0114 0v1"/></svg>',
+    play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>',
+    lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>',
+  };
 
-// 渲染补打卡区
-function renderMissSection(grade) {
-  const logs = getLogs(grade);
-  const logSet = new Set(logs);
-  const today = todayStr();
-  const miss = [];
+  // ========== 视图渲染 ==========
+  function render() {
+    const app = document.getElementById('app');
+    const route = location.hash.slice(1).split('?')[0] || 'entry';
+    const [, q] = location.hash.split('?');
+    const params = Object.fromEntries(new URLSearchParams(q || ''));
 
-  for (let i = 1; i <= 2; i++) {
-    const d = new Date(Date.now() - i * 86400000);
-    const str = localDateStr(d);
-    if (!logSet.has(str)) {
-      miss.push({ str, i });
+    const routes = {
+      entry:         viewEntry,
+      'mom-pin':     viewMomPin,
+      'mom-today':   viewMomToday,
+      'mom-resources':viewMomResources,
+      'mom-rewards': viewMomRewards,
+      'mom-words':   viewMomWords,
+      'mom-settings':viewMomSettings,
+      'kid-select':  viewKidSelect,
+      'kid-pin':     viewKidPin,
+      'kid-tasks':   viewKidTasks,
+      'kid-resources':viewKidResources,
+      'kid-rewards': viewKidRewards,
+      'kid-words':   viewKidWords,
+      'kid-word-quiz': viewWordQuiz,
+      'kid-fun':     viewKidFun,
+      'kid-mine':    viewKidMine,
+      'kid-memory':  viewKidMemory,
+      'subject':     viewSubject,
+    };
+
+    const fn = routes[route] || viewEntry;
+    app.innerHTML = fn(params);
+    bindGlobal();
+  }
+
+  function bindGlobal() {
+    document.querySelectorAll('[data-back]').forEach(b => b.onclick = () => history.back());
+    if (typeof window.__afterRender === 'function') window.__afterRender();
+  }
+
+  // ========== 每日一句（按日期自动轮换） ==========
+  const DAILY_QUOTES = [
+    '星光不问赶路人，每一份默默的坚持，终会化作你前行的底气',
+    '今天也要加油呀，每一点进步都算数！',
+    '种一棵树最好的时间是十年前，其次是现在',
+    '你多学一样本事，就少说一句求人的话',
+    '不怕慢，就怕站；每天走一步，就是在靠近目标',
+    '把每一个平凡的日子过好，就是不平凡',
+    '读书不是为了雄辩，而是为了在安静中积累力量',
+    '小小的坚持 × 365 天 = 了不起的自己',
+    '今天的你，比昨天的你更棒一点点了吗？',
+    '山不过来，我就过去；题不会做，我就再试一次',
+    '学习就像存钱罐，每天存一点，将来都是宝藏',
+    '认真是一种态度，坚持是一种习惯',
+    '不要等机会，去创造机会',
+    '你流的每一滴汗水，都会变成未来发光的底气',
+    '慢慢来，比较快',
+    '风会记得每一朵花的香，时间会记得你的努力',
+    '不怕别人比你聪明，就怕比你聪明的人还在努力',
+    '今天的任务打卡了吗？打卡的孩子最闪亮 ✨',
+    '每一次阅读，都是和更好的自己见面',
+    '将来的你，一定会感谢现在努力的自己',
+    '跳一跳够得着的目标，才最值得去追',
+    '字要一个一个写，路要一步一步走',
+    '好奇心是学习的引擎，保持提问的勇气',
+    '天才是重复次数最多的人',
+    '你今天的努力，是幸运的伏笔',
+    '别怕犯错，错了才知道正确长什么样',
+    '学霸不是天生的，是每天打卡打出来的',
+    '今天的太阳和昨天的不同，今天的你也一样',
+    '坚持的意义，是让未来多一种可能',
+    '加油！妈妈和小伴都在为你骄傲 💪',
+    '一个月后回头看，你会感谢今天的自己'
+  ];
+  function getDailyQuote() {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 0);
+    const dayOfYear = Math.floor((now - start) / 86400000);
+    return DAILY_QUOTES[(dayOfYear - 1) % DAILY_QUOTES.length];
+  }
+
+  // ========== 入口 ==========
+  function viewEntry() {
+    return `
+      <div class="entry-hero">
+        <div class="logo">🐷</div>
+        <h2 style="font-size:22px">乐宝麦宝学习平台</h2>
+        <p style="margin-top:8px;line-height:1.6">📖 ${getDailyQuote()}</p>
+      </div>
+      <div class="role-grid">
+        <div class="role-card mom" onclick="location.hash='mom-pin'">
+          <div class="icon">${ICN.mom}</div>
+          <h4>我是妈妈</h4>
+          <p>布置任务 · 加资源</p>
+        </div>
+        <div class="role-card kid" onclick="location.hash='kid-select'">
+          <div class="icon">${ICN.kid}</div>
+          <h4>我是娃</h4>
+          <p>打卡 · 看奖励</p>
+        </div>
+      </div>
+    `;
+  }
+
+  // ========== 妈妈密码 ==========
+  let momPinBuf = '';
+  function viewMomPin() {
+    return `
+      <div class="topbar">
+        <button class="icon-btn" data-back>${ICN.back}</button>
+        <h1>妈妈请进</h1>
+        <div style="width:36px"></div>
+      </div>
+      <div class="page">
+        <p class="pin-title">输入妈妈密码</p>
+        <p class="pin-sub">初始密码 8888</p>
+        <div class="pin-display" id="pin-display">
+          ${[0,1,2,3].map(i => `<div class="pin-dot${i<momPinBuf.length?' filled':''}"></div>`).join('')}
+        </div>
+        <div class="pin-pad">
+          ${[1,2,3,4,5,6,7,8,9].map(n => `<button class="pin-key" onclick="momPinInput('${n}')">${n}</button>`).join('')}
+          <div></div>
+          <button class="pin-key" onclick="momPinInput('0')">0</button>
+          <button class="pin-key" onclick="momPinBackspace()" style="font-size:16px">⌫</button>
+        </div>
+      </div>
+    `;
+  }
+  function momPinInput(n) {
+    if (momPinBuf.length >= 4) return;
+    momPinBuf += n;
+    render();
+    if (momPinBuf.length === 4) {
+      setTimeout(() => {
+        if (momPinBuf === DATA.momPassword) {
+          momPinBuf = '';
+          sessionStorage.setItem('mom-auth', '1');
+          location.hash = 'mom-today';
+        } else {
+          toast('密码不对哦');
+          momPinBuf = '';
+          render();
+        }
+      }, 200);
     }
   }
+  function momPinBackspace() { momPinBuf = momPinBuf.slice(0, -1); render(); }
 
-  const section = $("#missSection");
-  if (!miss.length) {
-    section.innerHTML = '';
-    return;
+  // ========== 妈妈后台 - 今日 ==========
+  function viewMomToday() {
+    if (!sessionStorage.getItem('mom-auth')) { location.hash='mom-pin'; return ''; }
+    const todays = DATA.tasks.filter(t => t.date === TODAY);
+    const kids = DATA.children.map(c => {
+      const kTasks = todays.filter(t => t.childId === c.id);
+      const done = kTasks.filter(t => t.done).length;
+      return { ...c, total: kTasks.length, done };
+    });
+    const todayDone = todays.filter(t => t.done).length;
+    const todayTotal = todays.length;
+    return `
+      <div class="topbar">
+        <h1>👩 妈妈后台</h1>
+        <div class="actions">
+          <button class="icon-btn" onclick="logout()" title="退出">${ICN.sett}</button>
+        </div>
+      </div>
+      <div class="page">
+        <div class="stat-card">
+          <div class="label">${TODAY} · 今日</div>
+          <div class="big">${todayDone}/${todayTotal}</div>
+          <div class="meta">
+            <div>已完成 <span>${todayDone}</span></div>
+            <div>待打卡 <span>${todayTotal - todayDone}</span></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>孩子的进度 <span class="badge">${kids.length} 人</span></h3>
+          ${kids.map(k => `
+            <div class="kid-row">
+              <div class="avatar">${k.avatar}</div>
+              <div class="info">
+                <div class="name">${esc(k.name)}</div>
+                <div class="progress">${k.done}/${k.total} 已完成 · 连续 ${k.streak} 天</div>
+                <div class="progress-bar"><div style="width:${k.total?k.done/k.total*100:0}%"></div></div>
+              </div>
+              <div class="pts">★ ${k.points}</div>
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="section">
+          <h3>今日全部任务 <button class="text-pink" style="font-size:12px" onclick="openTaskModal()">${ICN.add} 添加</button></h3>
+          ${todays.length ? todays.map(t => {
+            const k = DATA.children.find(c => c.id === t.childId);
+            const res = taskRes(t);
+            return `
+              <div class="task ${t.done?'done':''}" onclick="toggleTask('${t.id}')">
+                <div class="checkbox">${t.done?ICN.check:''}</div>
+                <div class="title">
+                  <div class="name">${esc(t.title)}</div>
+                  <div class="meta">${k.avatar} ${esc(k.name)}${t.remindAt?` · ⏰ ${t.remindAt}`:''}${t.done&&t.doneAt?` · ✅ ${fmtClock(t.doneAt)} 完成`:''}${t.proof?` · <span class="proof-badge" onclick="viewTaskProof(event,'${t.id}')">${t.proof==='photo'?'📷':'🎙'}${t.proofData?' 凭证✓':' 待交'}</span>`:''}${res?` · 📎 <span style="color:var(--pink-600)" onclick="openTaskRes(event,'${t.id}')">${esc(res.title)}</span>`:''}</div>
+                </div>
+                <div class="pts">+${t.points}</div>
+              </div>`;
+          }).join('') : '<div class="empty"><div class="emoji">📝</div>还没布置任务</div>'}
+        </div>
+
+        <div class="section">
+          <h3>积分记录 <span class="badge">今日</span></h3>
+          ${DATA.pointsHistory.filter(h => h.date === TODAY).map(h => {
+            const k = DATA.children.find(c => c.id === h.childId);
+            return `<div class="task"><div class="title"><div class="name">${k.avatar} ${esc(k.name)} · ${esc(h.title)}${h.at?` · ${fmtClock(h.at)}`:''}</div></div><div class="pts">+${h.points}</div></div>`;
+          }).join('') || '<div class="empty">还没有积分记录</div>'}
+        </div>
+      </div>
+      ${momTabBar('today')}
+      <button class="fab" onclick="openTaskModal()">${ICN.add}</button>
+    `;
+  }
+  function momTabBar(active) {
+    const tabs = [
+      { id:'today', icon: ICN.home, label:'今日', hash:'mom-today' },
+      { id:'words', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16M6 16l3-9 3 9M7.2 13.5h3.6M14 16l2-9 2 9M15 13.5h2"/></svg>', label:'单词', hash:'mom-words' },
+      { id:'resources', icon: ICN.book, label:'资源', hash:'mom-resources' },
+      { id:'rewards', icon: ICN.gift, label:'奖励', hash:'mom-rewards' },
+      { id:'settings', icon: ICN.sett, label:'设置', hash:'mom-settings' },
+    ];
+    return `<div class="tabbar">${tabs.map(t => `<div class="tab ${active===t.id?'active':''}" onclick="location.hash='${t.hash}'">${t.icon}<span>${t.label}</span></div>`).join('')}</div>`;
   }
 
-  let html = '<div class="miss-title">📋 补打卡</div><div class="miss-cards">';
-  miss.forEach(({ str, i }) => {
-    const task = getTaskForDate(grade, str);
-    const dateLabel = i === 1 ? '昨天' : '前天';
-    const shortDate = str.slice(5); // MM-DD
-    if (task) {
-      html += `
-        <div class="miss-card" onclick="openMissTask('${str}', '${task.id}')">
-          <span class="miss-card-icon">${task.emoji}</span>
-          <div class="miss-card-info">
-            <div class="miss-card-date">${dateLabel} · ${shortDate}</div>
-            <div class="miss-card-name">${task.title}</div>
+  // ========== 妈妈后台 - 资源 ==========
+  function viewMomResources() {
+    if (!sessionStorage.getItem('mom-auth')) { location.hash='mom-pin'; return ''; }
+    return `
+      <div class="topbar"><h1>📚 资源库</h1></div>
+      <div class="page">
+        <div class="section">
+          <h3>添加资源 <span class="badge">${DATA.resources.length} 个</span></h3>
+          <button class="btn-primary" onclick="openResourceModal()">+ 添加新资源</button>
+        </div>
+        <div class="section">
+          <h3>按学科</h3>
+          <div class="subject-row">
+            ${Object.entries(SUBJECTS).map(([k, v]) => {
+              const count = DATA.resources.filter(r => r.subject === k).length;
+              return `<div class="subject-card s-${v.color}" onclick="location.hash='subject?key=${k}&role=mom'">
+                <div class="emoji">${v.emoji}</div>
+                <div class="name">${v.name}</div>
+                <div class="count">${count} 个资源</div>
+              </div>`;
+            }).join('')}
           </div>
-          <span class="miss-card-btn">补看 ▶</span>
+        </div>
+        <div class="section">
+          <h3>全部资源</h3>
+          ${DATA.resources.map(r => {
+            const s = SUBJECTS[r.subject] || SUBJECT_FALLBACK;
+            return `<div class="resource">
+              <div class="thumb">${ICN[r.type]||ICN.pdf}</div>
+              <div class="info">
+                <div class="name">${esc(r.title)}</div>
+                <div class="meta"><span class="badge-subj" style="background:${'var(--'+s.color+'-50)'};color:var(--${s.color}-600)">${s.emoji} ${s.name}</span>${(r.category||'learn')==='fun'?'<span class="badge-subj" style="background:var(--purple-50);color:var(--purple-600)">🎁 奖励</span>':''}</div>
+              </div>
+              <button class="icon-btn" onclick="delResource('${r.id}')" title="删除">${ICN.trash}</button>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+      ${momTabBar('resources')}
+      <button class="fab" onclick="openResourceModal()">${ICN.add}</button>
+    `;
+  }
+
+  // ========== 妈妈后台 - 奖励 ==========
+  function viewMomRewards() {
+    if (!sessionStorage.getItem('mom-auth')) { location.hash='mom-pin'; return ''; }
+    return `
+      <div class="topbar"><h1>🎁 奖励视频库</h1></div>
+      <div class="page">
+        <div class="section">
+          <h3>添加奖励视频 <span class="badge">${DATA.rewards.length} 个</span></h3>
+          <button class="btn-primary" onclick="openRewardModal()">+ 添加新奖励</button>
+        </div>
+        <div class="section">
+          <h3>当前奖励（按积分门槛排序）</h3>
+          ${DATA.rewards.sort((a,b)=>a.threshold-b.threshold).map(r => `
+            <div class="reward">
+              <div class="thumb">${r.emoji}</div>
+              <div class="info">
+                <div class="name">${esc(r.title)}</div>
+                <div class="threshold">需要 <strong>${r.threshold}</strong> 积分</div>
+              </div>
+              <button class="icon-btn" onclick="delReward('${r.id}')">${ICN.trash}</button>
+            </div>
+          `).join('')}
+        </div>
+        <div class="section">
+          <h3>规则说明</h3>
+          <p class="text-mute">孩子积分累计达到门槛后，自动解锁对应奖励视频。积分可通过每日打卡任务获得。妈妈可手动调整孩子的积分。</p>
+        </div>
+      </div>
+      ${momTabBar('rewards')}
+      <button class="fab" onclick="openRewardModal()">${ICN.add}</button>
+    `;
+  }
+
+  // ========== 妈妈后台 - 设置 ==========
+  function viewMomSettings() {
+    if (!sessionStorage.getItem('mom-auth')) { location.hash='mom-pin'; return ''; }
+    return `
+      <div class="topbar"><h1>⚙️ 设置</h1></div>
+      <div class="page">
+        <div class="section">
+          <h3>孩子档案</h3>
+          ${DATA.children.map(c => `
+            <div class="kid-row">
+              <div class="avatar">${c.avatar}</div>
+              <div class="info">
+                <div class="name">${esc(c.name)}</div>
+                <div class="progress">PIN: ${c.pin} · ★ ${c.points} 分 · 连续 ${c.streak} 天</div>
+              </div>
+              <button class="icon-btn" onclick="editChild('${c.id}')">${ICN.edit}</button>
+            </div>
+          `).join('')}
+          <button class="btn-secondary mt-12" onclick="openChildModal()">+ 添加孩子</button>
+        </div>
+        <div class="section">
+          <h3>妈妈密码</h3>
+          <button class="btn-secondary" onclick="changePassword()">修改密码</button>
+        </div>
+        <div class="section">
+          <h3>☁️ 云端同步</h3>
+          ${SYNC.status === 'off' ? `
+            <p class="text-mute" style="font-size:12px;margin-bottom:8px">全家设备填同一个「家庭同步码」，任务、打卡、积分、凭证每 5 秒自动互通。<br>每台设备（手机/Pad/学习机）都要开启一次。</p>
+            <input id="sync-code" placeholder="家庭同步码，如 lebao2026" style="width:100%;padding:10px 12px;border:0.5px solid var(--border-soft);border-radius:12px;font-size:14px;margin-bottom:8px" />
+            <button class="btn-primary" style="width:100%" onclick="enableSync()">开启同步</button>
+          ` : `
+            <div class="task" style="cursor:default">
+              <div class="title">
+                <div class="name">${SYNC.status === 'err' ? '🟡 连接异常，自动重试中' : '🟢 同步已开启'}</div>
+                <div class="meta">同步码：${esc(SYNC.code)} · 每 5 秒自动互通</div>
+              </div>
+            </div>
+            <button class="btn-secondary mt-8" onclick="disableSync()">关闭同步</button>
+          `}
+        </div>
+        <div class="section">
+          <h3>数据</h3>
+          <button class="btn-secondary" onclick="exportData()">导出数据 (JSON)</button>
+          <button class="btn-secondary mt-8" onclick="resetData()">重置全部数据</button>
+        </div>
+        <div class="section">
+          <h3>关于</h3>
+          <p class="text-mute">乐宝麦宝学习平台 v0.2 · MVP 迭代版<br>本机存储 + 家庭云端同步（每 5 秒轮询）</p>
+        </div>
+      </div>
+      ${momTabBar('settings')}
+    `;
+  }
+
+  // ========== 孩子端 - 选娃 ==========
+  let selectedChildId = null;
+  function viewKidSelect() {
+    return `
+      <div class="topbar">
+        <button class="icon-btn" data-back>${ICN.back}</button>
+        <h1>选一个娃</h1>
+        <div style="width:36px"></div>
+      </div>
+      <div class="page">
+        <p class="pin-title">今天是谁呀？</p>
+        <p class="pin-sub">点一下自己的头像</p>
+        <div class="avatar-grid">
+          ${DATA.children.map(c => `
+            <div class="avatar-cell ${selectedChildId===c.id?'active':''}" onclick="pickChild('${c.id}')">
+              <div style="font-size:36px">${c.avatar}</div>
+              <div style="font-size:11px;margin-top:2px">${esc(c.name)}</div>
+            </div>
+          `).join('')}
+        </div>
+        <button class="btn-primary" ${!selectedChildId?'disabled':''} onclick="goKidPin()">下一步</button>
+      </div>
+    `;
+  }
+  function pickChild(id) { selectedChildId = id; render(); }
+  function goKidPin() { if (selectedChildId) location.hash='kid-pin'; }
+
+  // ========== 孩子端 - PIN ==========
+  let kidPinBuf = '';
+  function viewKidPin() {
+    const c = DATA.children.find(x => x.id === selectedChildId);
+    if (!c) { location.hash='kid-select'; return ''; }
+    return `
+      <div class="topbar">
+        <button class="icon-btn" data-back>${ICN.back}</button>
+        <h1>${c.avatar} ${esc(c.name)} 的密码</h1>
+        <div style="width:36px"></div>
+      </div>
+      <div class="page">
+        <div style="text-align:center;margin:24px 0 8px;font-size:48px">${c.avatar}</div>
+        <p class="pin-title">输入 4 位 PIN</p>
+        <p class="pin-sub">忘了问妈妈</p>
+        <div class="pin-display">
+          ${[0,1,2,3].map(i => `<div class="pin-dot${i<kidPinBuf.length?' filled':''}"></div>`).join('')}
+        </div>
+        <div class="pin-pad">
+          ${[1,2,3,4,5,6,7,8,9].map(n => `<button class="pin-key" onclick="kidPinInput('${n}')">${n}</button>`).join('')}
+          <div></div>
+          <button class="pin-key" onclick="kidPinInput('0')">0</button>
+          <button class="pin-key" onclick="kidPinBackspace()" style="font-size:16px">⌫</button>
+        </div>
+      </div>
+    `;
+  }
+  function kidPinInput(n) {
+    if (kidPinBuf.length >= 4) return;
+    kidPinBuf += n;
+    render();
+    if (kidPinBuf.length === 4) {
+      setTimeout(() => {
+        const c = DATA.children.find(x => x.id === selectedChildId);
+        if (kidPinBuf === c.pin) {
+          sessionStorage.setItem('kid-auth', c.id);
+          kidPinBuf = '';
+          location.hash = 'kid-tasks';
+        } else {
+          toast('密码不对，问妈妈');
+          kidPinBuf = '';
+          render();
+        }
+      }, 200);
+    }
+  }
+  function kidPinBackspace() { kidPinBuf = kidPinBuf.slice(0, -1); render(); }
+
+  // ========== 孩子端 - 任务 ==========
+  function kidCheck() {
+    const id = sessionStorage.getItem('kid-auth');
+    return id && DATA.children.find(c => c.id === id);
+  }
+  function viewKidTasks() {
+    const c = kidCheck();
+    if (!c) { location.hash='kid-select'; return ''; }
+    const todays = DATA.tasks.filter(t => t.childId === c.id && t.date === TODAY);
+    const done = todays.filter(t => t.done).length;
+    return `
+      <div class="topbar">
+        <h1>${c.avatar} ${esc(c.name)}</h1>
+        <div class="actions">
+          <div class="icon-btn" style="background:var(--amber-50);color:var(--amber-600);font-size:13px;font-weight:600">★ ${c.points}</div>
+        </div>
+      </div>
+      <div class="page">
+        <div class="stat-card">
+          <div class="label">今天</div>
+          <div class="big">${done}/${todays.length}</div>
+          <div class="meta"><div>已完成 <span>${done}</span></div><div>待打卡 <span>${todays.length-done}</span></div><div>连签 <span>${c.streak}</span> 天</div></div>
+        </div>
+        <div class="section">
+          <h3>今日任务</h3>
+          ${todays.length ? todays.map(t => {
+            const res = taskRes(t);
+            return `
+            <div class="task ${t.done?'done':''}" onclick="toggleTask('${t.id}')">
+              <div class="checkbox">${t.done?ICN.check:''}</div>
+              <div class="title"><div class="name">${esc(t.title)}</div>${t.remindAt&&!t.done?`<div class="meta" style="color:var(--amber-600)">⏰ ${t.remindAt} 提醒打卡</div>`:''}${t.done&&t.doneAt?`<div class="meta" style="color:var(--gray-600)">✅ ${fmtClock(t.doneAt)} 完成</div>`:''}${t.proof?`<div class="meta" style="color:var(--amber-600)">${t.proof==='photo'?'📷 需拍照打卡':'🎙 需朗读录音打卡'}${t.proofData?' · 已提交✓':''}</div>`:''}${res?`<div class="meta" style="color:var(--pink-600)" onclick="openTaskRes(event,'${t.id}')">📎 看资料：${esc(res.title)}</div>`:''}</div>
+              <div class="pts">+${t.points}</div>
+            </div>
+          `}).join('') : '<div class="empty"><div class="emoji">🎉</div>今天没有任务，等妈妈布置</div>'}
+        </div>
+      </div>
+      ${kidTabBar('tasks')}
+    `;
+  }
+  function kidTabBar(active) {
+    const tabs = [
+      { id:'tasks', icon: ICN.home, label:'任务', hash:'kid-tasks' },
+      { id:'words', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16M6 16l3-9 3 9M7.2 13.5h3.6M14 16l2-9 2 9M15 13.5h2"/></svg>', label:'单词', hash:'kid-words' },
+      { id:'fun', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>', label:'乐园', hash:'kid-fun' },
+      { id:'resources', icon: ICN.book, label:'资源', hash:'kid-resources' },
+      { id:'rewards', icon: ICN.gift, label:'奖励', hash:'kid-rewards' },
+    ];
+    return `<div class="tabbar">${tabs.map(t => `<div class="tab ${active===t.id?'active':''}" onclick="location.hash='${t.hash}'">${t.icon}<span>${t.label}</span></div>`).join('')}</div>`;
+  }
+
+  // ========== 孩子端 - 资源 ==========
+  function viewKidResources() {
+    const c = kidCheck();
+    if (!c) { location.hash='kid-select'; return ''; }
+    const learn = DATA.resources.filter(r => (r.category || 'learn') === 'learn');
+    const fun = DATA.resources.filter(r => r.category === 'fun');
+    const funUnlocked = kidTasksDone(c);
+    return `
+      <div class="topbar">
+        <button class="icon-btn" data-back>${ICN.back}</button>
+        <h1>📚 资源库</h1>
+        <div style="width:36px"></div>
+      </div>
+      <div class="page">
+        <div class="section">
+          <h3>学习资源 <span class="badge">随时能看</span></h3>
+          <div class="subject-row">
+            ${Object.entries(SUBJECTS).map(([k, v]) => {
+              const count = learn.filter(r => r.subject === k).length;
+              return `<div class="subject-card s-${v.color}" onclick="location.hash='subject?key=${k}&role=kid'">
+                <div class="emoji">${v.emoji}</div>
+                <div class="name">${v.name}</div>
+                <div class="count">${count} 个资源</div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+        <div class="section">
+          <h3>学习资源 · 最新</h3>
+          ${learn.slice(-5).reverse().map(r => resCard(r)).join('') || '<div class="empty">还没有学习资源</div>'}
+        </div>
+        <div class="section">
+          <h3>🎁 奖励资源 <span class="badge" style="background:${funUnlocked?'var(--green-50);color:var(--green-600)':'var(--gray-100);color:var(--gray-600)'}">${funUnlocked ? '已解锁' : '完成打卡解锁'}</span></h3>
+          ${fun.length ? fun.map(r => `
+            <div class="resource" style="${funUnlocked?'':'opacity:.6'}" onclick="openResource('${r.id}')">
+              <div class="thumb">${funUnlocked ? '🎁' : '🔒'}</div>
+              <div class="info">
+                <div class="name">${esc(r.title)}</div>
+                <div class="meta">${funUnlocked ? '🎉 点开观看' : '完成今日打卡后可看'}</div>
+              </div>
+            </div>`).join('') : '<div class="empty"><div class="emoji">🎁</div>妈妈还没放奖励资源</div>'}
+        </div>
+      </div>
+      ${kidTabBar('resources')}
+    `;
+  }
+  function resCard(r) {
+    const s = SUBJECTS[r.subject] || SUBJECT_FALLBACK;
+    return `<div class="resource" onclick="openResource('${r.id}')">
+      <div class="thumb">${ICN[r.type]||ICN.pdf}</div>
+      <div class="info">
+        <div class="name">${esc(r.title)}</div>
+        <div class="meta">${s.emoji} ${s.name} · ${r.type==='video'?'视频':r.type==='pdf'?'PDF':'音频'}</div>
+      </div>
+    </div>`;
+  }
+
+  // ========== 学科详情 ==========
+  function viewSubject(p) {
+    const isMom = p.role === 'mom';
+    const s = SUBJECTS[p.key] || SUBJECT_FALLBACK;
+    const list = DATA.resources.filter(r => r.subject === p.key);
+    return `
+      <div class="topbar">
+        <button class="icon-btn" data-back>${ICN.back}</button>
+        <h1>${s.emoji} ${s.name}</h1>
+        <div style="width:36px"></div>
+      </div>
+      <div class="page">
+        <div class="section">
+          <h3>${s.name}资源 <span class="badge">${list.length} 个</span></h3>
+          ${list.length ? list.map(r => `
+            <div class="resource" onclick="openResource('${r.id}')">
+              <div class="thumb">${ICN[r.type]||ICN.pdf}</div>
+              <div class="info">
+                <div class="name">${esc(r.title)}</div>
+                <div class="meta">${r.type==='video'?'🎬 视频':r.type==='pdf'?'📄 PDF':'🎵 音频'}</div>
+              </div>
+              ${isMom ? `<button class="icon-btn" onclick="event.stopPropagation();delResource('${r.id}')">${ICN.trash}</button>` : ''}
+            </div>
+          `).join('') : '<div class="empty"><div class="emoji">📦</div>还没有资源</div>'}
+        </div>
+      </div>
+    `;
+  }
+
+  // ========== 孩子端 - 奖励 ==========
+  function viewKidRewards() {
+    const c = kidCheck();
+    if (!c) { location.hash='kid-select'; return ''; }
+    const unlocked = DATA.rewards.filter(r => c.points >= r.threshold);
+    return `
+      <div class="topbar">
+        <h1>🎁 我的奖励</h1>
+        <div class="actions">
+          <div class="icon-btn" style="background:var(--amber-50);color:var(--amber-600);font-size:13px;font-weight:600">★ ${c.points}</div>
+        </div>
+      </div>
+      <div class="page">
+        <div class="stat-card" style="background:linear-gradient(135deg,#FFD54F,#FF8F00)">
+          <div class="label">已解锁</div>
+          <div class="big">${unlocked.length}</div>
+          <div class="meta"><div>积分 <span>${c.points}</span></div><div>连签 <span>${c.streak}</span> 天</div></div>
+        </div>
+        <div class="section">
+          <h3>奖励视频库</h3>
+          ${DATA.rewards.sort((a,b)=>a.threshold-b.threshold).map(r => {
+            const got = c.points >= r.threshold;
+            return `<div class="reward ${got?'':'locked'}" onclick="${got?`openReward('${r.id}')`:`''`}">
+              <div class="thumb">${r.emoji}</div>
+              <div class="info">
+                <div class="name">${esc(r.title)}</div>
+                <div class="threshold">需要 ${r.threshold} 积分 ${got?'· ✓ 已解锁':'· 还差 '+(r.threshold-c.points)+' 分'}</div>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+        <div class="section">
+          <h3>勋章 <span class="badge">收集</span></h3>
+          <div class="subject-row">
+            <div class="subject-card s-chinese" style="min-height:auto;padding:16px"><div class="emoji">🌟</div><div class="name">连续 7 天</div><div class="count">${c.streak>=7?'已获得':'差 '+(7-c.streak)+' 天'}</div></div>
+            <div class="subject-card s-english" style="min-height:auto;padding:16px"><div class="emoji">🏆</div><div class="name">积分 100</div><div class="count">${c.points>=100?'已获得':'差 '+(100-c.points)+' 分'}</div></div>
+            <div class="subject-card s-math" style="min-height:auto;padding:16px"><div class="emoji">🚀</div><div class="name">积分 300</div><div class="count">${c.points>=300?'已获得':'差 '+(300-c.points)+' 分'}</div></div>
+            <div class="subject-card s-science" style="min-height:auto;padding:16px"><div class="emoji">💎</div><div class="name">积分 500</div><div class="count">${c.points>=500?'已获得':'差 '+(500-c.points)+' 分'}</div></div>
+          </div>
+        </div>
+      </div>
+      ${kidTabBar('rewards')}
+    `;
+  }
+
+  // ========== 交互：任务打卡 ==========
+  function toggleTask(id) {
+    const t = DATA.tasks.find(x => x.id === id);
+    if (!t) return;
+    const kid = kidCheck();
+    const isKid = kid && t.childId === kid.id;
+    if (t.proof) {
+      if (isKid) {
+        if (t.done) { if (t.proofData) openProofView(t); return; } // 已打卡只能回看凭证，不能取消
+        openProofModal(id);
+        return;
+      }
+      // 妈妈端：点击看凭证；没凭证时可直接代勾
+      if (t.proofData) { openProofView(t); return; }
+    }
+    t.done = !t.done;
+    if (t.done) {
+      t.doneAt = Date.now();
+      const k = DATA.children.find(c => c.id === t.childId);
+      k.points += t.points;
+      DATA.pointsHistory.unshift({ id: 'h'+Date.now(), childId: k.id, date: TODAY, title: t.title, points: t.points, at: Date.now() });
+      toast(`+${t.points} 分 · 已记录给 ${k.name}`);
+    } else {
+      t.doneAt = null;
+      const k = DATA.children.find(c => c.id === t.childId);
+      k.points = Math.max(0, k.points - t.points);
+      DATA.pointsHistory = DATA.pointsHistory.filter(h => !(h.childId===k.id && h.title===t.title && h.date===TODAY));
+    }
+    saveData(DATA); render();
+  }
+
+  // ========== 闹钟提醒引擎 ==========
+  function fmtClock(ts) { return ts ? new Date(ts).toTimeString().slice(0, 5) : ''; }
+  const REMIND_KEY = 'notified-' + TODAY;
+  const notifiedTasks = new Set(JSON.parse(localStorage.getItem(REMIND_KEY) || '[]'));
+  function remindTick() {
+    const now = new Date();
+    const hhmm = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+    const due = DATA.tasks.filter(t => t.date === TODAY && t.remindAt && !t.done && t.remindAt <= hhmm && !notifiedTasks.has(t.id));
+    if (!due.length) return;
+    due.forEach(t => notifiedTasks.add(t.id));
+    try { localStorage.setItem(REMIND_KEY, JSON.stringify([...notifiedTasks])); } catch (e) {}
+    const isKid = !!kidCheck();
+    const list = due.map(t => ({ t, k: DATA.children.find(c => c.id === t.childId) }));
+    showRemindModal(list, isKid);
+    try {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('⏰ 打卡时间到！', { body: due.map(t => t.title).join('、') });
+      }
+    } catch (e) {}
+  }
+  function showRemindModal(list, isKid) {
+    if (document.querySelector('.remind-mask')) return;
+    const modal = document.createElement('div');
+    modal.className = 'modal-mask remind-mask';
+    modal.onclick = e => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+      <div class="modal">
+        <div style="font-size:40px;text-align:center">⏰</div>
+        <h3 style="text-align:center">打卡时间到！</h3>
+        ${list.map(({ t, k }) => `
+          <div class="task" style="margin-bottom:8px">
+            <div class="title"><div class="name">${esc(t.title)}</div><div class="meta">${k ? k.avatar + ' ' + esc(k.name) : ''} · ${t.remindAt} 提醒</div></div>
+            ${isKid ? `<button class="btn-primary" style="padding:6px 14px;white-space:nowrap" onclick="document.querySelector('.remind-mask').remove();location.hash='kid-tasks'">去打卡 ▶</button>` : ''}
+          </div>`).join('')}
+        <div class="btn-row" style="margin-top:10px"><button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">知道了</button></div>
+      </div>`;
+    document.getElementById('modal-root').appendChild(modal);
+  }
+  if ('Notification' in window && Notification.permission === 'default') { try { Notification.requestPermission(); } catch (e) {} }
+  setInterval(remindTick, 30 * 1000);
+  setTimeout(remindTick, 2500);
+
+  // ========== 凭证打卡：拍照 / 朗读录音 ==========
+  let PROOF_STASH = null; // { type:'photo'|'audio', data:dataURL }
+  let REC = null;
+  function openProofModal(id) {
+    const t = DATA.tasks.find(x => x.id === id);
+    if (!t || t.done) return;
+    const needPhoto = t.proof === 'photo';
+    PROOF_STASH = null;
+    const modal = document.createElement('div');
+    modal.className = 'modal-mask';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+      <div class="modal">
+        <button class="icon-btn close" onclick="proofClose()">✕</button>
+        <h3>${needPhoto ? '📷 拍照打卡' : '🎙 朗读打卡'}</h3>
+        <p style="font-size:13px;color:var(--gray-600);margin-bottom:12px">${esc(t.title)}</p>
+        ${needPhoto ? `
+          <label class="btn-secondary" style="display:block;text-align:center;width:100%;cursor:pointer;padding:12px 0">
+            📷 现在拍一张 / 从相册选
+            <input type="file" accept="image/*" capture="environment" style="display:none" onchange="proofPick(this)">
+          </label>
+          <div id="proof-preview" style="margin-top:10px"></div>
+        ` : `
+          <button id="rec-btn" class="btn-secondary" style="width:100%;padding:12px 0" onclick="proofRec()">🎙 点我开始朗读录音</button>
+          <div id="rec-status" style="text-align:center;font-size:13px;color:var(--gray-600);margin-top:8px"></div>
+          <div id="proof-preview" style="margin-top:10px"></div>
+          <p class="wq-hint" id="proof-fallback" style="display:none"><span style="color:var(--pink-600);text-decoration:underline" onclick="proofManual()">设备不支持录音？点这里直接确认打卡</span></p>
+        `}
+        <div class="btn-row" style="margin-top:14px">
+          <button class="btn-secondary" onclick="proofClose()">取消</button>
+          <button id="proof-ok" class="btn-primary" onclick="confirmProof('${t.id}')" disabled>完成打卡 +${t.points} 分</button>
+        </div>
+      </div>`;
+    document.getElementById('modal-root').appendChild(modal);
+    if (!needPhoto && !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder)) {
+      const fb = document.getElementById('proof-fallback');
+      if (fb) fb.style.display = 'block';
+      const rb = document.getElementById('rec-btn');
+      if (rb) rb.style.display = 'none';
+    }
+  }
+  function proofClose() {
+    if (REC && REC.state === 'recording') { try { REC.stop(); } catch(e){} }
+    if (REC) { try { REC.stream.getTracks().forEach(tr => tr.stop()); } catch(e){} REC = null; }
+    document.querySelectorAll('.modal-mask').forEach(m => m.remove());
+  }
+  function proofPick(input) {
+    const f = input.files && input.files[0];
+    if (!f) return;
+    const img = new Image();
+    const rd = new FileReader();
+    rd.onload = () => { img.src = rd.result; };
+    img.onload = () => {
+      const max = 1000;
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(img.width * scale); cv.height = Math.round(img.height * scale);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      const data = cv.toDataURL('image/jpeg', 0.6);
+      PROOF_STASH = { type: 'photo', data };
+      const pv = document.getElementById('proof-preview');
+      if (pv) pv.innerHTML = `<img class="proof-shot" src="${data}" alt="打卡照片">`;
+      const ok = document.getElementById('proof-ok');
+      if (ok) ok.disabled = false;
+    };
+    rd.readAsDataURL(f);
+  }
+  async function proofRec() {
+    if (!navigator.mediaDevices || !window.MediaRecorder) return;
+    const btn = document.getElementById('rec-btn');
+    const st = document.getElementById('rec-status');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      REC = new MediaRecorder(stream);
+      const chunks = [];
+      REC.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+      REC.onstop = () => {
+        stream.getTracks().forEach(tr => tr.stop());
+        const blob = new Blob(chunks, { type: REC.mimeType || 'audio/webm' });
+        const fr = new FileReader();
+        fr.onload = () => {
+          PROOF_STASH = { type: 'audio', data: fr.result };
+          const pv = document.getElementById('proof-preview');
+          if (pv) pv.innerHTML = `<audio controls style="width:100%" src="${fr.result}"></audio>`;
+          const ok = document.getElementById('proof-ok');
+          if (ok) ok.disabled = false;
+        };
+        fr.readAsDataURL(blob);
+      };
+      REC.start();
+      if (btn) { btn.textContent = '⏹ 录音中…点这里结束'; btn.style.background = 'var(--red-50)'; btn.style.color = 'var(--red-600)'; }
+      if (st) st.innerHTML = '<span class="rec-dot"></span>正在录音，大声朗读吧！';
+      // 5 分钟自动停
+      REC._timer = setTimeout(() => { if (REC && REC.state === 'recording') proofRecStop(); }, 5 * 60 * 1000);
+      btn.onclick = proofRecStop;
+    } catch (e) {
+      if (st) st.textContent = '打不开麦克风，检查权限后重试';
+      const fb = document.getElementById('proof-fallback');
+      if (fb) fb.style.display = 'block';
+    }
+  }
+  function proofRecStop() {
+    if (!REC) return;
+    const btn = document.getElementById('rec-btn');
+    const st = document.getElementById('rec-status');
+    if (REC._timer) clearTimeout(REC._timer);
+    if (REC.state === 'recording') REC.stop();
+    if (btn) { btn.textContent = '🔄 重新录一遍'; btn.style.background = ''; btn.style.color = ''; }
+    if (st) st.textContent = '录好了！听一听，不满意可以重录';
+  }
+  function proofManual() { PROOF_STASH = { type: 'audio', data: null }; const ok = document.getElementById('proof-ok'); if (ok) ok.disabled = false; }
+  function confirmProof(id) {
+    const t = DATA.tasks.find(x => x.id === id);
+    if (!t || t.done) return;
+    if (!PROOF_STASH) { toast('先拍照或录个音哦'); return; }
+    t.done = true;
+    t.doneAt = Date.now();
+    t.proofData = { type: PROOF_STASH.type, data: PROOF_STASH.data, at: Date.now() };
+    const k = DATA.children.find(c => c.id === t.childId);
+    if (k) {
+      k.points += t.points;
+      DATA.pointsHistory.unshift({ id: 'h'+Date.now(), childId: k.id, date: TODAY, title: t.title, points: t.points, at: Date.now() });
+      toast(`凭证收到！+${t.points} 分 ⭐`);
+    }
+    PROOF_STASH = null;
+    try { saveData(DATA); } catch (e) { toast('存储空间不够，凭证没存上，请联系妈妈清理'); }
+    document.querySelectorAll('.modal-mask').forEach(m => m.remove());
+    render();
+  }
+  function openProofView(t) {
+    const pd = t.proofData;
+    if (!pd || !pd.data) { toast('这份打卡没有凭证'); return; }
+    const time = new Date(pd.at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    const modal = document.createElement('div');
+    modal.className = 'modal-mask';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+      <div class="modal">
+        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+        <h3>${pd.type === 'photo' ? '📷 打卡照片' : '🎙 朗读录音'}</h3>
+        <p style="font-size:13px;color:var(--gray-600);margin-bottom:10px">${esc(t.title)} · ${time} 提交</p>
+        ${pd.type === 'photo' ? `<img class="proof-shot" src="${pd.data}" alt="打卡照片">` : `<audio controls style="width:100%" src="${pd.data}"></audio>`}
+        <div class="btn-row" style="margin-top:14px"><button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">关闭</button></div>
+      </div>`;
+    document.getElementById('modal-root').appendChild(modal);
+  }
+  function viewTaskProof(e, id) {
+    e.stopPropagation();
+    const t = DATA.tasks.find(x => x.id === id);
+    if (!t) return;
+    if (t.proofData) openProofView(t);
+    else toast(t.done ? '这份打卡没有凭证' : '孩子还没提交打卡凭证');
+  }
+
+  // ========== 单词打卡 ==========
+  function speak(text) {
+    try {
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'en-US'; u.rate = 0.75; u.pitch = 1.1;
+      speechSynthesis.speak(u);
+    } catch (e) { toast('当前浏览器不支持朗读'); }
+  }
+  function wtSet(wt) { return DATA.wordSets.find(s => s.id === wt.setId) || { title: '词库已删除', words: [] }; }
+  function wtProgress(wt) { return Object.keys(wt.wordState || {}).filter(k => wt.wordState[k] >= 3).length; }
+  function wtFirstIncomplete(wt) {
+    const n = Math.min(wt.count, wtSet(wt).words.length);
+    for (let i = 0; i < n; i++) { if ((wt.wordState[i] || 0) < 3) return i; }
+    return -1;
+  }
+  function wqFinish(wt) {
+    if (wt.done) return;
+    wt.done = true;
+    const k = DATA.children.find(c => c.id === wt.childId);
+    k.points += wt.points;
+    const s = wtSet(wt);
+    DATA.pointsHistory.unshift({ id: 'h' + Date.now(), childId: k.id, date: TODAY, title: `单词打卡：${s.title} ×${wt.count}`, points: wt.points });
+    saveData(DATA);
+    toast(`单词任务全部完成！+${wt.points} 分 🎉`);
+  }
+
+  // ---- 孩子端：单词任务列表 ----
+  function viewKidWords() {
+    const c = kidCheck();
+    if (!c) { location.hash = 'kid-select'; return ''; }
+    const wts = DATA.wordTasks.filter(t => t.childId === c.id && t.date === TODAY);
+    return `
+      <div class="topbar">
+        <h1>${c.avatar} ${esc(c.name)} · 单词打卡</h1>
+        <div class="actions"><div class="icon-btn" style="background:var(--amber-50);color:var(--amber-600);font-size:13px;font-weight:600">★ ${c.points}</div></div>
+      </div>
+      <div class="page">
+        ${wts.length ? wts.map(wt => {
+          const s = wtSet(wt);
+          const p = wtProgress(wt);
+          const pct = wt.count ? Math.round(p / wt.count * 100) : 0;
+          return `
+          <div class="section">
+            <h3>📚 ${esc(s.title)} <span class="badge">${p}/${wt.count} 词</span></h3>
+            <div class="wq-bar"><div class="wq-bar-in" style="width:${pct}%"></div></div>
+            <p class="text-mute" style="margin:10px 0">每关三步：🔊跟读 → ⌨️拼写 → 🌏选翻译。全部完成 +${wt.points} 分。</p>
+            ${wt.done
+              ? '<div class="wq-done">🎉 今日单词已完成，太棒了！</div>'
+              : `<button class="btn-primary" style="width:100%" onclick="location.hash='kid-word-quiz?wt=${wt.id}'">${p > 0 ? '继续挑战 ▶' : '开始挑战 ▶'}</button>`}
+          </div>`;
+        }).join('') : '<div class="empty"><div class="emoji">📚</div>今天没有单词任务，等妈妈布置</div>'}
+      </div>
+      ${kidTabBar('words')}
+    `;
+  }
+
+  // ---- 孩子端：单词闯关 ----
+  let WQ = null; // 闯关临时状态 {wtId, wi, step, opts}
+  function viewWordQuiz(params) {
+    const c = kidCheck();
+    if (!c) { location.hash = 'kid-select'; return ''; }
+    const wt = DATA.wordTasks.find(t => t.id === params.wt);
+    if (!wt) { location.hash = 'kid-words'; return ''; }
+    const s = wtSet(wt);
+    const wi = wtFirstIncomplete(wt);
+    if (wi === -1) { wqFinish(wt); return viewWordQuizDone(wt, s); }
+    if (!WQ || WQ.wtId !== wt.id || WQ.wi !== wi) WQ = { wtId: wt.id, wi, step: 1, opts: null };
+    if (WQ.step === 3 && !WQ.opts) WQ.opts = buildTransOptions(s, wi);
+    const word = s.words[wi];
+    window.__wq_autospeak = (WQ.step === 1 || WQ.step === 2) ? word.w : null;
+    const doneN = wi; // 前面已全过的词数
+    const pct = Math.round(doneN / wt.count * 100);
+
+    let stepBody = '';
+    if (WQ.step === 1) {
+      stepBody = `
+        <div class="wq-step-tag">第 1 关 · 跟读 🔊</div>
+        <div class="wq-word-card">
+          <div class="w">${esc(word.w)}</div>
+          <div class="cn">${esc(word.cn)}</div>
+          <button class="wq-sound-btn" onclick="speak('${esc(word.w)}')">🔊</button>
+        </div>
+        <p class="wq-hint">点喇叭听发音，大声跟读几遍</p>
+        <button class="btn-primary" style="width:100%;margin-top:12px" onclick="wqStep(2)">我会读了 ✓</button>`;
+    } else if (WQ.step === 2) {
+      stepBody = `
+        <div class="wq-step-tag">第 2 关 · 拼写 ⌨️</div>
+        <div class="wq-word-card">
+          <div class="w">${esc(word.cn)}</div>
+          <div class="cn">它的英文是？</div>
+          <button class="wq-sound-btn" onclick="speak('${esc(word.w)}')">🔊</button>
+        </div>
+        <input class="wq-spell" id="wq-spell" autocomplete="off" autocapitalize="off" placeholder="拼出来…" />
+        <button class="btn-primary" style="width:100%;margin-top:12px" onclick="wqSpellCheck('${esc(word.w)}')">检查</button>
+        <p class="wq-hint">拼错了会抖一抖，再试试就行</p>`;
+    } else {
+      stepBody = `
+        <div class="wq-step-tag">第 3 关 · 选翻译 🌏</div>
+        <div class="wq-word-card">
+          <div class="w">${esc(word.w)}</div>
+          <button class="wq-sound-btn" onclick="speak('${esc(word.w)}')">🔊</button>
+        </div>
+        <div class="wq-choices">
+          ${WQ.opts.map((o, i) => `<button class="wq-choice" id="wqc${i}" onclick="wqTransPick(${i}, '${esc(word.cn)}')">${esc(o.cn)}</button>`).join('')}
         </div>`;
     }
-  });
-  html += '</div>';
-  section.innerHTML = html;
-}
 
-// 打开补打卡任务（不打卡，只看视频）
-function openMissTask(dateStr, vidId) {
-  const grade = currentGrade;
-  const task = getTaskForDate(grade, dateStr);
-  if (!task) return;
-  // 把这个视频作为补打卡任务播放，播放完或关闭时询问是否补打卡
-  playForMakeup(dateStr, task);
-}
-
-// 渲染今日任务卡片
-function renderTaskCard(grade) {
-  const logs = getLogs(grade);
-  const checked = logs.includes(todayStr());
-  const task = getTodayTask(grade);
-
-  if (!task) return;
-  const gradeDef = GRADES.find(g => g.key === grade);
-
-  $("#taskCard").onclick = () => openTask();
-
-  if (checked) {
-    $("#taskCard").classList.add('is-done');
-    $("#taskIcon").textContent = '✅';
-    $("#taskTag").textContent = '✅ 今日已完成';
-    $("#taskTag").classList.add('done-tag');
-    $("#taskTitle").textContent = task.title;
-    $("#taskSub").textContent = gradeDef.name.split(' ').slice(1).join(' ') + ' · ' + task.cat;
-    $("#taskArrow").textContent = '🔄';
-    $("#taskHint").classList.add('done-hint');
-    $("#taskHintText").textContent = '太棒了！明天继续加油 💪';
-    $("#taskHint").querySelector('.play-icon').textContent = '🎉';
-  } else {
-    $("#taskCard").classList.remove('is-done');
-    $("#taskIcon").textContent = task.emoji;
-    $("#taskTag").textContent = '🎯 今日任务';
-    $("#taskTag").classList.remove('done-tag');
-    $("#taskTitle").textContent = task.title;
-    $("#taskSub").textContent = gradeDef.name.split(' ').slice(1).join(' ') + ' · ' + task.cat;
-    $("#taskArrow").textContent = '▶️';
-    $("#taskHint").classList.remove('done-hint');
-    $("#taskHintText").textContent = '点击开始学习，看完自动打卡 ✨';
-    $("#taskHint").querySelector('.play-icon').textContent = '▶️';
+    return `
+      <div class="topbar">
+        <button class="icon-btn" onclick="location.hash='kid-words'">${ICN.back}</button>
+        <h1 style="font-size:15px">${esc(s.title)} · ${wi + 1}/${wt.count}</h1>
+        <div class="actions"><div class="icon-btn" style="background:var(--amber-50);color:var(--amber-600);font-size:13px;font-weight:600">★ ${c.points}</div></div>
+      </div>
+      <div class="page">
+        <div class="wq-bar" style="margin-bottom:14px"><div class="wq-bar-in" style="width:${pct}%"></div></div>
+        ${stepBody}
+      </div>
+      ${kidTabBar('words')}
+    `;
   }
-  window._currentTask = task;
-}
-
-function getTodayTask(grade) {
-  return getTaskForDate(grade, todayStr());
-}
-
-function openTask() {
-  const task = window._currentTask;
-  if (!task) return;
-  if (task.type === 'playlist') {
-    showPlaylist(task, 1);
-  } else {
-    startWatch(task.id);
-    play(task);
+  function viewWordQuizDone(wt, s) {
+    const c = DATA.children.find(x => x.id === wt.childId);
+    return `
+      <div class="topbar">
+        <button class="icon-btn" onclick="location.hash='kid-words'">${ICN.back}</button>
+        <h1>单词打卡</h1>
+        <div class="actions"><div class="icon-btn" style="background:var(--amber-50);color:var(--amber-600);font-size:13px;font-weight:600">★ ${c.points}</div></div>
+      </div>
+      <div class="page">
+        <div class="wq-word-card">
+          <div style="font-size:52px">🎉</div>
+          <div class="w" style="font-size:20px;margin-top:8px">今日单词全部完成！</div>
+          <div class="cn">${esc(s.title)} × ${wt.count} 个 · +${wt.points} 分</div>
+        </div>
+        <p class="wq-hint">坚持每天打卡，词汇量蹭蹭涨 📈</p>
+      </div>
+      ${kidTabBar('words')}
+    `;
   }
-}
-
-// ============================================================
-//  播放器 + 护眼计时
-// ============================================================
-let _watchedTaskId = null;
-let _watchedDateStr = null; // 'today' or 'YYYY-MM-DD'
-let _playerClosed = false;
-let _eyeTimer = null;
-let _eyeSeconds = 0;
-let _restShown = false;
-let _continueAfterRest = false;
-
-// 字幕切换
-let _currentBvid = null;
-let _currentPage = 1;
-let _subOn = false;
-
-function buildBiliSrc(bvid, page, sub) {
-  // cc=1 开启B站字幕轨道（前提是视频有字幕）；danmaku=0 关闭弹幕
-  return 'https://player.bilibili.com/player.html?bvid=' + bvid
-    + '&page=' + page + '&high_quality=1&danmaku=0'
-    + (sub ? '&cc=1' : '')
-    + '&autoplay=1';
-}
-
-function toggleSubtitle() {
-  _subOn = !_subOn;
-  const btn = $("#subBtn");
-  if (_subOn) {
-    btn.textContent = "字幕开";
-    btn.classList.add("on");
-  } else {
-    btn.textContent = "字幕";
-    btn.classList.remove("on");
-  }
-  // 重新加载 iframe 切换字幕
-  if (_currentBvid) {
-    const frame = $("#biliFrame");
-    if (frame) frame.src = buildBiliSrc(_currentBvid, _currentPage, _subOn);
-  }
-}
-
-function startWatch(vid, dateStr) {
-  _watchedTaskId = vid;
-  _watchedDateStr = dateStr || 'today';
-  _playerClosed = false;
-  _eyeSeconds = 0;
-  _restShown = false;
-  _continueAfterRest = false;
-}
-
-function stopEyeTimer() {
-  clearInterval(_eyeTimer);
-  _eyeTimer = null;
-}
-
-function startEyeTimer() {
-  stopEyeTimer();
-  _eyeTimer = setInterval(() => {
-    _eyeSeconds++;
-    updateEyeBar();
-
-    // 本地视频暂停处理
-    const localVid = $("#localVideo");
-    if (localVid && localVid.paused && _eyeSeconds > 0) return;
-
-    if (!_restShown && _eyeSeconds >= WATCH_LIMIT) {
-      _restShown = true;
-      showRest();
+  function buildTransOptions(s, wi) {
+    const pool = s.words.filter((_, i) => i !== wi).map(x => x.cn);
+    const opts = [s.words[wi]];
+    while (opts.length < 4 && pool.length) {
+      const idx = Math.floor(Math.random() * pool.length);
+      opts.push({ cn: pool.splice(idx, 1)[0] });
     }
-  }, 1000);
-}
-
-function updateEyeBar() {
-  const pct = Math.min(100, (_eyeSeconds / WATCH_LIMIT) * 100);
-  const fill = $("#eyeBarFill");
-  const time = $("#eyeBarTime");
-  if (fill) fill.style.width = pct + '%';
-  const mins = Math.floor(_eyeSeconds / 60);
-  const secs = _eyeSeconds % 60;
-  if (time) {
-    if (pct >= 100) {
-      time.textContent = '30′00″';
-      time.classList.add('eye-bar-warn');
+    // 洗牌
+    for (let i = opts.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [opts[i], opts[j]] = [opts[j], opts[i]];
+    }
+    return opts;
+  }
+  function wqStep(n) { WQ.step = n; render(); }
+  function wqSpellCheck(answer) {
+    const input = document.getElementById('wq-spell');
+    if (!input) return;
+    if (input.value.trim().toLowerCase() === answer.toLowerCase()) {
+      const wt = DATA.wordTasks.find(t => t.id === WQ.wtId);
+      wt.wordState[WQ.wi] = 2;
+      WQ.step = 3; WQ.opts = null;
+      saveData(DATA); render();
+      toast('拼对了！最后一关 🌏');
     } else {
-      time.textContent = mins + '′' + String(secs).padStart(2, '0') + '″';
-      time.classList.remove('eye-bar-warn');
+      input.classList.add('bad');
+      toast('再想想，听一遍提示 🔊');
+      setTimeout(() => input.classList.remove('bad'), 400);
     }
   }
-}
-
-function pauseForRest() {
-  const localVid = $("#localVideo");
-  if (localVid) localVid.pause();
-  // B站无法暂停，只能弹窗提示
-}
-
-function showRest() {
-  pauseForRest();
-  $("#restOverlay").classList.add('show');
-}
-
-function closeRest(continueWatch) {
-  $("#restOverlay").classList.remove('show');
-  if (continueWatch) {
-    // 继续看：重置计时，从0开始重新计时
-    _eyeSeconds = 0;
-    _restShown = false;
-    updateEyeBar();
-    const localVid = $("#localVideo");
-    if (localVid) localVid.play();
-  } else {
-    // 休息：直接关闭播放器，走打卡流程
-    doCheckinForWatched();
-    closePlayer();
-  }
-}
-
-function doCheckinForWatched() {
-  const grade = currentGrade;
-  const logs = getLogs(grade);
-  const today = todayStr();
-
-  if (_watchedDateStr === 'today' || _watchedDateStr === today) {
-    // 看的是今日任务，打今日卡
-    if (!logs.includes(today)) {
-      logs.push(today);
-      saveLogs(grade, logs);
-    }
-  } else {
-    // 看的是补打卡任务，询问是否补打卡
-    if (!logs.includes(_watchedDateStr)) {
-      logs.push(_watchedDateStr);
-      saveLogs(grade, logs);
+  function wqTransPick(i, correct) {
+    const btn = document.getElementById('wqc' + i);
+    if (WQ.opts[i].cn === correct) {
+      const wt = DATA.wordTasks.find(t => t.id === WQ.wtId);
+      wt.wordState[WQ.wi] = 3;
+      const isLast = wtFirstIncomplete(wt) === -1;
+      saveData(DATA);
+      WQ = null;
+      if (!isLast) toast('过关！下一个词 ▶');
+      render();
+    } else {
+      btn.classList.add('bad');
+      setTimeout(() => btn.classList.remove('bad'), 400);
     }
   }
+  window.__afterRender = function () {
+    if (window.__wq_autospeak) { const t = window.__wq_autospeak; window.__wq_autospeak = null; setTimeout(() => speak(t), 350); }
+  };
 
-  renderWeekBar(grade);
-  renderTaskCard(grade);
-  renderMissSection(grade);
-  renderGrid();
-  showSuccess();
-  launchConfetti();
-}
+  // ---- 妈妈端：单词管理 ----
+  function viewMomWords() {
+    const todays = DATA.wordTasks.filter(t => t.date === TODAY);
+    return `
+      <div class="topbar"><h1>单词打卡</h1><div class="actions"></div></div>
+      <div class="page">
+        <div class="section">
+          <h3>今日单词任务</h3>
+          ${todays.length ? todays.map(wt => {
+            const k = DATA.children.find(c => c.id === wt.childId);
+            const s = wtSet(wt);
+            return `<div class="task">
+              <div class="title"><div class="name">${k.avatar} ${esc(k.name)}</div>
+              <div class="meta">📚 ${esc(s.title)} · ${wtProgress(wt)}/${wt.count} 词 ${wt.done ? '· ✅ 已完成' : ''}</div></div>
+              <button class="icon-btn" style="background:#FFEBEE;color:#C62828" onclick="delWordTask('${wt.id}')">${ICN.trash}</button>
+            </div>`;
+          }).join('') : '<div class="empty">今天还没布置单词任务</div>'}
+        </div>
 
-function play(v) {
-  const page = v.page || 1;
-  $("#ptitle").textContent = (v.emoji || '🎬') + ' ' + v.title;
-  // 重置字幕状态
-  _subOn = false;
-  $("#subBtn").textContent = "字幕";
-  $("#subBtn").classList.remove("on");
-  if (v.type === "bili") {
-    _currentBvid = v.url;
-    _currentPage = page;
-    $("#playerWrap").innerHTML = '<iframe id="biliFrame" src="' + buildBiliSrc(v.url, page, false) + '" allowfullscreen="true" scrolling="no"></iframe>';
-  } else {
-    _currentBvid = null;
-    $("#playerWrap").innerHTML = '<video id="localVideo" src="' + v.url + '" controls autoplay playsinline webkit-playsinline></video>';
+        <div class="section">
+          <h3>布置今日单词</h3>
+          <div class="field"><label>给谁</label>
+            <select id="wt-child">${DATA.children.map(c => `<option value="${c.id}">${c.avatar} ${esc(c.name)}</option>`).join('')}</select></div>
+          <div class="field"><label>词库</label>
+            <select id="wt-set">${DATA.wordSets.map(s => `<option value="${s.id}">📚 ${esc(s.title)}（${s.words.length} 词）</option>`).join('')}</select></div>
+          <div class="field"><label>今天学几个</label>
+            <input id="wt-count" type="number" value="5" min="1" max="20" /></div>
+          <div class="field"><label>完成后积分</label>
+            <input id="wt-points" type="number" value="5" min="1" max="20" /></div>
+          <button class="btn-primary" style="width:100%" onclick="assignWordTask()">布置</button>
+        </div>
+
+        <div class="section">
+          <h3>词库管理 <button class="text-pink" style="font-size:12px" onclick="openWordSetModal()">${ICN.add} 新建词库</button></h3>
+          ${DATA.wordSets.map(s => `<div class="task">
+            <div class="title"><div class="name">📚 ${esc(s.title)}</div><div class="meta">${s.words.length} 个单词</div></div>
+            <button class="icon-btn" style="background:#FFEBEE;color:#C62828" onclick="delWordSet('${s.id}')">${ICN.trash}</button>
+          </div>`).join('')}
+        </div>
+      </div>
+      ${momTabBar('words')}
+    `;
   }
-  $("#playerMask").classList.add('show');
-  startEyeTimer();
+  function openWordSetModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal-mask';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+      <div class="modal">
+        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+        <h3>新建词库</h3>
+        <div class="field"><label>词库名称</label>
+          <input id="ws-title" placeholder="例：三年级上册 Unit 1" /></div>
+        <div class="field"><label>单词列表（每行一个：单词 中文）</label>
+          <textarea id="ws-words" rows="8" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);font-size:14px" placeholder="apple 苹果&#10;banana 香蕉&#10;cat 猫"></textarea></div>
+        <div class="btn-row">
+          <button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">取消</button>
+          <button class="btn-primary" onclick="addWordSet()">保存</button>
+        </div>
+      </div>
+    `;
+    document.getElementById('modal-root').appendChild(modal);
+  }
+  function addWordSet() {
+    const title = document.getElementById('ws-title').value.trim();
+    const raw = document.getElementById('ws-words').value;
+    if (!title) { toast('给词库起个名'); return; }
+    const words = raw.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+      const m = l.match(/^(\S+)\s+(.+)$/);
+      return m ? { w: m[1], cn: m[2] } : null;
+    }).filter(Boolean);
+    if (!words.length) { toast('至少一行「单词 中文」'); return; }
+    DATA.wordSets.push({ id: 'ws' + Date.now(), title, words });
+    saveData(DATA); document.querySelector('.modal-mask').remove(); render(); toast(`已保存 ${words.length} 个单词`);
+  }
+  function delWordSet(id) {
+    if (!confirm('删除词库？已布置的任务会显示"词库已删除"')) return;
+    DATA.wordSets = DATA.wordSets.filter(s => s.id !== id);
+    saveData(DATA); render();
+  }
+  function assignWordTask() {
+    const childId = document.getElementById('wt-child').value;
+    const setId = document.getElementById('wt-set').value;
+    const count = parseInt(document.getElementById('wt-count').value) || 5;
+    const points = parseInt(document.getElementById('wt-points').value) || 5;
+    const dup = DATA.wordTasks.find(t => t.childId === childId && t.date === TODAY && t.setId === setId && !t.done);
+    if (dup) { toast('这个娃今天已有该词库的任务'); return; }
+    DATA.wordTasks.push({ id: 'wt' + Date.now(), childId, date: TODAY, setId, count, points, done: false, wordState: {} });
+    saveData(DATA); render(); toast('已布置，孩子端"单词"里能看到');
+  }
+  function delWordTask(id) {
+    if (!confirm('删除这个单词任务？')) return;
+    DATA.wordTasks = DATA.wordTasks.filter(t => t.id !== id);
+    saveData(DATA); render();
+  }
 
-  if (v.type === 'local') {
-    const vidEl = $("#localVideo");
-    if (vidEl) {
-      vidEl.onended = () => {
-        doCheckinForWatched();
-        closePlayer();
-      };
+  // ========== 星星乐园（转盘 + 小游戏） ==========
+  function kidTasksDone(c) {
+    const todays = DATA.tasks.filter(t => t.childId === c.id && t.date === TODAY);
+    return todays.length === 0 || todays.every(t => t.done);
+  }
+  function awardStars(c, n, title) {
+    c.points += n;
+    DATA.pointsHistory.unshift({ id: 'h' + Date.now(), childId: c.id, date: TODAY, title, points: n });
+    saveData(DATA);
+  }
+  const FUN_GATE = '🔒 完成今天的打卡任务才能玩哦';
+
+  // ---- 幸运转盘 ----
+  const WHEEL_SEGS = [
+    { label: '+2★',  pts: 2,  w: 20 }, { label: '谢谢参与', pts: 0, w: 15 },
+    { label: '+5★',  pts: 5,  w: 20 }, { label: '+10★', pts: 10, w: 12 },
+    { label: '再来一次', pts: 0, again: true, w: 10 }, { label: '+20★', pts: 20, w: 5 },
+    { label: '+3★',  pts: 3,  w: 18 }, { label: '+8★',  pts: 8,  w: 10 },
+  ];
+  const WHEEL_COLORS = ['#F06292','#BA68C8','#4DD0E1','#FFB74D','#81C784','#9575CD','#FF8A65','#4FC3F7'];
+  let wheelRot = 0, wheelBusy = false;
+  function wheelGradient() {
+    return 'conic-gradient(' + WHEEL_COLORS.map((c, i) => `${c} ${i*45}deg ${(i+1)*45}deg`).join(',') + ')';
+  }
+  function spinWheel() {
+    if (wheelBusy) return;
+    const c = kidCheck();
+    if (!c) return;
+    if (!kidTasksDone(c)) { toast(FUN_GATE); return; }
+    if (c.points < 10) { toast('星星不够啦，先去打卡赚星星吧 ⭐'); return; }
+    c.points -= 10; saveData(DATA);
+    wheelBusy = true; render();
+    const total = WHEEL_SEGS.reduce((a, s) => a + s.w, 0);
+    let r = Math.random() * total, idx = 0;
+    for (let i = 0; i < WHEEL_SEGS.length; i++) { r -= WHEEL_SEGS[i].w; if (r <= 0) { idx = i; break; } }
+    const desired = 360 - (idx * 45 + 22.5);
+    const delta = ((desired - wheelRot) % 360 + 360) % 360 + 1800;
+    wheelRot += delta;
+    const el = document.getElementById('wheel');
+    if (el) el.style.transform = `rotate(${wheelRot}deg)`;
+    setTimeout(() => {
+      wheelBusy = false;
+      const seg = WHEEL_SEGS[idx];
+      if (seg.again) { c.points += 10; saveData(DATA); toast('🎡 再来一次！星星已退回'); }
+      else if (seg.pts > 0) { awardStars(c, seg.pts, `幸运转盘中奖 ${seg.pts} 星`); toast(`🎉 恭喜抽中 ${seg.pts} 颗星星！`); }
+      else toast('😅 谢谢参与，明天再来');
+      render();
+    }, 3350);
+  }
+
+  // ---- 扫雷 ----
+  let MINE = null;
+  let MINE_DIFF = 'easy';
+  const MINE_CFG = {
+    easy:   { label: '🙂 小雷区', size: 8,  mines: 8,  reward: 5 },
+    normal: { label: ' 普通',   size: 10, mines: 15, reward: 8 },
+    hard:   { label: '😤 大雷区', size: 12, mines: 24, reward: 12 },
+  };
+  function viewKidMine() {
+    const c = kidCheck();
+    if (!c) { location.hash = 'kid-select'; return ''; }
+    const ok = kidTasksDone(c);
+    const cfg = MINE_CFG[MINE_DIFF];
+    MINE = null;
+    return `
+      <div class="topbar">
+        <button class="icon-btn" onclick="location.hash='kid-fun'">${ICN.back}</button>
+        <h1>💣 扫雷小勇士</h1>
+        <div class="actions"><div class="icon-btn" style="background:var(--amber-50);color:var(--amber-600);font-size:13px;font-weight:600">★ ${c.points}</div></div>
+      </div>
+      <div class="page">
+        <div class="diff-row">
+          ${Object.entries(MINE_CFG).map(([k, v]) => `
+            <div class="diff-pill ${k === MINE_DIFF ? 'on' : ''}" onclick="MINE_DIFF='${k}';MINE=null;render()">${v.label}<br><span style="font-size:11px;font-weight:500">${v.size}×${v.size} · ${v.mines}雷 · ${v.reward}★</span></div>
+          `).join('')}
+        </div>
+        <div class="game-score-bar"><span>💣 地雷 <b id="mine-left">${cfg.mines}</b> 颗</span><span>已翻开 <b id="mine-open">0</b> 格</span></div>
+        <div class="mine-grid" id="mine-grid" style="max-width:${cfg.size >= 12 ? 360 : cfg.size >= 10 ? 350 : 340}px">
+          ${Array.from({length: cfg.size * cfg.size}, (_, i) => `<div class="mine-cell" id="mc${i}" onclick="tapMine(${i})"></div>`).join('')}
+        </div>
+        <div class="game-status" id="mine-status">${ok ? `翻开所有安全的格子就赢！小心 ${cfg.mines} 颗雷 💣` : FUN_GATE}</div>
+        ${ok ? `<button id="mine-flagbtn" class="btn-secondary" style="width:100%;margin-bottom:8px" onclick="toggleFlagMode()">🚩 插旗模式：关</button>
+               <button class="btn-primary" style="width:100%" onclick="startMine()">▶ 开始（消耗 5★）</button>
+               <p class="wq-hint">先点「开始」，再翻开格子。数字 = 周围有几颗雷；觉得是雷就开插旗模式做标记</p>`
+            : '<button class="btn-secondary" style="width:100%" onclick="location.hash=\'kid-tasks\'">先去打卡 ▶</button>'}
+      </div>
+      ${kidTabBar('fun')}
+    `;
+  }
+  function startMine() {
+    const c = kidCheck();
+    if (!c) return;
+    if (!kidTasksDone(c)) { toast(FUN_GATE); return; }
+    if (MINE) return;
+    if (c.points < 5) { toast('星星不够啦（需要 5★）⭐'); return; }
+    c.points -= 5; saveData(DATA);
+    const cfg = MINE_CFG[MINE_DIFF];
+    const total = cfg.size * cfg.size;
+    const cells = Array.from({length: total}, (_, i) => i);
+    const mines = new Set();
+    while (mines.size < cfg.mines) mines.add(cells[Math.floor(Math.random() * total)]);
+    MINE = { size: cfg.size, mines: new Set(mines), open: new Set(), flags: new Set(), over: false, flagMode: false, first: true, reward: cfg.reward };
+    const st = document.getElementById('mine-status');
+    if (st) st.textContent = '翻开一个格子开始吧！数字表示周围有几颗雷';
+    const fb = document.getElementById('mine-flagbtn');
+    if (fb) fb.style.display = 'block';
+  }
+  function toggleFlagMode() {
+    if (!MINE || MINE.over) return;
+    MINE.flagMode = !MINE.flagMode;
+    const fb = document.getElementById('mine-flagbtn');
+    if (fb) { fb.textContent = `🚩 插旗模式：${MINE.flagMode ? '开' : '关'}`; fb.style.background = MINE.flagMode ? 'var(--amber-50)' : ''; fb.style.color = MINE.flagMode ? 'var(--amber-600)' : ''; }
+  }
+  function mineAround(i) {
+    const S = MINE.size;
+    const r = Math.floor(i / S), col = i % S;
+    let n = 0;
+    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+      if (!dr && !dc) continue;
+      const nr = r + dr, nc = col + dc;
+      if (nr >= 0 && nr < S && nc >= 0 && nc < S && MINE.mines.has(nr * S + nc)) n++;
     }
+    return n;
   }
-}
-
-// 补打卡播放（看完或关闭时直接补卡，不弹窗）
-function playForMakeup(dateStr, v) {
-  const page = v.page || 1;
-  $("#ptitle").textContent = (v.emoji || '🎬') + ' ' + v.title;
-  // 重置字幕状态
-  _subOn = false;
-  $("#subBtn").textContent = "字幕";
-  $("#subBtn").classList.remove("on");
-  if (v.type === "bili") {
-    _currentBvid = v.url;
-    _currentPage = page;
-    $("#playerWrap").innerHTML = '<iframe id="biliFrame" src="' + buildBiliSrc(v.url, page, false) + '" allowfullscreen="true" scrolling="no"></iframe>';
-  } else {
-    _currentBvid = null;
-    $("#playerWrap").innerHTML = '<video id="localVideo" src="' + v.url + '" controls autoplay playsinline webkit-playsinline></video>';
-  }
-  $("#playerMask").classList.add('show');
-  startWatch(v.id, dateStr);
-  startEyeTimer();
-
-  if (v.type === 'local') {
-    const vidEl = $("#localVideo");
-    if (vidEl) {
-      vidEl.onended = () => {
-        doCheckinForWatched();
-        closePlayer();
-      };
-    }
-  }
-}
-
-function closePlayer() {
-  stopEyeTimer();
-  _playerClosed = true;
-  _currentBvid = null;
-  _subOn = false;
-  $("#playerMask").classList.remove('show');
-  setTimeout(() => {
-    $("#playerWrap").innerHTML = '';
-    if (_watchedTaskId) {
-      doCheckinForWatched();
-      _watchedTaskId = null;
-    }
-  }, 300);
-}
-
-$("#backBtn").onclick = closePlayer;
-
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden && _watchedTaskId) {
-    doCheckinForWatched();
-  }
-});
-
-// ============================================================
-//  打卡成功弹层
-// ============================================================
-function showSuccess() {
-  const streak = calcStreak(getLogs(currentGrade));
-  const emoji = streak >= 7 ? '🏆' : streak >= 3 ? '🎉' : '⭐';
-  const title = streak >= 7 ? '连续7天！太厉害啦！' : streak >= 3 ? streak + '天连击！继续加油！' : '太棒了！';
-  const stars = streak >= 7 ? '🏆🏆🏆' : streak >= 3 ? '⭐⭐⭐' : '⭐⭐';
-  $("#successEmoji").textContent = emoji;
-  $("#successTitle").textContent = title;
-  $("#successSub").textContent = '已完成今日学习，继续保持！';
-  $("#successStars").textContent = stars;
-  $("#successOverlay").classList.add('show');
-}
-
-function closeSuccess() {
-  $("#successOverlay").classList.remove('show');
-}
-
-function launchConfetti() {
-  const colors = ['#FF9A56','#FF5E7E','#4CAF50','#4facfe','#FFD700','#FF69B4','#81C784'];
-  const wrap = $("#confettiWrap");
-  wrap.innerHTML = '';
-  for (let i = 0; i < 50; i++) {
-    const el = document.createElement('div');
-    el.className = 'confetti-piece';
-    el.style.left = Math.random() * 100 + '%';
-    el.style.background = colors[Math.floor(Math.random() * colors.length)];
-    el.style.width = (6 + Math.random() * 8) + 'px';
-    el.style.height = (6 + Math.random() * 8) + 'px';
-    el.style.animationDuration = (1.5 + Math.random() * 2) + 's';
-    el.style.animationDelay = Math.random() * 0.8 + 's';
-    wrap.appendChild(el);
-  }
-  setTimeout(() => { wrap.innerHTML = ''; }, 4000);
-}
-
-// ============================================================
-//  播放列表弹层
-// ============================================================
-function showPlaylist(v, defaultPage) {
-  $("#playlistTitle").textContent = v.emoji + ' ' + v.title;
-  const grid = $("#playlistGrid");
-  grid.innerHTML = '';
-  v.episodes.forEach(ep => {
-    const d = document.createElement("div");
-    d.className = "ep-card";
-    d.textContent = ep.title;
-    d.onclick = () => {
-      $("#playlistOverlay").classList.remove("show");
-      const vidId = v.id + '_ep' + ep.page;
-      startWatch(vidId);
-      play({ emoji: v.emoji, title: ep.title, type: "bili", url: v.bv, page: ep.page });
-    };
-    grid.appendChild(d);
-  });
-  $("#playlistOverlay").classList.add("show");
-}
-
-$("#playlistClose").onclick = () => $("#playlistOverlay").classList.remove("show");
-$("#playlistOverlay").onclick = e => { if (e.target === $("#playlistOverlay")) $("#playlistOverlay").classList.remove("show"); };
-
-// ============================================================
-//  年级 + 视频列表
-// ============================================================
-let currentGrade = "小学";
-let currentCat = "全部";
-
-function buildGradeTabs() {
-  const wrap = $("#gradeTabs");
-  GRADES.forEach((g, i) => {
-    const btn = document.createElement("button");
-    btn.className = "grade-tab" + (i === 0 ? " active" : "");
-    btn.innerHTML = g.name + '<span class="sub">' + g.sub + '</span>';
-    btn.onclick = () => {
-      document.querySelectorAll(".grade-tab").forEach(x => x.classList.remove("active"));
-      btn.classList.add("active");
-      currentGrade = g.key;
-      buildCats(g);
-      renderGrid();
-      renderWeekBar(g.key);
-      renderTaskCard(g.key);
-      renderMissSection(g.key);
-    };
-    wrap.appendChild(btn);
-  });
-}
-
-function buildCats(gradeObj) {
-  const wrap = $("#cats");
-  wrap.innerHTML = "";
-  gradeObj.cats.forEach((c, i) => {
-    const b = document.createElement("button");
-    b.className = "cat-btn" + (i === 0 ? " active" : "");
-    b.textContent = c.emoji + " " + c.name;
-    b.onclick = () => {
-      document.querySelectorAll(".cat-btn").forEach(x => x.classList.remove("active"));
-      b.classList.add("active");
-      currentCat = c.name;
-      renderGrid();
-    };
-    wrap.appendChild(b);
-  });
-}
-
-function renderGrid() {
-  const grid = $("#grid");
-  grid.innerHTML = "";
-  const logs = getLogs(currentGrade);
-  const checkedToday = logs.includes(todayStr());
-  let list = VIDEOS.filter(v => v.grade === currentGrade);
-  if (currentCat !== "全部") list = list.filter(v => v.cat === currentCat);
-  if (!list.length) {
-    grid.innerHTML = '<div class="empty">这个分类还没有视频哦～<br>把视频链接发给我，我帮你加进去!</div>';
-    return;
-  }
-  list.forEach(v => {
-    const d = document.createElement("div");
-    d.className = "card";
-    if (checkedToday && v.id === getTodayTask(currentGrade)?.id) {
-      d.classList.add("done-card");
-    }
-    const wrap = document.createElement("div");
-    wrap.className = "card-wrap";
-    const thumb = document.createElement("div");
-    thumb.className = "thumb";
-    thumb.textContent = v.emoji;
-    const name = document.createElement("div");
-    name.className = "name";
-    name.textContent = v.title;
-    d.appendChild(wrap);
-    wrap.appendChild(thumb);
-    wrap.appendChild(name);
-    d.onclick = () => {
-      if (v.type === "playlist") {
-        showPlaylist(v, 1);
-      } else {
-        startWatch(v.id);
-        play(v);
+  function revealMine(i) {
+    if (MINE.open.has(i) || MINE.flags.has(i)) return;
+    const el = document.getElementById('mc' + i);
+    if (!el) return;
+    MINE.open.add(i);
+    const n = mineAround(i);
+    el.classList.add('open');
+    if (n > 0) { el.textContent = n; el.classList.add('mn-' + n); }
+    else {
+      const S = MINE.size;
+      const r = Math.floor(i / S), col = i % S;
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+        const nr = r + dr, nc = col + dc;
+        if (nr >= 0 && nr < S && nc >= 0 && nc < S) revealMine(nr * S + nc);
       }
-    };
-    grid.appendChild(d);
-  });
-}
+    }
+  }
+  function tapMine(i) {
+    if (!MINE || MINE.over) return;
+    const el = document.getElementById('mc' + i);
+    if (!el) return;
+    if (MINE.flagMode) {
+      if (MINE.open.has(i)) return;
+      if (MINE.flags.has(i)) { MINE.flags.delete(i); el.classList.remove('open'); el.textContent = ''; }
+      else { MINE.flags.add(i); el.classList.add('open'); el.textContent = '🚩'; }
+      return;
+    }
+    if (MINE.open.has(i) || MINE.flags.has(i)) return;
+    const total = MINE.size * MINE.size;
+    const mineCount = MINE.mines.size;
+    if (MINE.first && MINE.mines.has(i)) {
+      MINE.mines.delete(i);
+      for (let j = 0; j < total; j++) { if (!MINE.mines.has(j) && j !== i) { MINE.mines.add(j); break; } }
+    }
+    MINE.first = false;
+    if (MINE.mines.has(i)) {
+      MINE.over = true;
+      el.classList.add('open', 'boom'); el.textContent = '💣';
+      MINE.mines.forEach(m => { const me = document.getElementById('mc' + m); if (me) { me.classList.add('open'); if (m !== i) me.textContent = '💣'; } });
+      const st = document.getElementById('mine-status');
+      if (st) st.textContent = '💥 踩到雷啦！别灰心，再开一局～';
+      MINE = null;
+      return;
+    }
+    revealMine(i);
+    const oc = document.getElementById('mine-open');
+    if (oc) oc.textContent = MINE.open.size;
+    if (MINE.open.size === total - mineCount) {
+      MINE.over = true;
+      const st = document.getElementById('mine-status');
+      if (st) st.textContent = `🎉 太厉害了！所有安全格子都翻开了，奖励 ${MINE.reward}★`;
+      const reward = MINE.reward; MINE = null;
+      const c = kidCheck();
+      if (c) { awardStars(c, reward, '扫雷通关奖励'); toast(`扫雷通关 +${reward}★ 🎉`); render(); }
+    }
+  }
 
-// ============================================================
-//  初始化
-// ============================================================
-buildGradeTabs();
-buildCats(GRADES[0]);
-renderGrid();
-renderWeekBar(currentGrade);
-renderTaskCard(currentGrade);
-renderMissSection(currentGrade);
-</script>
+  // ---- 记忆翻翻乐（三档难度 + 步数限制） ----
+  let MEM = null;
+  let MEM_DIFF = 'normal';
+  const MEM_EMOJIS = ['🐷', '🐶', '🌟', '🌈', '🍎', '🚀', '🦋', '🍦', '🎈', '🐟', '🐼', '🌸', '⚽', '🍉', '🐝', '🎨', '🌻', '🐧', '🍩', '🦊'];
+  const MEM_CFG = {
+    easy:   { label: '🙂 简单', pairs: 10, limit: 25, reward: 5 },
+    normal: { label: ' 普通', pairs: 16, limit: 40, reward: 8 },
+    hard:   { label: '😤 困难', pairs: 20, limit: 50, reward: 12 },
+  };
+  function viewKidMemory() {
+    const c = kidCheck();
+    if (!c) { location.hash = 'kid-select'; return ''; }
+    const ok = kidTasksDone(c);
+    const cfg = MEM_CFG[MEM_DIFF];
+    MEM = null;
+    return `
+      <div class="topbar">
+        <button class="icon-btn" onclick="location.hash='kid-fun'">${ICN.back}</button>
+        <h1>🃏 记忆翻翻乐</h1>
+        <div class="actions"><div class="icon-btn" style="background:var(--amber-50);color:var(--amber-600);font-size:13px;font-weight:600">★ ${c.points}</div></div>
+      </div>
+      <div class="page">
+        <div class="diff-row">
+          ${Object.entries(MEM_CFG).map(([k, v]) => `
+            <div class="diff-pill ${k === MEM_DIFF ? 'on' : ''}" onclick="MEM_DIFF='${k}';MEM=null;render()">${v.label}<br><span style="font-size:11px;font-weight:500">${v.pairs}对 · ${v.limit}步内 · ${v.reward}★</span></div>
+          `).join('')}
+        </div>
+        <div class="game-score-bar"><span>翻牌 <b id="mem-moves">0</b>/${cfg.limit} 次</span><span>配对 <b id="mem-pairs">0</b>/${cfg.pairs}</span></div>
+        <div class="mem-grid" id="mem-grid"></div>
+        <div class="game-status" id="mem-status">${ok ? `选好难度，${cfg.pairs} 对图案 ${cfg.limit} 步内配完就赢！` : FUN_GATE}</div>
+        ${ok ? `<button class="btn-primary" style="width:100%" onclick="startMem()">▶ 开始（消耗 5★）</button>
+               <p class="wq-hint">步数用完就失败哦，记住每张牌的位置～</p>`
+            : '<button class="btn-secondary" style="width:100%" onclick="location.hash=\'kid-tasks\'">先去打卡 ▶</button>'}
+      </div>
+      ${kidTabBar('fun')}
+    `;
+  }
+  function startMem() {
+    const c = kidCheck();
+    if (!c) return;
+    if (!kidTasksDone(c)) { toast(FUN_GATE); return; }
+    if (c.points < 5) { toast('星星不够啦（需要 5★）⭐'); return; }
+    c.points -= 5; saveData(DATA);
+    const cfg = MEM_CFG[MEM_DIFF];
+    const picked = [...MEM_EMOJIS].sort(() => Math.random() - 0.5).slice(0, cfg.pairs);
+    const deck = [...picked, ...picked].sort(() => Math.random() - 0.5);
+    MEM = { cards: deck.map(e => ({ e, open: false, done: false })), first: null, lock: false, moves: 0, pairs: 0, limit: cfg.limit, reward: cfg.reward };
+    const grid = document.getElementById('mem-grid');
+    if (grid) { grid.style.gridTemplateColumns = `repeat(${cfg.pairs >= 20 ? 5 : 4},1fr)`; grid.style.fontSize = cfg.pairs >= 20 ? '20px' : ''; }
+    renderMem();
+    const st = document.getElementById('mem-status');
+    if (st) st.textContent = `翻出两张一样的图案配对！${cfg.limit} 步内完成`;
+  }
+  function renderMem() {
+    const grid = document.getElementById('mem-grid');
+    if (!grid || !MEM) return;
+    grid.innerHTML = MEM.cards.map((cd, i) =>
+      `<div class="mem-card ${cd.done ? 'done' : cd.open ? 'open' : ''}" onclick="clickMem(${i})">${cd.e}</div>`
+    ).join('');
+    const m = document.getElementById('mem-moves'), p = document.getElementById('mem-pairs');
+    if (m) m.textContent = MEM.moves;
+    if (p) p.textContent = MEM.pairs;
+  }
+  function clickMem(i) {
+    if (!MEM || MEM.lock) return;
+    const cd = MEM.cards[i];
+    if (cd.done || cd.open) return;
+    cd.open = true;
+    if (MEM.first === null) { MEM.first = i; renderMem(); return; }
+    const fi = MEM.first;
+    MEM.moves++; MEM.first = null;
+    if (MEM.cards[fi].e === cd.e) {
+      MEM.cards[fi].done = true; cd.done = true;
+      MEM.cards[fi].open = false; cd.open = false;
+      MEM.pairs++;
+      renderMem();
+      if (MEM.pairs === MEM.cards.length / 2) {
+        const c = kidCheck();
+        const st = document.getElementById('mem-status');
+        if (st) st.textContent = `🎉 全部配对完成！用了 ${MEM.moves} 步，奖励 ${MEM.reward}★`;
+        const reward = MEM.reward; MEM = null;
+        if (c) { awardStars(c, reward, '翻翻乐通关奖励'); toast(`翻翻乐 +${reward}★ 🎉`); render(); }
+      }
+    } else {
+      MEM.lock = true;
+      renderMem();
+      setTimeout(() => {
+        if (MEM) { MEM.cards[fi].open = false; cd.open = false; MEM.lock = false; renderMem();
+          if (MEM.moves >= MEM.limit && MEM.pairs < MEM.cards.length / 2) {
+            const st = document.getElementById('mem-status');
+            if (st) st.textContent = `😵 ${MEM.limit} 步用完啦！差 ${MEM.cards.length / 2 - MEM.pairs} 对，记住位置再来一局～`;
+            MEM = null;
+          }
+        }
+      }, 700);
+    }
+  }
+
+  // ---- 乐园主页 ----
+  function viewKidFun() {
+    const c = kidCheck();
+    if (!c) { location.hash = 'kid-select'; return ''; }
+    MINE = null; MEM = null;
+    const ok = kidTasksDone(c);
+    return `
+      <div class="topbar">
+        <h1>🎡 星星乐园</h1>
+        <div class="actions"><div class="icon-btn" style="background:var(--amber-50);color:var(--amber-600);font-size:13px;font-weight:600">★ ${c.points}</div></div>
+      </div>
+      <div class="page">
+        <div class="fun-hero">
+          <div class="big">⭐ ${c.points} 颗星星</div>
+          <div class="gate">${ok ? '✅ 今日打卡已完成，乐园全部开放！' : '🔒 完成今天的打卡任务，乐园全部开放（现在也能用星星玩，先解锁再说）'}</div>
+        </div>
+
+        <div class="section">
+          <h3>🎡 幸运转盘 <span class="badge">10★ / 次</span></h3>
+          ${ok ? `
+          <div class="wheel-wrap">
+            <div class="wheel-pointer">▼</div>
+            <div class="wheel" id="wheel" style="background:${wheelGradient()};${wheelRot ? `transform:rotate(${wheelRot}deg)` : ''}">
+              ${WHEEL_SEGS.map((s, i) => `<div class="wheel-label" style="transform:translate(-50%,-50%) rotate(${i*45+22.5}deg) translateY(-88px) rotate(${-(i*45+22.5)}deg)">${s.label}</div>`).join('')}
+            </div>
+            <div class="wheel-hub" onclick="spinWheel()">${wheelBusy ? '…' : '🎰'}</div>
+          </div>
+          <button class="btn-primary" style="width:100%" onclick="spinWheel()" ${wheelBusy ? 'disabled' : ''}>${wheelBusy ? '转动中…' : '转一次（10★）'}</button>
+          <p class="wq-hint">最高 20★，还有"再来一次"彩蛋</p>`
+          : `<p class="wq-hint" style="font-size:14px">完成今天的打卡任务，转盘就转起来 🎡</p>
+             <button class="btn-secondary" style="width:100%" onclick="location.hash='kid-tasks'">先去打卡 ▶</button>`}
+        </div>
+
+        <div class="section">
+          <h3>🎮 小游戏 <span class="badge">5★ / 局</span></h3>
+          <div class="game-card" onclick="${ok ? "location.hash='kid-mine'" : `toast('${FUN_GATE}')`}">
+            <div class="gicon">💣</div>
+            <div class="ginfo"><h4>扫雷小勇士</h4><p>三档雷区（8×8 到 12×12），最高奖 12★</p></div>
+            <div class="cost">5★/局</div>
+          </div>
+          <div class="game-card" onclick="${ok ? "location.hash='kid-memory'" : `toast('${FUN_GATE}')`}">
+            <div class="gicon">🃏</div>
+            <div class="ginfo"><h4>记忆翻翻乐</h4><p>10 对到 20 对大挑战，步数内配完，最高奖 12★</p></div>
+            <div class="cost">5★/局</div>
+          </div>
+        </div>
+      </div>
+      ${kidTabBar('fun')}
+    `;
+  }
+
+  // ========== 模态：添加任务 ==========
+  function openTaskModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal-mask';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+      <div class="modal">
+        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+        <h3>布置新任务</h3>
+        <div class="field">
+          <label>给谁</label>
+          <select id="t-child">${DATA.children.map(c => `<option value="${c.id}">${c.avatar} ${esc(c.name)}</option>`).join('')}</select>
+        </div>
+        <div class="field">
+          <label>任务标题</label>
+          <input id="t-title" placeholder="例：英语跟读 10 分钟" />
+        </div>
+        <div class="field">
+          <label>科目</label>
+          <select id="t-subject" onchange="proofSuggest()">
+            <option value="">不分类</option>
+            ${Object.entries(SUBJECTS).map(([k, v]) => `<option value="${k}">${v.emoji} ${v.name}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>打卡方式</label>
+          <select id="t-proof">
+            <option value="">直接勾选完成（不强制凭证）</option>
+            <option value="photo">📷 拍照打卡（拍作业/计算/练习）</option>
+            <option value="audio">🎙 朗读录音打卡（读课文/跟读）</option>
+          </select>
+          <p class="wq-hint" style="text-align:left;margin-top:6px">选科目会自动推荐：数学/物理/化学 → 拍照，语文/英语 → 朗读</p>
+        </div>
+        <div class="field">
+          <label>配套学习资料（可选）</label>
+          <select id="t-res">
+            <option value="">不挂资料，孩子自己找</option>
+            ${DATA.resources.map(r => `<option value="${r.id}">📚 ${esc(r.title)}</option>`).join('')}
+          </select>
+          <input id="t-res-url" placeholder="或直接粘贴链接（选了上面就不填这里）" style="margin-top:8px" />
+        </div>
+        <div class="field">
+          <label>⏰ 提醒时间（可选）</label>
+          <input id="t-remind" type="time" />
+          <p class="wq-hint" style="text-align:left;margin-top:6px">到点后在打开的平台上弹窗 + 系统通知提醒孩子打卡</p>
+        </div>
+        <div class="field">
+          <label>积分</label>
+          <input id="t-points" type="number" value="3" min="1" max="20" />
+        </div>
+        <div class="btn-row">
+          <button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">取消</button>
+          <button class="btn-primary" onclick="addTask()">添加</button>
+        </div>
+      </div>
+    `;
+    document.getElementById('modal-root').appendChild(modal);
+  }
+  function proofSuggest() {
+    const s = document.getElementById('t-subject').value;
+    const map = { math: 'photo', physics: 'photo', chemistry: 'photo', chinese: 'audio', english: 'audio' };
+    document.getElementById('t-proof').value = map[s] || '';
+  }
+  function addTask() {
+    const childId = document.getElementById('t-child').value;
+    const title = document.getElementById('t-title').value.trim();
+    const points = parseInt(document.getElementById('t-points').value) || 3;
+    const subject = document.getElementById('t-subject').value || '';
+    const proof = document.getElementById('t-proof').value || '';
+    const resId = document.getElementById('t-res').value || '';
+    const resUrl = document.getElementById('t-res-url').value.trim();
+    const remindAt = document.getElementById('t-remind').value || '';
+    if (!title) { toast('写个标题'); return; }
+    if (resId && resUrl) { toast('资料二选一：选了资源库就不用再贴链接'); return; }
+    DATA.tasks.push({ id: 't'+Date.now(), childId, date: TODAY, title, points, done: false, resId, resUrl, subject, proof, proofData: null, remindAt, doneAt: null });
+    saveData(DATA); document.querySelector('.modal-mask').remove(); render(); toast('已布置');
+  }
+  // 取任务挂的资料（资源库引用 或 自定义链接）
+  function taskRes(t) {
+    if (!t) return null;
+    if (t.resId) {
+      const r = DATA.resources.find(x => x.id === t.resId);
+      if (r) return { title: r.title, url: r.url, type: r.type };
+    }
+    if (t.resUrl) return { title: '学习资料', url: t.resUrl, type: 'link' };
+    return null;
+  }
+  function openTaskRes(e, taskId) {
+    e.stopPropagation();
+    const res = taskRes(DATA.tasks.find(x => x.id === taskId));
+    if (res && res.url) window.open(res.url, '_blank');
+  }
+
+  // ========== 模态：添加资源 ==========
+  function openResourceModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal-mask';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+      <div class="modal">
+        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+        <h3>添加资源</h3>
+        <p class="text-mute" style="margin-top:-8px;margin-bottom:12px">把微云分享链接粘进来</p>
+        <div class="field">
+          <label>类型</label>
+          <select id="r-type"><option value="video">视频</option><option value="pdf">PDF</option><option value="audio">音频</option></select>
+        </div>
+        <div class="field">
+          <label>类别</label>
+          <select id="r-cat"><option value="learn">📚 学习资源（随时能看）</option><option value="fun">🎁 奖励资源（完成打卡才能看）</option></select>
+        </div>
+        <div class="field">
+          <label>学科</label>
+          <select id="r-subject">${Object.entries(SUBJECTS).map(([k,v]) => `<option value="${k}">${v.emoji} ${v.name}</option>`).join('')}</select>
+        </div>
+        <div class="field">
+          <label>标题</label>
+          <input id="r-title" placeholder="例：小猪佩奇 第27集" />
+        </div>
+        <div class="field">
+          <label>微云/腾讯文档 链接</label>
+          <input id="r-url" placeholder="https://share.weiyun.com/xxx" />
+        </div>
+        <div class="btn-row">
+          <button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">取消</button>
+          <button class="btn-primary" onclick="addResource()">添加</button>
+        </div>
+      </div>
+    `;
+    document.getElementById('modal-root').appendChild(modal);
+  }
+  function addResource() {
+    const type = document.getElementById('r-type').value;
+    const cat = document.getElementById('r-cat') ? document.getElementById('r-cat').value : 'learn';
+    const subject = document.getElementById('r-subject').value;
+    const title = document.getElementById('r-title').value.trim();
+    const url = document.getElementById('r-url').value.trim();
+    if (!title || !url) { toast('标题和链接都要填'); return; }
+    DATA.resources.push({ id: 'r'+Date.now(), type, subject, title, url, category: cat });
+    saveData(DATA); document.querySelector('.modal-mask').remove(); render(); toast('已添加');
+  }
+  function delResource(id) {
+    if (!confirm('确认删除？')) return;
+    DATA.resources = DATA.resources.filter(r => r.id !== id);
+    saveData(DATA); render();
+  }
+  function openResource(id) {
+    const r = DATA.resources.find(x => x.id === id);
+    if (!r) return;
+    // 奖励资源：孩子端需当日打卡全部完成才能看
+    if ((r.category || 'learn') === 'fun' && kidCheck()) {
+      const c = kidCheck();
+      const todays = DATA.tasks.filter(t => t.childId === c.id && t.date === TODAY);
+      if (todays.length && !todays.every(t => t.done)) { toast('🔒 先完成今天的打卡任务，再来解锁吧'); return; }
+    }
+    window.open(r.url, '_blank');
+  }
+
+  // ========== 模态：添加奖励 ==========
+  function openRewardModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal-mask';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+      <div class="modal">
+        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+        <h3>添加奖励视频</h3>
+        <div class="field">
+          <label>Emoji 头像</label>
+          <input id="rw-emoji" value="🎁" maxlength="2" />
+        </div>
+        <div class="field">
+          <label>标题</label>
+          <input id="rw-title" placeholder="例：奖励：冰雪奇缘片段" />
+        </div>
+        <div class="field">
+          <label>微云链接</label>
+          <input id="rw-url" placeholder="https://share.weiyun.com/xxx" />
+        </div>
+        <div class="field">
+          <label>积分门槛</label>
+          <input id="rw-threshold" type="number" value="100" min="10" max="9999" />
+        </div>
+        <div class="btn-row">
+          <button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">取消</button>
+          <button class="btn-primary" onclick="addReward()">添加</button>
+        </div>
+      </div>
+    `;
+    document.getElementById('modal-root').appendChild(modal);
+  }
+  function addReward() {
+    const emoji = document.getElementById('rw-emoji').value || '🎁';
+    const title = document.getElementById('rw-title').value.trim();
+    const url = document.getElementById('rw-url').value.trim();
+    const threshold = parseInt(document.getElementById('rw-threshold').value) || 100;
+    if (!title || !url) { toast('标题和链接都要填'); return; }
+    DATA.rewards.push({ id: 'rw'+Date.now(), title, emoji, threshold, url });
+    saveData(DATA); document.querySelector('.modal-mask').remove(); render(); toast('已添加');
+  }
+  function delReward(id) {
+    if (!confirm('确认删除？')) return;
+    DATA.rewards = DATA.rewards.filter(r => r.id !== id);
+    saveData(DATA); render();
+  }
+  function openReward(id) {
+    const r = DATA.rewards.find(x => x.id === id);
+    if (!r) return;
+    window.open(r.url, '_blank');
+  }
+
+  // ========== 模态：编辑孩子 ==========
+  function editChild(id) {
+    const c = DATA.children.find(x => x.id === id);
+    const modal = document.createElement('div');
+    modal.className = 'modal-mask';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+      <div class="modal">
+        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+        <h3>编辑 ${esc(c.name)}</h3>
+        <div class="field"><label>头像 Emoji</label><input id="c-emoji" value="${c.avatar}" maxlength="2" /></div>
+        <div class="field"><label>姓名</label><input id="c-name" value="${esc(c.name)}" /></div>
+        <div class="field"><label>PIN（4 位数字）</label><input id="c-pin" value="${c.pin}" maxlength="4" pattern="\\d{4}" /></div>
+        <div class="field"><label>当前积分</label><input id="c-points" type="number" value="${c.points}" /></div>
+        <div class="btn-row">
+          <button class="btn-secondary" onclick="delChild('${c.id}')">删除</button>
+          <button class="btn-primary" onclick="saveChild('${c.id}')">保存</button>
+        </div>
+      </div>
+    `;
+    document.getElementById('modal-root').appendChild(modal);
+  }
+  function openChildModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal-mask';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+      <div class="modal">
+        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+        <h3>添加孩子</h3>
+        <div class="field"><label>头像 Emoji</label><input id="nc-emoji" value="👶" maxlength="2" /></div>
+        <div class="field"><label>姓名</label><input id="nc-name" placeholder="例：小宝" /></div>
+        <div class="field"><label>PIN（4 位数字）</label><input id="nc-pin" value="0000" maxlength="4" /></div>
+        <div class="btn-row">
+          <button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">取消</button>
+          <button class="btn-primary" onclick="addChild()">添加</button>
+        </div>
+      </div>
+    `;
+    document.getElementById('modal-root').appendChild(modal);
+  }
+  function saveChild(id) {
+    const c = DATA.children.find(x => x.id === id);
+    c.avatar = document.getElementById('c-emoji').value || c.avatar;
+    c.name = document.getElementById('c-name').value || c.name;
+    const pin = document.getElementById('c-pin').value;
+    if (/^\d{4}$/.test(pin)) c.pin = pin; else { toast('PIN 必须是 4 位数字'); return; }
+    c.points = parseInt(document.getElementById('c-points').value) || 0;
+    saveData(DATA); document.querySelector('.modal-mask').remove(); render(); toast('已保存');
+  }
+  function addChild() {
+    const emoji = document.getElementById('nc-emoji').value || '👶';
+    const name = document.getElementById('nc-name').value.trim();
+    const pin = document.getElementById('nc-pin').value;
+    if (!name) { toast('写个名字'); return; }
+    if (!/^\d{4}$/.test(pin)) { toast('PIN 必须是 4 位数字'); return; }
+    DATA.children.push({ id: 'c'+Date.now(), name, avatar: emoji, pin, points: 0, streak: 0 });
+    saveData(DATA); document.querySelector('.modal-mask').remove(); render(); toast('已添加');
+  }
+  function delChild(id) {
+    if (!confirm('确认删除这个孩子？')) return;
+    DATA.children = DATA.children.filter(c => c.id !== id);
+    DATA.tasks = DATA.tasks.filter(t => t.childId !== id);
+    saveData(DATA); document.querySelector('.modal-mask').remove(); render(); toast('已删除');
+  }
+
+  function changePassword() {
+    const np = prompt('新密码（4 位数字）');
+    if (!np || !/^\d{4}$/.test(np)) { toast('必须是 4 位数字'); return; }
+    DATA.momPassword = np; toast('已修改'); saveData(DATA);
+  }
+  function exportData() {
+    const blob = new Blob([JSON.stringify(DATA, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `lebao-data-${TODAY}.json`;
+    a.click();
+  }
+  function resetData() {
+    if (!confirm('确认重置？所有数据会回到初始演示状态')) return;
+    localStorage.removeItem(LS_KEY);
+    DATA = loadData();
+    render(); toast('已重置');
+  }
+  function logout() {
+    sessionStorage.removeItem('mom-auth');
+    location.hash = 'entry';
+  }
+
+  // ========== 启动 ==========
+  window.addEventListener('hashchange', render);
+  render();
+
+  // 注册 service worker（PWA 离线）
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+  </script>
 </body>
 </html>

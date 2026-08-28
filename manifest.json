@@ -1,0 +1,18 @@
+{
+  "name": "乐宝学习 · 家庭学习平台",
+  "short_name": "乐宝学习",
+  "description": "家里几个手机/Pad 都能用的家庭学习平台，整合资源 + 打卡 + 奖励视频",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FAFAFA",
+  "theme_color": "#FF6B9D",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
