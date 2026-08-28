@@ -136,6 +136,31 @@
     .wq-spell { width: 100%; text-align: center; font-size: 22px; letter-spacing: 3px; padding: 12px; border-radius: var(--radius-md); border: 1.5px solid var(--border); text-transform: lowercase; }
     .wq-spell.bad { border-color: #ef5350; animation: wqshake .3s; }
     .wq-hint { text-align: center; color: var(--gray-600); font-size: 12px; margin-top: 8px; }
+    /* ---- 单词三段式闯关 ---- */
+    .wq-stages { display:flex; gap:6px; margin-bottom:12px; }
+    .wq-stage { flex:1; text-align:center; font-size:12px; font-weight:600; padding:7px 2px; border-radius:9px; background:var(--gray-100); color:var(--gray-600); }
+    .wq-stage.done { background:var(--green-50); color:var(--green-600); }
+    .wq-stage.on { background:var(--pink-50); color:var(--pink-600); box-shadow:inset 0 0 0 1.5px var(--pink-200); }
+    .wq-round-tip { text-align:center; font-size:12px; color:var(--gray-600); margin-bottom:10px; }
+    .good { border-color:var(--green-400) !important; background:var(--green-50) !important; color:var(--green-600) !important; }
+    .btn-text { background:none; border:none; color:var(--gray-600); font-size:13px; cursor:pointer; padding:6px; text-decoration:underline; }
+    /* ---- 听写 ---- */
+    .dic-hero { background:linear-gradient(135deg,var(--indigo-400),var(--indigo-600)); color:#fff; border-radius:var(--radius-lg); padding:26px 16px; text-align:center; margin-bottom:12px; }
+    .dic-hero .n { font-size:13px; opacity:.9; }
+    .dic-hero .tip { font-size:21px; font-weight:600; margin-top:8px; line-height:1.5; word-break:break-all; }
+    .dic-hero .sub { font-size:13px; opacity:.85; margin-top:8px; }
+    .dic-play { width:88px; height:88px; border-radius:50%; background:rgba(255,255,255,.22); color:#fff; display:flex; align-items:center; justify-content:center; margin:16px auto 0; font-size:34px; border:none; cursor:pointer; }
+    .dic-play:active { transform:scale(.94); }
+    .dic-input { width:100%; text-align:center; font-size:22px; padding:14px; border-radius:var(--radius-md); border:1.5px solid var(--border); background:var(--bg-card); }
+    .dic-dots { display:flex; flex-wrap:wrap; gap:5px; justify-content:center; margin-bottom:12px; }
+    .dic-dot { width:22px; height:22px; border-radius:50%; background:var(--gray-100); color:var(--gray-600); font-size:11px; display:flex; align-items:center; justify-content:center; }
+    .dic-dot.now { background:var(--pink-400); color:#fff; }
+    .dic-dot.ok { background:var(--green-50); color:var(--green-600); }
+    .dic-dot.no { background:var(--red-50); color:var(--red-600); }
+    .dic-result { text-align:center; padding:18px; border-radius:var(--radius-lg); background:var(--green-50); margin-bottom:12px; }
+    .dic-wrong-item { display:flex; justify-content:space-between; align-items:center; padding:9px 12px; border-radius:10px; background:var(--bg-card); border:1px solid var(--border); margin-bottom:6px; font-size:14px; }
+    .dic-wrong-item .right { color:var(--green-600); font-weight:600; }
+    .dic-wrong-item .mine { color:var(--red-600); text-decoration:line-through; }
 
     /* ===== 星星乐园 ===== */
     .fun-hero { background: linear-gradient(135deg, #7C4DFF, #448AFF); color:#fff; border-radius: var(--radius-lg); padding:18px 16px; margin-bottom:12px; text-align:center; }
@@ -153,8 +178,11 @@
     .wheel-pointer { position:absolute; top:-14px; left:50%; transform:translateX(-50%); font-size:26px; z-index:2; }
     .wheel-label { position:absolute; left:50%; top:50%; font-size:12px; font-weight:600; color:#fff; transform-origin:0 0; white-space:nowrap; text-shadow:0 1px 2px rgba(0,0,0,.3); }
     .wheel-hub { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:52px; height:52px; border-radius:50%; background:#fff; display:flex; align-items:center; justify-content:center; font-size:24px; box-shadow:0 2px 8px rgba(0,0,0,.15); z-index:2; }
-    .mine-grid { display:grid; grid-template-columns:repeat(8,1fr); gap:3px; max-width:340px; margin:12px auto; }
-    .mine-cell { aspect-ratio:1/1; border-radius:6px; background:linear-gradient(135deg,#B0BEC5,#78909C); display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:700; cursor:pointer; transition: transform .1s; }
+    /* 列数由 JS 按难度内联设置（原来写死 8 列，10×10/12×12 全被挤成长方形）
+       格子高度用 padding-top:100% 撑正方形，不用 aspect-ratio —— 学习机的老内核不支持 */
+    .mine-grid { display:grid; gap:3px; margin:12px auto; width:100%; }
+    .mine-cell { position:relative; width:100%; padding-top:100%; border-radius:6px; background:linear-gradient(135deg,#B0BEC5,#78909C); font-size:inherit; font-weight:700; cursor:pointer; overflow:hidden; }
+    .mine-cell .mct { position:absolute; left:0; top:0; right:0; bottom:0; display:flex; align-items:center; justify-content:center; }
     .mine-cell:active { transform: scale(.92); }
     .mine-cell.open { background:var(--bg-card); border:0.5px solid var(--border-soft); cursor:default; }
     .mine-cell.boom { background:var(--red-50); }
@@ -454,6 +482,7 @@
     wordTasks: [
       { id: 'wt1', childId: 'c1', date: '2026-08-27', setId: 'ws1', count: 5, points: 5, done: false, wordState: {} },
     ],
+    dictations: [],
     // 上网白名单：孩子点开外部链接时，仅白名单域名可直接访问，其余需妈妈密码解锁
     safeDomains: ['bilibili.com', 'weiyun.com', 'basic.smartedu.cn', 'open.163.com', 'docs.qq.com'],
   };
@@ -485,6 +514,7 @@
   // 兼容旧数据：补齐单词模块字段
   if (!DATA.wordSets) DATA.wordSets = JSON.parse(JSON.stringify(DEFAULT_DATA.wordSets));
   if (!DATA.wordTasks) DATA.wordTasks = [];
+  if (!DATA.dictations) DATA.dictations = [];   // 老版本本地数据没有听写模块，补上空数组
   (DATA.resources || []).forEach(r => { if (!r.category) r.category = 'learn'; });
 
   // ========== 云端同步（textdb.dev 家庭通道，轮询 5 秒） ==========
@@ -541,7 +571,7 @@
   // ---- 合并式同步 ----
   // 坑（重要）：原来是「谁后写谁赢」的整包覆盖 —— 妈妈刚加的词库，只要孩子端在
   // 这 2.8 秒里打了一次卡，整包就被冲掉。改成按 id 取并集，两边的新增都能活下来。
-  const MERGE_KEYS = ['resources', 'wordSets', 'wordTasks', 'tasks', 'rewards', 'pointsHistory', 'children'];
+  const MERGE_KEYS = ['resources', 'wordSets', 'wordTasks', 'dictations', 'tasks', 'rewards', 'pointsHistory', 'children'];
   function mergeData(base, incoming, localWins) {
     let out;
     try { out = JSON.parse(JSON.stringify(base || {})); } catch (e) { out = {}; }
@@ -585,6 +615,7 @@
     if (!d) return d;
     if (!d.wordSets) d.wordSets = JSON.parse(JSON.stringify(DEFAULT_DATA.wordSets));
     if (!d.wordTasks) d.wordTasks = [];
+    if (!d.dictations) d.dictations = [];
     (d.resources || []).forEach(r => {
       // 兜底自愈：压缩格式若没被解开，这里重建分集
       if ((!r.episodes || !r.episodes.length) && Array.isArray(r._et) && typeof r._eb === 'string') {
@@ -835,6 +866,7 @@
       'kid-rewards': viewKidRewards,
       'kid-words':   viewKidWords,
       'kid-word-quiz': viewWordQuiz,
+      'kid-dictation': viewKidDictation,
       'kid-fun':     viewKidFun,
       'kid-mine':    viewKidMine,
       'kid-memory':  viewKidMemory,
@@ -1695,14 +1727,79 @@
   }
 
   // ========== 单词打卡 ==========
-  function speak(text) {
-    try {
-      speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = 'en-US'; u.rate = 0.75; u.pitch = 1.1;
-      speechSynthesis.speak(u);
-    } catch (e) { toast('当前浏览器不支持朗读'); }
+  // ========== 朗读（三级降级：有道真人发音 → 系统语音引擎 → 提示）==========
+  // 为什么不用单纯的 speechSynthesis：安卓手机 / 学习机常常没装英文语音包，
+  // 调用时不报错但一点声音都没有（用户反馈的"喇叭点了没声音"就是这个）。
+  // 所以优先走有道发音接口（标准 mp3、真人发音、任何设备都能响），拿不到再降级系统语音。
+  let SPK = { audio: null, lastText: '' };
+  function isCn(t) { return /[\u4e00-\u9fa5]/.test(String(t == null ? '' : t)); }
+  function speakUrl(text) {
+    const q = encodeURIComponent(String(text == null ? '' : text).trim());
+    if (!q) return '';
+    // type=2 美音；le=zh 中文。中文也能读，语文听写就用它
+    return isCn(text)
+      ? 'https://dict.youdao.com/dictvoice?audio=' + q + '&le=zh'
+      : 'https://dict.youdao.com/dictvoice?audio=' + q + '&type=2';
   }
+  function speakStop() {
+    try { if (SPK.audio) { SPK.audio.pause(); SPK.audio.currentTime = 0; } } catch (e) {}
+    try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {}
+  }
+  // 系统语音兜底。注意：Chrome 有个已知 bug —— cancel() 之后立刻 speak() 会静默失败，必须延迟一拍
+  function speakByTts(text, rate) {
+    if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
+    try {
+      window.speechSynthesis.cancel();
+      setTimeout(function () {
+        try {
+          const cn = isCn(text);
+          const u = new SpeechSynthesisUtterance(text);
+          u.lang = cn ? 'zh-CN' : 'en-US';
+          u.rate = rate || (cn ? 0.9 : 0.75);
+          u.pitch = 1.05; u.volume = 1;
+          try {
+            const vs = window.speechSynthesis.getVoices() || [];
+            const want = vs.filter(v => v.lang && v.lang.replace('_', '-').toLowerCase().indexOf(cn ? 'zh' : 'en') === 0);
+            if (want.length) u.voice = want[0];
+          } catch (e) {}
+          u.onerror = function () {};
+          window.speechSynthesis.speak(u);
+        } catch (e) {}
+      }, 120);
+    } catch (e) {}
+  }
+  // opt: { rate, onEnd }  onEnd 在播放结束时回调（听写要用来控制"读几遍、间隔几秒"）
+  function speak(text, opt) {
+    opt = opt || {};
+    const t = String(text == null ? '' : text).trim();
+    if (!t) { if (opt.onEnd) opt.onEnd(); return; }
+    speakStop();
+    SPK.lastText = t;
+    let settled = false;
+    const giveUp = () => { if (settled) return; settled = true; try { if (SPK.audio) SPK.audio.pause(); } catch (e) {} speakByTts(t, opt.rate); };
+    let a = SPK.audio;
+    try {
+      if (!a) { a = new Audio(); a.preload = 'auto'; SPK.audio = a; }
+      a.onplay = () => { settled = true; };
+      a.onplaying = () => { settled = true; };
+      a.onerror = giveUp;
+      a.onended = () => { if (opt.onEnd) opt.onEnd(); };
+      a.src = speakUrl(t);
+      a.load();
+      const p = a.play();
+      if (p && p.catch) p.catch(giveUp);
+      // 2.5 秒还没出声（网络慢 / 接口挂了）就降级，别让孩子干等
+      setTimeout(giveUp, 2500);
+    } catch (e) { giveUp(); }
+  }
+  // 预加载语音列表（安卓首次 getVoices() 常返回空数组，提前取一次兜底时才有得选）
+  try {
+    if (window.speechSynthesis) {
+      const _lv = () => { try { window.speechSynthesis.getVoices(); } catch (e) {} };
+      _lv();
+      window.speechSynthesis.onvoiceschanged = _lv;
+    }
+  } catch (e) {}
   function wtSet(wt) { return DATA.wordSets.find(s => s.id === wt.setId) || { title: '词库已删除', words: [] }; }
   function wtProgress(wt) { return Object.keys(wt.wordState || {}).filter(k => wt.wordState[k] >= 3).length; }
   function wtFirstIncomplete(wt) {
@@ -1734,87 +1831,237 @@
       <div class="page">
         ${wts.length ? wts.map(wt => {
           const s = wtSet(wt);
-          const p = wtProgress(wt);
-          const pct = wt.count ? Math.round(p / wt.count * 100) : 0;
+          const q = wt.wq;
+          let pct = 0, badge = `0/${wt.count} 词`, btn = '开始挑战 ▶';
+          if (wt.done) { pct = 100; badge = `${wt.count}/${wt.count} 词`; }
+          else if (q && q.list.length) {
+            pct = wqPercent(wt);
+            const sl = WQ_STAGES[wqStageIdx(q.stage)].label;
+            badge = (q.round > 1 ? `第${q.round}轮 · ` : '') + `${sl} ${q.idx + 1}/${q.list.length}`;
+            if (q.round > 1 || q.idx > 0 || wqStageIdx(q.stage) > 0) btn = '继续挑战 ▶';
+          }
           return `
           <div class="section">
-            <h3>📚 ${esc(s.title)} <span class="badge">${p}/${wt.count} 词</span></h3>
+            <h3>📚 ${esc(s.title)} <span class="badge">${badge}</span></h3>
             <div class="wq-bar"><div class="wq-bar-in" style="width:${pct}%"></div></div>
-            <p class="text-mute" style="margin:10px 0">每关三步：🔊跟读 → ⌨️拼写 → 🌏选翻译。全部完成 +${wt.points} 分。</p>
+            <p class="text-mute" style="margin:10px 0">三步走：🔊 全部跟读 → 🌏 全部考意思 → ⌨️ 全部考拼写。<b>错的词会自动再来一轮</b>，全做对 +${wt.points} 分。</p>
             ${wt.done
               ? '<div class="wq-done">🎉 今日单词已完成，太棒了！</div>'
-              : `<button class="btn-primary" style="width:100%" onclick="location.hash='kid-word-quiz?wt=${wt.id}'">${p > 0 ? '继续挑战 ▶' : '开始挑战 ▶'}</button>`}
+              : `<button class="btn-primary" style="width:100%" onclick="location.hash='kid-word-quiz?wt=${wt.id}'">${btn}</button>`}
           </div>`;
         }).join('') : '<div class="empty"><div class="emoji">📚</div>今天没有单词任务，等妈妈布置</div>'}
+
+        <div class="section">
+          <h3>✍️ 听写</h3>
+          ${(() => {
+            const dts = (DATA.dictations || []).filter(t => t.childId === c.id && t.date === TODAY);
+            if (!dts.length) return '<div class="text-mute" style="padding:6px 0">今天没有听写，等妈妈布置</div>';
+            return dts.map(dt => {
+              const s = dicSet(dt);
+              const n = Math.min(dt.count, (s.words || []).length);
+              const unit = setLang(s) === 'zh' ? '词语' : '单词';
+              return `<div class="task">
+                <div class="title"><div class="name">✍️ ${esc(s.title)}</div>
+                <div class="meta">${n} 个${unit} · 每个读 ${dt.repeat || 1} 遍${dt.done ? ` · ✅ 对了 ${dt.score}/${dt.total}` : ''}</div></div>
+                <button class="icon-btn" style="background:var(--indigo-50);color:var(--indigo-600);font-size:13px;font-weight:600" onclick="location.hash='kid-dictation?id=${dt.id}'">${dt.done ? '再练' : '开始'}</button>
+              </div>`;
+            }).join('');
+          })()}
+        </div>
       </div>
       ${kidTabBar('words')}
     `;
   }
 
-  // ---- 孩子端：单词闯关 ----
-  let WQ = null; // 闯关临时状态 {wtId, wi, step, opts}
+  // ---- 孩子端：单词闯关（三段式）----
+  // 流程：第 1 轮把布置的词全部跟读 → 全部考意思 → 全部考拼写；
+  //      错的词自动挑出来，再来一轮（同样读→意思→拼写），直到全对。
+  const WQ_STAGES = [
+    { key: 'read',    icon: '🔊', label: '跟读' },
+    { key: 'meaning', icon: '🌏', label: '意思' },
+    { key: 'spell',   icon: '⌨️', label: '拼写' },
+  ];
+  // 进度存在 wt.wq 上（跟着云同步走，换设备或中途退出都能接着练）
+  function wqInit(wt) {
+    const n = Math.min(wt.count, wtSet(wt).words.length);
+    const q = wt.wq;
+    if (!q || !q.list || !q.list.length || !q.stage) {
+      wt.wq = { round: 1, stage: 'read', idx: 0, list: Array.from({ length: n }, (_, i) => i), wrong: [] };
+    } else if (q.list.some(i => i >= n)) {
+      q.list = q.list.filter(i => i < n);
+      if (q.idx >= q.list.length) { q.stage = 'read'; q.idx = 0; }
+    }
+    return wt.wq;
+  }
+  function wqStageIdx(stage) { for (let i = 0; i < WQ_STAGES.length; i++) if (WQ_STAGES[i].key === stage) return i; return 0; }
+  function wqPercent(wt) {
+    const q = wt.wq;
+    if (!q || !q.list.length) return 0;
+    const per = q.list.length * WQ_STAGES.length;
+    return Math.min(100, Math.round((wqStageIdx(q.stage) * q.list.length + q.idx) / per * 100));
+  }
+  function wqMarkWrong(wt, wi) { const q = wt.wq; if (q && q.wrong.indexOf(wi) === -1) q.wrong.push(wi); }
+  function wqTask(id) { return DATA.wordTasks.find(t => t.id === id); }
+
+  // 推进到下一题 / 下一阶段 / 下一轮 / 完成
+  function wqAdvance(wtId) {
+    const wt = wqTask(wtId);
+    if (!wt || wt.done) return;
+    const q = wt.wq;
+    if (!q) { render(); return; }
+    q.idx++;
+    if (q.idx < q.list.length) { saveData(DATA); render(); return; }
+    const si = wqStageIdx(q.stage);
+    if (si < WQ_STAGES.length - 1) {          // 进下一阶段
+      q.stage = WQ_STAGES[si + 1].key; q.idx = 0; q.opts = null;
+      saveData(DATA); render();
+      if (q.stage === 'meaning') toast('读完啦！现在考考意思 🌏');
+      else if (q.stage === 'spell') toast('意思都懂了！最后来拼写 ⌨️');
+      return;
+    }
+    if (q.wrong.length) {                      // 三轮走完，还有错的 → 再来一轮，只练错词
+      const n = q.wrong.length;
+      wt.wq = { round: q.round + 1, stage: 'read', idx: 0, list: q.wrong.slice(), wrong: [] };
+      saveData(DATA); render();
+      toast(`错了 ${n} 个，再来一轮把它们拿下 💪`);
+      return;
+    }
+    const n = Math.min(wt.count, wtSet(wt).words.length);   // 全对 → 完成
+    for (let i = 0; i < n; i++) wt.wordState[i] = 3;
+    wt.wq = null;
+    saveData(DATA);
+    wqFinish(wt);
+    render();
+  }
+
   function viewWordQuiz(params) {
     const c = kidCheck();
     if (!c) { location.hash = 'kid-select'; return ''; }
     const wt = DATA.wordTasks.find(t => t.id === params.wt);
     if (!wt) { location.hash = 'kid-words'; return ''; }
     const s = wtSet(wt);
-    const wi = wtFirstIncomplete(wt);
-    if (wi === -1) { wqFinish(wt); return viewWordQuizDone(wt, s); }
-    if (!WQ || WQ.wtId !== wt.id || WQ.wi !== wi) WQ = { wtId: wt.id, wi, step: 1, opts: null };
-    if (WQ.step === 3 && !WQ.opts) WQ.opts = buildTransOptions(s, wi);
-    const word = s.words[wi];
-    window.__wq_autospeak = (WQ.step === 1 || WQ.step === 2) ? word.w : null;
-    const doneN = wi; // 前面已全过的词数
-    const pct = Math.round(doneN / wt.count * 100);
+    if (wt.done) return viewWordQuizDone(wt, s);
+    if (!s.words.length) return '<div class="page"><div class="empty">这个词库是空的</div></div>';
 
-    let stepBody = '';
-    if (WQ.step === 1) {
-      stepBody = `
-        <div class="wq-step-tag">第 1 关 · 跟读 🔊</div>
+    const q = wqInit(wt);
+    const wi = q.list[q.idx];
+    const word = s.words[wi];
+    if (!word) { wt.done = true; saveData(DATA); return viewWordQuizDone(wt, s); }
+
+    const si = wqStageIdx(q.stage);
+    const total = q.list.length;
+    const isLast = q.idx === total - 1;
+    // 考意思的选项要固定住，不然每次 render 都会重新洗牌
+    if (q.stage === 'meaning' && (!q.opts || q.optsFor !== wi)) {
+      q.opts = buildTransOptions(s, wi).map(o => o.cn);
+      q.optsFor = wi;
+    }
+    // 跟读和考意思自动念一遍；考拼写不能自动念（那就等于报答案了），让孩子自己点喇叭
+    window.__wq_autospeak = (q.stage === 'read' || q.stage === 'meaning') ? word.w : null;
+
+    const stagesBar = `<div class="wq-stages">${WQ_STAGES.map((x, i) =>
+      `<span class="wq-stage ${i === si ? 'on' : (i < si ? 'done' : '')}">${x.icon} ${x.label}</span>`).join('')}</div>`;
+    const roundTip = q.round > 1
+      ? `<div class="wq-round-tip">🔁 第 ${q.round} 轮 · 只练上一轮出错的 ${total} 个词</div>`
+      : `<div class="wq-round-tip">第 ${q.idx + 1} / ${total} 个词</div>`;
+
+    let body = '';
+    if (q.stage === 'read') {
+      body = `
+        ${roundTip}
         <div class="wq-word-card">
           <div class="w">${esc(word.w)}</div>
           <div class="cn">${esc(word.cn)}</div>
-          <button class="wq-sound-btn" onclick="speak('${esc(word.w)}')">🔊</button>
+          <button class="wq-sound-btn" data-w="${escA(word.w)}" onclick="speak(this.getAttribute('data-w'))">🔊</button>
         </div>
         <p class="wq-hint">点喇叭听发音，大声跟读几遍</p>
-        <button class="btn-primary" style="width:100%;margin-top:12px" onclick="wqStep(2)">我会读了 ✓</button>`;
-    } else if (WQ.step === 2) {
-      stepBody = `
-        <div class="wq-step-tag">第 2 关 · 拼写 ⌨️</div>
-        <div class="wq-word-card">
-          <div class="w">${esc(word.cn)}</div>
-          <div class="cn">它的英文是？</div>
-          <button class="wq-sound-btn" onclick="speak('${esc(word.w)}')">🔊</button>
-        </div>
-        <input class="wq-spell" id="wq-spell" autocomplete="off" autocapitalize="off" placeholder="拼出来…" />
-        <button class="btn-primary" style="width:100%;margin-top:12px" onclick="wqSpellCheck('${esc(word.w)}')">检查</button>
-        <p class="wq-hint">拼错了会抖一抖，再试试就行</p>`;
-    } else {
-      stepBody = `
-        <div class="wq-step-tag">第 3 关 · 选翻译 🌏</div>
+        <button class="btn-primary" style="width:100%;margin-top:12px" onclick="wqAdvance('${wt.id}')">${isLast ? '全部读完，去考意思 ▶' : '下一个 ▶'}</button>`;
+    } else if (q.stage === 'meaning') {
+      body = `
+        ${roundTip}
         <div class="wq-word-card">
           <div class="w">${esc(word.w)}</div>
-          <button class="wq-sound-btn" onclick="speak('${esc(word.w)}')">🔊</button>
+          <button class="wq-sound-btn" data-w="${escA(word.w)}" onclick="speak(this.getAttribute('data-w'))">🔊</button>
         </div>
+        <p class="wq-hint">它的意思是？</p>
         <div class="wq-choices">
-          ${WQ.opts.map((o, i) => `<button class="wq-choice" id="wqc${i}" onclick="wqTransPick(${i}, '${esc(word.cn)}')">${esc(o.cn)}</button>`).join('')}
+          ${(q.opts || []).map((o, i) => `<button class="wq-choice" id="wqc${i}" onclick="wqMeaningPick('${wt.id}', ${i})">${esc(o)}</button>`).join('')}
         </div>`;
+    } else {
+      body = `
+        ${roundTip}
+        <div class="wq-word-card">
+          <div class="w" style="font-size:26px">${esc(word.cn)}</div>
+          <div class="cn">英文怎么写？</div>
+          <button class="wq-sound-btn" data-w="${escA(word.w)}" onclick="speak(this.getAttribute('data-w'))">🔊 听发音</button>
+        </div>
+        <input class="wq-spell" id="wq-spell" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="拼出来…"
+               onkeydown="if(event.key==='Enter')wqSpellCheck('${wt.id}')" />
+        <button class="btn-primary" style="width:100%;margin-top:12px" onclick="wqSpellCheck('${wt.id}')">检查</button>
+        <button class="btn-text" style="width:100%;margin-top:10px" onclick="wqSpellGiveUp('${wt.id}')">不会，看答案</button>`;
     }
 
     return `
       <div class="topbar">
         <button class="icon-btn" onclick="location.hash='kid-words'">${ICN.back}</button>
-        <h1 style="font-size:15px">${esc(s.title)} · ${wi + 1}/${wt.count}</h1>
+        <h1 style="font-size:14px">${esc(s.title)}</h1>
         <div class="actions"><div class="icon-btn" style="background:var(--amber-50);color:var(--amber-600);font-size:13px;font-weight:600">★ ${c.points}</div></div>
       </div>
       <div class="page">
-        <div class="wq-bar" style="margin-bottom:14px"><div class="wq-bar-in" style="width:${pct}%"></div></div>
-        ${stepBody}
+        <div class="wq-bar" style="margin-bottom:10px"><div class="wq-bar-in" style="width:${wqPercent(wt)}%"></div></div>
+        ${stagesBar}
+        ${body}
       </div>
       ${kidTabBar('words')}
     `;
   }
+
+  function wqMeaningPick(wtId, i) {
+    const wt = wqTask(wtId); if (!wt || !wt.wq) return;
+    const q = wt.wq, wi = q.list[q.idx];
+    const word = wtSet(wt).words[wi];
+    const btn = document.getElementById('wqc' + i);
+    if ((q.opts || [])[i] === word.cn) {
+      if (btn) btn.classList.add('good');
+      toast('答对啦 ✓');
+      setTimeout(() => wqAdvance(wtId), 520);
+    } else {
+      if (btn) btn.classList.add('bad');
+      const ci = (q.opts || []).indexOf(word.cn);
+      const cbtn = ci >= 0 ? document.getElementById('wqc' + ci) : null;
+      if (cbtn) cbtn.classList.add('good');
+      wqMarkWrong(wt, wi); saveData(DATA);
+      toast('正确答案是：' + word.cn);
+      setTimeout(() => wqAdvance(wtId), 1500);
+    }
+  }
+
+  function wqSpellCheck(wtId) {
+    const wt = wqTask(wtId); if (!wt || !wt.wq) return;
+    const q = wt.wq, wi = q.list[q.idx];
+    const word = wtSet(wt).words[wi];
+    const input = document.getElementById('wq-spell');
+    if (!input) return;
+    if (input.value.trim().toLowerCase() === String(word.w).trim().toLowerCase()) {
+      input.classList.add('good');
+      toast('拼对了 ✓');
+      setTimeout(() => wqAdvance(wtId), 520);
+    } else {
+      input.classList.add('bad');
+      wqMarkWrong(wt, wi); saveData(DATA);
+      toast('差一点，再听一遍 🔊');
+      setTimeout(() => { input.classList.remove('bad'); input.select(); }, 500);
+    }
+  }
+  function wqSpellGiveUp(wtId) {
+    const wt = wqTask(wtId); if (!wt || !wt.wq) return;
+    const wi = wt.wq.list[wt.wq.idx];
+    const word = wtSet(wt).words[wi];
+    wqMarkWrong(wt, wi); saveData(DATA);
+    toast('正确答案是：' + word.w);
+    setTimeout(() => wqAdvance(wtId), 1700);
+  }
+
   function viewWordQuizDone(wt, s) {
     const c = DATA.children.find(x => x.id === wt.childId);
     return `
@@ -1848,40 +2095,216 @@
     }
     return opts;
   }
-  function wqStep(n) { WQ.step = n; render(); }
-  function wqSpellCheck(answer) {
-    const input = document.getElementById('wq-spell');
-    if (!input) return;
-    if (input.value.trim().toLowerCase() === answer.toLowerCase()) {
-      const wt = DATA.wordTasks.find(t => t.id === WQ.wtId);
-      wt.wordState[WQ.wi] = 2;
-      WQ.step = 3; WQ.opts = null;
-      saveData(DATA); render();
-      toast('拼对了！最后一关 🌏');
-    } else {
-      input.classList.add('bad');
-      toast('再想想，听一遍提示 🔊');
-      setTimeout(() => input.classList.remove('bad'), 400);
-    }
-  }
-  function wqTransPick(i, correct) {
-    const btn = document.getElementById('wqc' + i);
-    if (WQ.opts[i].cn === correct) {
-      const wt = DATA.wordTasks.find(t => t.id === WQ.wtId);
-      wt.wordState[WQ.wi] = 3;
-      const isLast = wtFirstIncomplete(wt) === -1;
-      saveData(DATA);
-      WQ = null;
-      if (!isLast) toast('过关！下一个词 ▶');
-      render();
-    } else {
-      btn.classList.add('bad');
-      setTimeout(() => btn.classList.remove('bad'), 400);
-    }
-  }
   window.__afterRender = function () {
     if (window.__wq_autospeak) { const t = window.__wq_autospeak; window.__wq_autospeak = null; setTimeout(() => speak(t), 350); }
+    if (typeof window.__dicAuto === 'function') { const f = window.__dicAuto; window.__dicAuto = null; f(); }
   };
+
+  // ========== 听写（英语单词 / 语文词语）==========
+  // 词库带 lang：'en' 读英文（英语听写）、'zh' 读中文（语文听写）。老词库默认 en。
+  function setLang(ws) { return (ws && ws.lang === 'zh') ? 'zh' : 'en'; }
+  function dicFind(id) { return (DATA.dictations || []).find(t => t.id === id); }
+  function dicSet(dt) { return DATA.wordSets.find(s => s.id === dt.setId) || { title: '词库已删除', words: [] }; }
+  function dicCount(dt) { return Math.min(dt.count || 0, (dicSet(dt).words || []).length); }
+
+  let DIC = null; // 运行态 { dtId, list, idx, answers, phase:'run'|'done', timers, result }
+  function dicClearTimers() {
+    if (DIC && DIC.timers) DIC.timers.forEach(t => clearTimeout(t));
+    if (DIC) DIC.timers = [];
+  }
+  function dicBegin(dtId) {
+    const dt = dicFind(dtId);
+    if (!dt) { location.hash = 'kid-words'; return; }
+    if (dicCount(dt) < 1) { toast('这个词库是空的'); return; }
+    DIC = { dtId, list: Array.from({ length: dicCount(dt) }, (_, i) => i), idx: 0, answers: {}, phase: 'run', timers: [], result: null };
+    location.hash = 'kid-dictation?id=' + dtId;
+    render();
+    dicPlay();
+  }
+  // 一个词读 repeat 遍，遍与遍之间隔 gap 秒。
+  // 不用 onEnd 链式回调：降级到系统语音时 onEnd 不一定触发，会卡住；用定时器更稳。
+  function dicPlay() {
+    const dt = dicFind(DIC && DIC.dtId);
+    if (!dt || !DIC || DIC.phase !== 'run') return;
+    const word = dicSet(dt).words[DIC.list[DIC.idx]];
+    if (!word) return;
+    const times = Math.max(1, Math.min(5, dt.repeat || 1));
+    const gapMs = Math.max(0, Math.min(10, dt.gap == null ? 2 : dt.gap)) * 1000;
+    const perMs = 1600 + gapMs;  // 一个词发音大约 1.5 秒
+    dicClearTimers();
+    let k = 0;
+    const one = () => {
+      if (!DIC || DIC.phase !== 'run') return;
+      if (k >= times) return;
+      speak(word.w);
+      k++;
+      if (k < times) DIC.timers.push(setTimeout(one, perMs));
+    };
+    one();
+    toast(`第 ${DIC.idx + 1} 个，读 ${times} 遍`);
+  }
+  function dicNext() {
+    if (!DIC || DIC.phase !== 'run') return;
+    const input = document.getElementById('dic-input');
+    DIC.answers[DIC.idx] = input ? input.value.trim() : '';
+    dicClearTimers(); speakStop();
+    if (DIC.idx < DIC.list.length - 1) { DIC.idx++; render(); dicPlay(); return; }
+    dicSubmit();
+  }
+  function dicSkip() {
+    if (!DIC || DIC.phase !== 'run') return;
+    DIC.answers[DIC.idx] = '';
+    dicClearTimers(); speakStop();
+    if (DIC.idx < DIC.list.length - 1) { DIC.idx++; render(); dicPlay(); return; }
+    dicSubmit();
+  }
+  function dicSubmit() {
+    const dt = dicFind(DIC.dtId);
+    if (!dt) { dicClearTimers(); DIC = null; render(); return; }
+    const s = dicSet(dt);
+    let right = 0; const wrong = [];
+    DIC.list.forEach((wi, k) => {
+      const w = s.words[wi];
+      if (!w) return;
+      const mine = String(DIC.answers[k] || '').trim();
+      if (mine.toLowerCase() === String(w.w).trim().toLowerCase()) right++;
+      else wrong.push({ w: w.w, cn: w.cn || '', mine });
+    });
+    const total = DIC.list.length;
+    const gain = total ? Math.max(1, Math.round((dt.points || 5) * right / total)) : 0;
+    const first = !dt.done;   // 只有第一次正式完成才加星，之后重练不重复给分
+    dt.done = true; dt.score = right; dt.total = total; dt.wrong = wrong;
+    if (first && gain > 0) {
+      const c = DATA.children.find(x => x.id === dt.childId);
+      if (c) awardStars(c, gain, `听写：${s.title} ${right}/${total}`);
+    }
+    saveData(DATA);
+    DIC.phase = 'done';
+    DIC.result = { right, total, wrong, gain, first };
+    render();
+  }
+  function dicRetryWrong() {
+    if (!DIC || !DIC.result) return;
+    const w = DIC.result.wrong;
+    if (!w.length) { toast('全对了，不用再练啦'); return; }
+    const s = dicSet(dicFind(DIC.dtId));
+    const idxs = w.map(x => s.words.findIndex(y => y.w === x.w)).filter(i => i >= 0);
+    if (!idxs.length) return;
+    DIC.list = idxs; DIC.idx = 0; DIC.answers = {}; DIC.phase = 'run'; DIC.result = null;
+    render(); dicPlay();
+  }
+  function dicQuit() { dicClearTimers(); speakStop(); DIC = null; location.hash = 'kid-words'; render(); }
+
+  function viewKidDictation(params) {
+    const c = kidCheck();
+    if (!c) { location.hash = 'kid-select'; return ''; }
+    const dt = dicFind(params.id);
+    if (!dt) { location.hash = 'kid-words'; return ''; }
+    const s = dicSet(dt);
+    const zh = setLang(s) === 'zh';
+    const unit = zh ? '词语' : '单词';
+
+    const top = `
+      <div class="topbar">
+        <button class="icon-btn" onclick="dicQuit()">${ICN.back}</button>
+        <h1>✍️ 听写</h1>
+        <div class="actions"><div class="icon-btn" style="background:var(--amber-50);color:var(--amber-600);font-size:13px;font-weight:600">★ ${c.points}</div></div>
+      </div>`;
+
+    // 还没开始（直接点进来 / 重练）→ 说明页
+    if (!DIC || DIC.dtId !== dt.id) {
+      return top + `
+      <div class="page">
+        <div class="dic-hero">
+          <div class="n">✍️ 听写练习</div>
+          <div class="tip">${esc(s.title)}</div>
+          <div class="sub">共 ${dicCount(dt)} 个${unit} · 每个读 ${dt.repeat || 1} 遍 · 间隔 ${dt.gap == null ? 2 : dt.gap} 秒${dt.showCn ? ' · 显示中文提示' : ''}</div>
+        </div>
+        <p class="wq-hint">听发音，把${unit}写进下面的框。写完点「下一个」，全部写完自动批改。</p>
+        <button class="btn-primary" style="width:100%;margin-top:12px" onclick="dicBegin('${dt.id}')">🎧 开始听写</button>
+        <button class="btn-secondary" style="width:100%;margin-top:10px" onclick="location.hash='kid-words'">先不写</button>
+      </div>
+      ${kidTabBar('words')}`;
+    }
+
+    // 结果页
+    if (DIC.phase === 'done' && DIC.result) {
+      const r = DIC.result;
+      const allRight = r.wrong.length === 0;
+      return top + `
+      <div class="page">
+        <div class="dic-result" style="${allRight ? '' : 'background:var(--amber-50)'}">
+          <div style="font-size:44px">${allRight ? '🎉' : '💪'}</div>
+          <div style="font-size:20px;font-weight:700;margin-top:6px">${r.right} / ${r.total} 写对了</div>
+          <div style="font-size:13px;color:var(--gray-600);margin-top:6px">${r.first ? `+${r.gain} 颗星星 ⭐` : '这次是重练，不计分'}</div>
+        </div>
+        ${allRight ? '<div class="wq-done">全部写对，太棒了！</div>' : `
+        <div class="section" style="padding:14px">
+          <h3>错了 ${r.wrong.length} 个，对照看一遍</h3>
+          ${r.wrong.map(x => `<div class="dic-wrong-item">
+            <span class="right">${esc(x.w)}${x.cn ? ' <small style="color:var(--gray-600);font-weight:400">' + esc(x.cn) + '</small>' : ''}</span>
+            <span class="mine">${x.mine ? esc(x.mine) : '没写出来'}</span>
+          </div>`).join('')}
+        </div>`}
+        ${allRight ? '' : '<button class="btn-primary" style="width:100%" onclick="dicRetryWrong()">🔁 只练这几个错的</button>'}
+        <button class="btn-secondary" style="width:100%;margin-top:10px" onclick="dicQuit()">${allRight ? '完成 🎉' : '先这样，回单词页'}</button>
+      </div>
+      ${kidTabBar('words')}`;
+    }
+
+    // 进行中
+    const len = DIC.list.length;
+    const isLast = DIC.idx === len - 1;
+    const dots = DIC.list.map((_, k) => {
+      const cls = k === DIC.idx ? 'now' : (DIC.answers[k] != null ? 'ok' : '');
+      return `<span class="dic-dot ${cls}">${k + 1}</span>`;
+    }).join('');
+    window.__dicAuto = function () {
+      const el = document.getElementById('dic-input');
+      if (el) { try { el.focus(); } catch (e) {} }
+    };
+    return top + `
+      <div class="page">
+        <div class="dic-dots">${dots}</div>
+        <div class="dic-hero">
+          <div class="n">第 ${DIC.idx + 1} / ${len} 个${unit}</div>
+          <div class="tip">${dt.showCn && s.words[DIC.list[DIC.idx]].cn ? esc(s.words[DIC.list[DIC.idx]].cn) : '…… 仔细听'}</div>
+          <button class="dic-play" onclick="dicPlay()">🔊</button>
+          <div class="sub">点大喇叭可以再听一遍</div>
+        </div>
+        <input class="dic-input" id="dic-input" autocomplete="off" autocapitalize="off" spellcheck="false"
+               placeholder="写在这里…" onkeydown="if(event.key==='Enter')dicNext()" />
+        <button class="btn-primary" style="width:100%;margin-top:12px" onclick="dicNext()">${isLast ? '提交 ✓' : '下一个 ▶'}</button>
+        <button class="btn-text" style="width:100%;margin-top:10px" onclick="dicSkip()">不会，跳过这个</button>
+      </div>
+      ${kidTabBar('words')}`;
+  }
+
+  function assignDictation() {
+    const childId = document.getElementById('dc-child').value;
+    const setId = document.getElementById('dc-set').value;
+    const count = parseInt(document.getElementById('dc-count').value) || 10;
+    const repeat = parseInt(document.getElementById('dc-repeat').value) || 2;
+    const gap = parseInt(document.getElementById('dc-gap').value);
+    const points = parseInt(document.getElementById('dc-points').value) || 8;
+    const showCn = document.getElementById('dc-showcn').checked;
+    if (!setId) { toast('先去建一个词库'); return; }
+    const dup = (DATA.dictations || []).find(t => t.childId === childId && t.date === TODAY && t.setId === setId && !t.done);
+    if (dup) { toast('这个娃今天已有该词库的听写'); return; }
+    if (!Array.isArray(DATA.dictations)) DATA.dictations = [];
+    DATA.dictations.push({
+      id: 'dc' + Date.now(), childId, date: TODAY, setId, count,
+      repeat: Math.max(1, Math.min(5, repeat)),
+      gap: isNaN(gap) ? 2 : Math.max(0, Math.min(10, gap)),
+      points, showCn, done: false, score: null, total: 0, wrong: [],
+    });
+    saveData(DATA); render(); toast('已布置，孩子端「单词」页里能看到');
+  }
+  function delDictation(id) {
+    if (!confirm('删除这个听写任务？')) return;
+    DATA.dictations = (DATA.dictations || []).filter(t => t.id !== id);
+    saveData(DATA); render();
+  }
 
   // ---- 妈妈端：单词管理 ----
   function viewMomWords() {
@@ -1916,9 +2339,46 @@
         </div>
 
         <div class="section">
+          <h3>听写 <span class="badge">英语 / 语文都能用</span></h3>
+          ${(() => {
+            const dts = (DATA.dictations || []).filter(t => t.date === TODAY);
+            if (!dts.length) return '<div class="text-mute">今天还没布置听写</div>';
+            return dts.map(dt => {
+              const k = DATA.children.find(c => c.id === dt.childId);
+              const s = dicSet(dt);
+              return `<div class="task">
+                <div class="title"><div class="name">${k ? k.avatar + ' ' + esc(k.name) : ''} · 听写</div>
+                <div class="meta">📚 ${esc(s.title)} · ${Math.min(dt.count, (s.words || []).length)} 词${dt.done ? ` · ✅ 对了 ${dt.score}/${dt.total}${dt.wrong && dt.wrong.length ? ' · 错 ' + dt.wrong.length + ' 个' : ''}` : ' · 未开始'}</div></div>
+                <button class="icon-btn" style="background:#FFEBEE;color:#C62828" onclick="delDictation('${dt.id}')">${ICN.trash}</button>
+              </div>`;
+            }).join('');
+          })()}
+        </div>
+
+        <div class="section">
+          <h3>布置听写</h3>
+          <div class="field"><label>给谁</label>
+            <select id="dc-child">${DATA.children.map(c => `<option value="${c.id}">${c.avatar} ${esc(c.name)}</option>`).join('')}</select></div>
+          <div class="field"><label>用哪个词库</label>
+            <select id="dc-set">${DATA.wordSets.map(ws => `<option value="${ws.id}">${setLang(ws) === 'zh' ? '🇨🇳' : '🔤'} ${esc(ws.title)}（${ws.words.length} 条）</option>`).join('')}</select></div>
+          <div class="field"><label>考几个</label>
+            <input id="dc-count" type="number" value="10" min="1" max="50" /></div>
+          <div class="field"><label>每个读几遍</label>
+            <input id="dc-repeat" type="number" value="2" min="1" max="5" /></div>
+          <div class="field"><label>每遍间隔（秒）</label>
+            <input id="dc-gap" type="number" value="2" min="0" max="10" /></div>
+          <div class="field"><label>完成后积分</label>
+            <input id="dc-points" type="number" value="8" min="1" max="50" /></div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:14px;margin:6px 0">
+            <input type="checkbox" id="dc-showcn" style="width:18px;height:18px" /> 听写时显示中文提示（低年级建议勾上）</label>
+          <button class="btn-primary" style="width:100%" onclick="assignDictation()">布置听写</button>
+          <p class="text-mute" style="font-size:12px;margin-top:8px">语文听写：新建词库时把「朗读语言」选成语文，词条每行写一个词语即可</p>
+        </div>
+
+        <div class="section">
           <h3>词库管理 <button class="text-pink" style="font-size:12px" onclick="openWordSetModal()">${ICN.add} 新建词库</button></h3>
           ${DATA.wordSets.map(s => `<div class="task">
-            <div class="title"><div class="name">📚 ${esc(s.title)}</div><div class="meta">${s.words.length} 个单词</div></div>
+            <div class="title"><div class="name">${setLang(s) === 'zh' ? '🇨🇳' : '🔤'} ${esc(s.title)}</div><div class="meta">${s.words.length} 条 · ${setLang(s) === 'zh' ? '语文（读中文）' : '英语（读英文）'}</div></div>
             <button class="icon-btn" style="background:#FFEBEE;color:#C62828" onclick="delWordSet('${s.id}')">${ICN.trash}</button>
           </div>`).join('')}
         </div>
@@ -1936,7 +2396,12 @@
         <h3>新建词库</h3>
         <div class="field"><label>词库名称</label>
           <input id="ws-title" placeholder="例：三年级上册 Unit 1" /></div>
-        <div class="field"><label>单词列表（每行一个：单词 中文）</label>
+        <div class="field"><label>朗读语言</label>
+          <select id="ws-lang">
+            <option value="en">英语 —— 读英文单词（英语听写用）</option>
+            <option value="zh">语文 —— 读中文词语（语文听写用）</option>
+          </select></div>
+        <div class="field"><label>词条列表（每行一个：「单词 中文」或只写词语）</label>
           <textarea id="ws-words" rows="8" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);font-size:14px" placeholder="apple 苹果&#10;banana 香蕉&#10;cat 猫"></textarea></div>
         <div class="btn-row">
           <button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">取消</button>
@@ -1950,12 +2415,14 @@
     const title = document.getElementById('ws-title').value.trim();
     const raw = document.getElementById('ws-words').value;
     if (!title) { toast('给词库起个名'); return; }
+    // 兼容两种写法： 「单词 中文」 或 只有「词语」（语文词表常不带释义）
     const words = raw.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
       const m = l.match(/^(\S+)\s+(.+)$/);
-      return m ? { w: m[1], cn: m[2] } : null;
-    }).filter(Boolean);
-    if (!words.length) { toast('至少一行「单词 中文」'); return; }
-    DATA.wordSets.push({ id: 'ws' + Date.now(), title, words });
+      return m ? { w: m[1], cn: m[2] } : { w: l, cn: '' };
+    });
+    if (!words.length) { toast('至少写一行，格式：「单词 中文」或每行一个词语'); return; }
+    const langEl = document.getElementById('ws-lang');
+    DATA.wordSets.push({ id: 'ws' + Date.now(), title, words, lang: langEl ? langEl.value : 'en' });
     saveData(DATA); document.querySelector('.modal-mask').remove(); render(); toast(`已保存 ${words.length} 个单词`);
   }
   function delWordSet(id) {
@@ -1992,11 +2459,12 @@
   const FUN_GATE = '🔒 完成今天的打卡任务才能玩哦';
 
   // ---- 幸运转盘 ----
+  // 成本 10★，整体期望值约 9.6★（原来是 4.5★，孩子怎么抽都亏，已整体上调）
   const WHEEL_SEGS = [
-    { label: '+2★',  pts: 2,  w: 20 }, { label: '谢谢参与', pts: 0, w: 15 },
-    { label: '+5★',  pts: 5,  w: 20 }, { label: '+10★', pts: 10, w: 12 },
-    { label: '再来一次', pts: 0, again: true, w: 10 }, { label: '+20★', pts: 20, w: 5 },
-    { label: '+3★',  pts: 3,  w: 18 }, { label: '+8★',  pts: 8,  w: 10 },
+    { label: '+5★',  pts: 5,  w: 20 }, { label: '谢谢参与', pts: 0, w: 12 },
+    { label: '+10★', pts: 10, w: 20 }, { label: '+15★', pts: 15, w: 13 },
+    { label: '再来一次', pts: 0, again: true, w: 8 }, { label: '+25★', pts: 25, w: 8 },
+    { label: '+8★',  pts: 8,  w: 13 }, { label: '+30★', pts: 30, w: 5 },
   ];
   const WHEEL_COLORS = ['#F06292','#BA68C8','#4DD0E1','#FFB74D','#81C784','#9575CD','#FF8A65','#4FC3F7'];
   let wheelRot = 0, wheelBusy = false;
@@ -2056,11 +2524,11 @@
           `).join('')}
         </div>
         <div class="game-score-bar"><span>💣 地雷 <b id="mine-left">${cfg.mines}</b> 颗</span><span>已翻开 <b id="mine-open">0</b> 格</span></div>
-        <div class="mine-grid" id="mine-grid" style="max-width:${cfg.size >= 12 ? 360 : cfg.size >= 10 ? 350 : 340}px">
-          ${Array.from({length: cfg.size * cfg.size}, (_, i) => `<div class="mine-cell" id="mc${i}" onclick="tapMine(${i})"></div>`).join('')}
+        <div class="mine-grid" id="mine-grid" style="grid-template-columns:repeat(${cfg.size},1fr);max-width:${cfg.size >= 12 ? 400 : cfg.size >= 10 ? 360 : 320}px;font-size:${cfg.size >= 12 ? 12 : cfg.size >= 10 ? 14 : 16}px">
+          ${Array.from({length: cfg.size * cfg.size}, (_, i) => `<div class="mine-cell" id="mc${i}" onclick="tapMine(${i})"><span class="mct"></span></div>`).join('')}
         </div>
         <div class="game-status" id="mine-status">${ok ? `翻开所有安全的格子就赢！小心 ${cfg.mines} 颗雷 💣` : FUN_GATE}</div>
-        ${ok ? `<button id="mine-flagbtn" class="btn-secondary" style="width:100%;margin-bottom:8px" onclick="toggleFlagMode()">🚩 插旗模式：关</button>
+        ${ok ? `<button id="mine-flagbtn" class="btn-secondary" style="width:100%;margin-bottom:8px;display:none" onclick="toggleFlagMode()">🚩 插旗模式：关</button>
                <button class="btn-primary" style="width:100%" onclick="startMine()">▶ 开始（消耗 5★）</button>
                <p class="wq-hint">先点「开始」，再翻开格子。数字 = 周围有几颗雷；觉得是雷就开插旗模式做标记</p>`
             : '<button class="btn-secondary" style="width:100%" onclick="location.hash=\'kid-tasks\'">先去打卡 ▶</button>'}
@@ -2091,6 +2559,13 @@
     MINE.flagMode = !MINE.flagMode;
     const fb = document.getElementById('mine-flagbtn');
     if (fb) { fb.textContent = `🚩 插旗模式：${MINE.flagMode ? '开' : '关'}`; fb.style.background = MINE.flagMode ? 'var(--amber-50)' : ''; fb.style.color = MINE.flagMode ? 'var(--amber-600)' : ''; }
+    mineUpdateLeft();
+  }
+  // 剩余雷数 = 总雷数 - 已插旗数（原来这数字一直不变，插了旗也不减，孩子没法判断）
+  function mineUpdateLeft() {
+    if (!MINE) return;
+    const el = document.getElementById('mine-left');
+    if (el) el.textContent = MINE.mines.size - MINE.flags.size;
   }
   function mineAround(i) {
     const S = MINE.size;
@@ -2103,6 +2578,12 @@
     }
     return n;
   }
+  // 格子内容写进内层 .mct（外层用 padding-top 撑正方形，直接写 textContent 会把高度撑破）
+  function mcText(el, txt) {
+    if (!el) return;
+    const b = el.querySelector('.mct');
+    if (b) b.textContent = txt; else el.textContent = txt;
+  }
   function revealMine(i) {
     if (MINE.open.has(i) || MINE.flags.has(i)) return;
     const el = document.getElementById('mc' + i);
@@ -2110,7 +2591,7 @@
     MINE.open.add(i);
     const n = mineAround(i);
     el.classList.add('open');
-    if (n > 0) { el.textContent = n; el.classList.add('mn-' + n); }
+    if (n > 0) { mcText(el, n); el.classList.add('mn-' + n); }
     else {
       const S = MINE.size;
       const r = Math.floor(i / S), col = i % S;
@@ -2126,22 +2607,28 @@
     if (!el) return;
     if (MINE.flagMode) {
       if (MINE.open.has(i)) return;
-      if (MINE.flags.has(i)) { MINE.flags.delete(i); el.classList.remove('open'); el.textContent = ''; }
-      else { MINE.flags.add(i); el.classList.add('open'); el.textContent = '🚩'; }
+      if (MINE.flags.has(i)) { MINE.flags.delete(i); el.classList.remove('open'); mcText(el, ''); }
+      else { MINE.flags.add(i); el.classList.add('open'); mcText(el, '🚩'); }
+      mineUpdateLeft();
       return;
     }
     if (MINE.open.has(i) || MINE.flags.has(i)) return;
     const total = MINE.size * MINE.size;
     const mineCount = MINE.mines.size;
     if (MINE.first && MINE.mines.has(i)) {
+      // 第一次就点到雷 —— 把雷随机挪到别处，别让孩子开局就炸（原来固定挪到最靠前的空格，雷会挤在左上角）
       MINE.mines.delete(i);
-      for (let j = 0; j < total; j++) { if (!MINE.mines.has(j) && j !== i) { MINE.mines.add(j); break; } }
+      const cand = [];
+      for (let j = 0; j < total; j++) if (j !== i && !MINE.mines.has(j)) cand.push(j);
+      if (cand.length) MINE.mines.add(cand[Math.floor(Math.random() * cand.length)]);
     }
     MINE.first = false;
     if (MINE.mines.has(i)) {
       MINE.over = true;
-      el.classList.add('open', 'boom'); el.textContent = '💣';
-      MINE.mines.forEach(m => { const me = document.getElementById('mc' + m); if (me) { me.classList.add('open'); if (m !== i) me.textContent = '💣'; } });
+      el.classList.add('open', 'boom'); mcText(el, '💣');
+      MINE.mines.forEach(m => { const me = document.getElementById('mc' + m); if (me) { me.classList.add('open'); if (m !== i) mcText(me, '💣'); } });
+      // 插错的旗标出来，让孩子知道错在哪
+      MINE.flags.forEach(f => { if (!MINE.mines.has(f)) { const fe = document.getElementById('mc' + f); if (fe) { fe.classList.add('open'); mcText(fe, '❌'); } } });
       const st = document.getElementById('mine-status');
       if (st) st.textContent = '💥 踩到雷啦！别灰心，再开一局～';
       MINE = null;
@@ -2150,10 +2637,21 @@
     revealMine(i);
     const oc = document.getElementById('mine-open');
     if (oc) oc.textContent = MINE.open.size;
-    if (MINE.open.size === total - mineCount) {
+    // 胜利有两种：① 所有安全格都翻开 ② 安全格全开 + 剩下的格子全插了旗，且旗全插对
+    let win = MINE.open.size === total - mineCount;
+    if (!win && MINE.open.size + MINE.flags.size === total) {
+      let allRight = true;
+      MINE.flags.forEach(f => { if (!MINE.mines.has(f)) allRight = false; });
+      if (allRight) {
+        MINE.flags.forEach(f => { const fe = document.getElementById('mc' + f); if (fe) { fe.classList.add('open'); mcText(fe, '🚩'); } });
+        win = true;
+      }
+    }
+    if (win) {
       MINE.over = true;
+      MINE.mines.forEach(m => { const me = document.getElementById('mc' + m); if (me) { me.classList.add('open'); mcText(me, '🚩'); } });
       const st = document.getElementById('mine-status');
-      if (st) st.textContent = `🎉 太厉害了！所有安全格子都翻开了，奖励 ${MINE.reward}★`;
+      if (st) st.textContent = `🎉 太厉害了！全部找出来了，奖励 ${MINE.reward}★`;
       const reward = MINE.reward; MINE = null;
       const c = kidCheck();
       if (c) { awardStars(c, reward, '扫雷通关奖励'); toast(`扫雷通关 +${reward}★ 🎉`); render(); }
