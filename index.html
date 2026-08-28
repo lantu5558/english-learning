@@ -2866,7 +2866,7 @@
     else if (b.kind === 'aid') appUrl = 'bilibili://video/av' + b.id + (b.p ? ('?p=' + b.p) : '');
     else appUrl = 'bilibili://bangumi/season/ep' + b.id;
     return {
-      desktop: 'https://player.bilibili.com/player.html?' + q,
+      desktop: 'https://player.bilibili.com/player.html?' + q + '&as_wide=1',
       mobile: 'https://www.bilibili.com/blackboard/webplayer/mbplayer.html?' + q,
       page: pageUrl,
       app: appUrl
@@ -2900,7 +2900,7 @@
         <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
         <button class="icon-btn" title="更多播放方式" style="float:right;margin-top:-8px;margin-right:6px;font-size:15px" onclick="biliToggleMenu(this)">↗</button>
         <h3>${esc(title)}</h3>
-        <div class="video-wrap"><iframe class="bili-frame" src="${escA(src)}" scrolling="no" frameborder="no" allowfullscreen="true" allow="autoplay; fullscreen; encrypted-media; picture-in-picture"></iframe></div>
+        <div class="video-wrap"><iframe class="bili-frame" src="${escA(src)}" scrolling="no" frameborder="no" allowfullscreen="true" referrerpolicy="unsafe-url" allow="autoplay; fullscreen; encrypted-media; picture-in-picture"></iframe></div>
         <div class="bili-fallback" style="display:none;margin-top:10px;padding:12px;background:#fff4e6;border:1px solid #ffd9a8;border-radius:10px;font-size:13px;line-height:1.9">
           <div style="color:#8a5a00;margin-bottom:6px">一直转圈时，任选一种方式：</div>
           <a href="${escA(u.page)}" target="_blank" rel="noopener" style="display:inline-block;padding:9px 15px;background:#ff6b9d;color:#fff;border-radius:9px;text-decoration:none;font-weight:600">① 用浏览器打开 B站（一定能播）</a>
