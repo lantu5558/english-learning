@@ -2831,16 +2831,28 @@
 
   // 内嵌 B 站播放器
   function openBiliPlayer(title, b) {
+    const ua = navigator.userAgent || '';
+    // 关键坑：B站 player.html 内部会读 UA，只要含 "Mobile" 就执行
+    // location.href 跳到 www.bilibili.com/blackboard/webplayer/mbplayer.html。
+    // 这是 iframe 内「跨主域跳转」，平板/学习机一旦开启阻止跨站跟踪就会被拦下，
+    // 结果永远停在开始画面转圈。对策：这里提前判断 UA，直接加载对应版本，绕开跳转。
+    const isMobile = /AppleWebKit.*Mobile/i.test(ua) || /Android|iPhone|iPod|Windows Phone/i.test(ua);
     const p = b.p ? ('&p=' + b.p) : '';
-    let src;
-    if (b.kind === 'bvid') src = 'https://player.bilibili.com/player.html?bvid=' + b.id + p + '&autoplay=0&danmaku=0';
-    else if (b.kind === 'aid') src = 'https://player.bilibili.com/player.html?aid=' + b.id + p + '&autoplay=0&danmaku=0';
-    else src = 'https://player.bilibili.com/player.html?ep_id=' + b.id + '&autoplay=0&danmaku=0';
-    // 内嵌播放失败时的备用网页地址（平板/学习机常拦截 iframe）
+    const idq = (b.kind === 'bvid' ? 'bvid=' + b.id
+               : b.kind === 'aid' ? 'aid=' + b.id
+               : 'ep_id=' + b.id);
+    const q = idq + p + '&autoplay=0&danmaku=0';
+    const srcDesktop = 'https://player.bilibili.com/player.html?' + q;
+    const srcMobile = 'https://www.bilibili.com/blackboard/webplayer/mbplayer.html?' + q;
+    const src = isMobile ? srcMobile : srcDesktop;
+    // 备用网页地址（跳出平台观看，一定能播）
     let pageUrl = 'https://www.bilibili.com/';
     if (b.kind === 'bvid') pageUrl = 'https://www.bilibili.com/video/' + b.id + (b.p ? ('?p=' + b.p) : '');
     else if (b.kind === 'aid') pageUrl = 'https://www.bilibili.com/video/av' + b.id + (b.p ? ('?p=' + b.p) : '');
     else pageUrl = 'https://www.bilibili.com/bangumi/play/ep' + b.id;
+    const tip2 = isMobile
+      ? '② 或在浏览器菜单里勾选「<b>桌面版网站</b>」后重开平台（安卓平板最有效）'
+      : '② 或在浏览器设置里允许「第三方 Cookie」后重试';
     const modal = document.createElement('div');
     modal.className = 'modal-mask video-mask';
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
@@ -2848,19 +2860,28 @@
       <div class="modal video-modal">
         <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
         <h3>${esc(title)}</h3>
-        <div class="video-wrap"><iframe src="${src}" scrolling="no" frameborder="no" allowfullscreen="true" allow="autoplay; fullscreen; encrypted-media; picture-in-picture"></iframe></div>
+        <div class="video-wrap"><iframe class="bili-frame" src="${escA(src)}" scrolling="no" frameborder="no" allowfullscreen="true" allow="autoplay; fullscreen; encrypted-media; picture-in-picture"></iframe></div>
         <div class="video-meta">B站视频 · 由 bilibili 提供播放</div>
         <div class="bili-fallback" style="display:none;margin-top:10px;padding:12px;background:#fff4e6;border:1px solid #ffd9a8;border-radius:10px;font-size:13px;line-height:1.7">
-          <div style="margin-bottom:8px;color:#8a5a00">⏳ 画面一直转圈？平板和学习机常常拦截 B站的内嵌播放，可任选一种方式：</div>
-          <a href="${escA(pageUrl)}" target="_blank" rel="noopener" style="display:inline-block;padding:9px 15px;background:#ff6b9d;color:#fff;border-radius:9px;text-decoration:none;font-weight:600">① 用浏览器打开</a>
-          <span style="display:inline-block;margin:6px 0;color:#8a5a00">② 或在设备设置里关闭「阻止跨站跟踪」后重试</span>
+          <div style="margin-bottom:8px;color:#8a5a00">⏳ 一直转圈？平板和学习机常拦截 B站内嵌播放，任选一种方式：</div>
+          <a href="${escA(pageUrl)}" target="_blank" rel="noopener" style="display:inline-block;padding:9px 15px;background:#ff6b9d;color:#fff;border-radius:9px;text-decoration:none;font-weight:600">① 用浏览器打开（一定能播）</a>
+          <div style="margin-top:8px;color:#8a5a00">${tip2}</div>
+          <div style="margin-top:8px;color:#8a5a00">③ 换个播放器版本试试：
+            <button type="button" class="bili-swap" data-src="${escA(srcDesktop)}" style="padding:6px 12px;margin-right:6px;border:1px solid #ffb37a;background:#fff;border-radius:8px;cursor:pointer;color:#8a5a00">桌面版</button>
+            <button type="button" class="bili-swap" data-src="${escA(srcMobile)}" style="padding:6px 12px;border:1px solid #ffb37a;background:#fff;border-radius:8px;cursor:pointer;color:#8a5a00">移动版</button>
+          </div>
         </div>
       </div>
     `;
     document.getElementById('modal-root').appendChild(modal);
-    // 8 秒还没进展就自动亮出备用方案
+    // 6 秒还没进展就亮出备用方案，不用干等
     const fb = modal.querySelector('.bili-fallback');
-    setTimeout(function () { if (fb && document.body.contains(fb)) fb.style.display = 'block'; }, 8000);
+    setTimeout(function () { if (fb && document.body.contains(fb)) fb.style.display = 'block'; }, 6000);
+    // 手动切换播放器版本
+    const frame = modal.querySelector('.bili-frame');
+    modal.querySelectorAll('.bili-swap').forEach(function (btn) {
+      btn.onclick = function () { if (frame) frame.src = btn.getAttribute('data-src'); };
+    });
   }
 
   // 内嵌直链视频播放（video 标签，不跳转）
