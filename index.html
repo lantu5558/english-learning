@@ -322,6 +322,15 @@
     .video-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
     .video-modal .video-meta { font-size: 12px; color: var(--gray-600); margin-top: 10px; text-align: center; }
 
+    /* ===== 分集列表 ===== */
+    .episode-list { display: flex; flex-direction: column; gap: 6px; max-height: 56vh; overflow-y: auto; padding: 2px; }
+    .episode-item { display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 10px; background: var(--gray-100); cursor: pointer; transition: background .15s; }
+    .episode-item:active { background: var(--pink-50); }
+    .ep-num { width: 26px; height: 26px; border-radius: 50%; background: var(--pink-400); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+    .ep-title { flex: 1; font-size: 14px; color: var(--gray-900); line-height: 1.3; }
+    .ep-play { width: 18px; height: 18px; color: var(--pink-400); flex-shrink: 0; }
+    .ep-play svg { width: 18px; height: 18px; }
+
     /* ===== Toast ===== */
     .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: #fff; padding: 10px 16px; border-radius: var(--radius-md); font-size: 13px; z-index: 200; }
 
@@ -829,7 +838,7 @@
               <div class="thumb">${ICN[r.type]||ICN.pdf}</div>
               <div class="info">
                 <div class="name">${esc(r.title)}</div>
-                <div class="meta"><span class="badge-subj" style="background:${'var(--'+s.color+'-50)'};color:var(--${s.color}-600)">${s.emoji} ${s.name}</span>${(r.category||'learn')==='fun'?'<span class="badge-subj" style="background:var(--purple-50);color:var(--purple-600)">🎁 奖励</span>':''}</div>
+                <div class="meta"><span class="badge-subj" style="background:${'var(--'+s.color+'-50)'};color:var(--${s.color}-600)">${s.emoji} ${s.name}</span>${(r.category||'learn')==='fun'?'<span class="badge-subj" style="background:var(--purple-50);color:var(--purple-600)">🎁 奖励</span>':''}${r.episodes&&r.episodes.length>=2?`<span class="badge-subj" style="background:var(--amber-50);color:var(--amber-600)">▶ 共${r.episodes.length}集</span>`:''}</div>
               </div>
               <button class="icon-btn" onclick="delResource('${r.id}')" title="删除">${ICN.trash}</button>
             </div>`;
@@ -1129,7 +1138,7 @@
               <div class="thumb">${ICN[r.type]||ICN.pdf}</div>
               <div class="info">
                 <div class="name">${esc(r.title)}</div>
-                <div class="meta">${r.type==='video'?'🎬 视频':r.type==='pdf'?'📄 PDF':'🎵 音频'}</div>
+                <div class="meta">${r.type==='video'?'🎬 视频':r.type==='pdf'?'📄 PDF':'🎵 音频'}${r.episodes&&r.episodes.length>=2?` · <span style="color:var(--amber-600)">共${r.episodes.length}集</span>`:''}</div>
               </div>
               ${isMom ? `<button class="icon-btn" onclick="event.stopPropagation();delResource('${r.id}')">${ICN.trash}</button>` : ''}
             </div>
@@ -2149,6 +2158,16 @@
           <label>链接（微云 / B站 / 网页均可）</label>
           <input id="r-url" placeholder="粘贴链接，如 https://www.bilibili.com/video/BV..." oninput="autoDetectType()" />
         </div>
+        <div class="field">
+          <button type="button" class="btn-secondary" onclick="toggleEpisodes()" style="border:1px dashed var(--pink-300);background:var(--pink-50);color:var(--pink-600)">＋ 这是合集/连续剧，有多集（分集）</button>
+        </div>
+        <div id="ep-area" style="display:none">
+          <div class="field">
+            <label>分集列表（每行一集）</label>
+            <textarea id="r-eps" rows="6" placeholder="每行一集：标题 | 链接&#10;&#10;例：&#10;第1集 小猪佩奇去游泳 | https://www.bilibili.com/video/BV...?p=1&#10;第2集 小猪佩奇去露营 | https://www.bilibili.com/video/BV...?p=2&#10;第3集 小猪佩奇去野餐 | https://www.bilibili.com/video/BV...?p=3"></textarea>
+            <p class="text-mute" style="margin-top:6px">只贴链接、不写标题也行（每行一个），会自动按「第1集、第2集…」命名。B站合集可复制每集的链接逐行粘贴。</p>
+          </div>
+        </div>
         <div class="btn-row">
           <button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">取消</button>
           <button class="btn-primary" onclick="addResource()">添加</button>
@@ -2163,11 +2182,44 @@
     const subject = document.getElementById('r-subject').value;
     const title = document.getElementById('r-title').value.trim();
     const url = document.getElementById('r-url').value.trim();
-    if (!title || !url) { toast('标题和链接都要填'); return; }
+    const epsText = document.getElementById('r-eps') ? document.getElementById('r-eps').value.trim() : '';
+
+    // 解析分集：每行「标题 | 链接」或纯链接
+    let eps = [];
+    if (epsText) {
+      eps = epsText.split('\n').map(line => {
+        line = line.trim();
+        if (!line) return null;
+        const m = line.match(/^(.*?)\s*[|｜]\s*(\S+)\s*$/);
+        if (m && m[1] && m[2]) return { title: m[1].trim(), url: m[2].trim() };
+        return { title: '', url: line };
+      }).filter(Boolean);
+    }
+
+    if (!title) { toast('请填标题'); return; }
+    if (!url && eps.length === 0) { toast('标题和链接都要填'); return; }
+
     // 兜底：B站链接自动识别为视频
-    if (parseBilibili(url) && type !== 'video') type = 'video';
-    DATA.resources.push({ id: 'r'+Date.now(), type, subject, title, url, category: cat });
-    saveData(DATA); document.querySelector('.modal-mask').remove(); render(); toast('已添加');
+    const checkBili = (u) => parseBilibili(u) ? true : false;
+    if ((checkBili(url) || eps.some(e => checkBili(e.url))) && type !== 'video') type = 'video';
+
+    const res = { id: 'r'+Date.now(), type, subject, title, url, category: cat };
+    if (eps.length >= 2) {
+      // 合集：存分集列表
+      res.episodes = eps.map((ep, i) => ({ title: ep.title || ('第' + (i + 1) + '集'), url: ep.url }));
+      res.url = eps[0].url;
+    } else if (eps.length === 1) {
+      // 只填了一集：当单集处理
+      res.url = eps[0].url;
+    }
+    DATA.resources.push(res);
+    saveData(DATA); document.querySelector('.modal-mask').remove(); render();
+    toast(eps.length >= 2 ? '已添加合集（' + eps.length + '集）' : '已添加');
+  }
+  // 展开/收起分集输入区
+  function toggleEpisodes() {
+    const area = document.getElementById('ep-area');
+    if (area) area.style.display = area.style.display === 'none' ? 'block' : 'none';
   }
   // 粘贴链接时自动识别类型
   function autoDetectType() {
@@ -2193,30 +2245,71 @@
       const todays = DATA.tasks.filter(t => t.childId === c.id && t.date === TODAY);
       if (todays.length && !todays.every(t => t.done)) { toast('🔒 先完成今天的打卡任务，再来解锁吧'); return; }
     }
+    // 多集/合集：先弹分集选择
+    if (r.episodes && r.episodes.length >= 2) { openEpisodePicker(r); return; }
     // B站视频：内嵌播放，不跳转
     const bili = parseBilibili(r.url);
     if (bili) { openBiliPlayer(r.title, bili); return; }
     window.open(r.url, '_blank');
   }
 
-  // 从链接中提取 B 站 BV 号 / av 号
+  // 分集选择弹窗
+  function openEpisodePicker(r) {
+    const modal = document.createElement('div');
+    modal.className = 'modal-mask video-mask';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+      <div class="modal video-modal">
+        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+        <h3>${esc(r.title)} <span class="text-mute" style="font-size:12px">· 共 ${r.episodes.length} 集</span></h3>
+        <div class="episode-list">
+          ${r.episodes.map((ep, i) => `
+            <div class="episode-item" onclick="playEpisode('${r.id}',${i})">
+              <span class="ep-num">${i + 1}</span>
+              <span class="ep-title">${esc(ep.title || ('第' + (i + 1) + '集'))}</span>
+              <span class="ep-play">${ICN.play}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+    document.getElementById('modal-root').appendChild(modal);
+  }
+
+  // 播放某一集
+  function playEpisode(id, i) {
+    const r = DATA.resources.find(x => x.id === id);
+    if (!r || !r.episodes || !r.episodes[i]) return;
+    const ep = r.episodes[i];
+    const label = ep.title || (r.title + ' 第' + (i + 1) + '集');
+    const cur = document.querySelector('.modal-mask');
+    if (cur) cur.remove();
+    const bili = parseBilibili(ep.url);
+    if (bili) { openBiliPlayer(label, bili); return; }
+    window.open(ep.url, '_blank');
+  }
+
+  // 从链接中提取 B 站 BV 号 / av 号 / 分P
   function parseBilibili(url) {
     if (!url) return null;
+    const p = url.match(/[?&]p=(\d+)/);
+    const pn = p ? p[1] : null;
     const bv = url.match(/BV[0-9A-Za-z]{10}/);
-    if (bv) return { kind: 'bvid', id: bv[0] };
+    if (bv) return { kind: 'bvid', id: bv[0], p: pn };
     const av = url.match(/[?&/]av(\d+)/);
-    if (av) return { kind: 'aid', id: av[1] };
+    if (av) return { kind: 'aid', id: av[1], p: pn };
     // 纯 BV 号输入（如直接粘贴 BV1xx411c7mD）
     const bare = url.match(/^BV[0-9A-Za-z]{10}$/);
-    if (bare) return { kind: 'bvid', id: bare[0] };
+    if (bare) return { kind: 'bvid', id: bare[0], p: pn };
     return null;
   }
 
   // 内嵌 B 站播放器
   function openBiliPlayer(title, b) {
+    const p = b.p ? ('&p=' + b.p) : '';
     const src = b.kind === 'bvid'
-      ? 'https://player.bilibili.com/player.html?bvid=' + b.id + '&autoplay=0&danmaku=0'
-      : 'https://player.bilibili.com/player.html?aid=' + b.id + '&autoplay=0&danmaku=0';
+      ? 'https://player.bilibili.com/player.html?bvid=' + b.id + p + '&autoplay=0&danmaku=0'
+      : 'https://player.bilibili.com/player.html?aid=' + b.id + p + '&autoplay=0&danmaku=0';
     const modal = document.createElement('div');
     modal.className = 'modal-mask video-mask';
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
