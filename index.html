@@ -473,7 +473,13 @@
     saveData(DEFAULT_DATA);
     return JSON.parse(JSON.stringify(DEFAULT_DATA));
   }
-  function saveData(d) { localStorage.setItem(LS_KEY, JSON.stringify(d)); scheduleSyncPush(); }
+  function saveData(d) {
+    localStorage.setItem(LS_KEY, JSON.stringify(d));
+    try {
+      SYNC.dirty = true; // 有改动待推送；推送成功前拉取时本地优先，防止被别的设备冲掉
+      scheduleSyncPush();
+    } catch (e) {} // 首次初始化时 SYNC 尚未定义，忽略即可
+  }
   function saveLocalOnly(d) { localStorage.setItem(LS_KEY, JSON.stringify(d)); }
   let DATA = loadData();
   // 兼容旧数据：补齐单词模块字段
@@ -486,12 +492,104 @@
     code: localStorage.getItem('flp-sync-code') || '',
     status: 'off', // off | on | err
     busy: false, pending: false, poll: null, lastTs: 0,
+    lastRemoteTs: 0, dirty: false, lastErr: '',
   };
+
+  // ---- 传输瘦身 ----
+  // 坑（重要）：B站分集每集都存一份完整 URL，「美国儿童启蒙英语动画」1000 集独占 132KB，
+  // 整包 237KB，单次上传要 2.8 秒，同步窗口太大，极易被其他设备的写入冲掉。
+  // 同步时把 episodes 压成 _eb(基础URL) + _et(标题数组)，本地结构和渲染完全不变。
+  function packForSync(d) {
+    let o;
+    try { o = JSON.parse(JSON.stringify(d || {})); } catch (e) { return d; }
+    const rs = o.resources || [];
+    for (let n = 0; n < rs.length; n++) {
+      const r = rs[n], eps = r.episodes;
+      if (!eps || !eps.length || eps.length < 3) continue;
+      const base = String(eps[0].url || '').split('?p=')[0];
+      if (!base) continue;
+      let ok = true;
+      for (let k = 0; k < eps.length; k++) {
+        if (String(eps[k].url || '') !== base + (k > 0 ? '?p=' + (k + 1) : '')) { ok = false; break; }
+      }
+      if (!ok) continue; // 格式不规整就不压，宁可大也绝不能丢数据
+      r._eb = base;
+      r._et = [];
+      for (let k = 0; k < eps.length; k++) r._et.push(eps[k].title);
+      delete r.episodes;
+    }
+    return o;
+  }
+  // 还原分集。注意：_eb/_et 保留不删，老版本页面回传时也不会把分集弄丢
+  function unpackFromSync(d) {
+    let o;
+    try { o = JSON.parse(JSON.stringify(d || {})); } catch (e) { return d; }
+    const rs = o.resources || [];
+    for (let n = 0; n < rs.length; n++) {
+      const r = rs[n];
+      if (Array.isArray(r._et) && typeof r._eb === 'string' && !r.episodes) {
+        const eps = [];
+        for (let k = 0; k < r._et.length; k++) {
+          eps.push({ title: r._et[k], url: r._eb + (k > 0 ? '?p=' + (k + 1) : '') });
+        }
+        r.episodes = eps;
+      }
+    }
+    return o;
+  }
+
+  // ---- 合并式同步 ----
+  // 坑（重要）：原来是「谁后写谁赢」的整包覆盖 —— 妈妈刚加的词库，只要孩子端在
+  // 这 2.8 秒里打了一次卡，整包就被冲掉。改成按 id 取并集，两边的新增都能活下来。
+  const MERGE_KEYS = ['resources', 'wordSets', 'wordTasks', 'tasks', 'rewards', 'pointsHistory', 'children'];
+  function mergeData(base, incoming, localWins) {
+    let out;
+    try { out = JSON.parse(JSON.stringify(base || {})); } catch (e) { out = {}; }
+    if (!incoming || typeof incoming !== 'object') return out;
+    // 标量设置项（妈妈密码等）以远端为准
+    for (const k in incoming) {
+      if (!Object.prototype.hasOwnProperty.call(incoming, k)) continue;
+      if (MERGE_KEYS.indexOf(k) >= 0) continue;
+      if (typeof incoming[k] === 'object') continue;
+      out[k] = incoming[k];
+    }
+    if (Array.isArray(incoming.safeDomains) && incoming.safeDomains.length) {
+      out.safeDomains = incoming.safeDomains.slice();
+    }
+    for (let n = 0; n < MERGE_KEYS.length; n++) {
+      const key = MERGE_KEYS[n];
+      const a = (base && Array.isArray(base[key])) ? base[key] : [];
+      const b = Array.isArray(incoming[key]) ? incoming[key] : [];
+      if (!a.length && !b.length) continue;
+      const merged = [];
+      // 远端为准（孩子的打卡、妈妈在别的设备上的改动能同步过来）
+      for (let x = 0; x < b.length; x++) {
+        let local = null;
+        for (let y = 0; y < a.length; y++) { if (a[y] && a[y].id && a[y].id === b[x].id) { local = a[y]; break; } }
+        merged.push((localWins && local) ? local : b[x]);
+      }
+      // 本地新增（还没推上去的词库、资源等）一律保留
+      for (let x = 0; x < a.length; x++) {
+        const cur = a[x];
+        if (!cur || !cur.id) { merged.push(cur); continue; }
+        let has = false;
+        for (let y = 0; y < b.length; y++) { if (b[y] && b[y].id === cur.id) { has = true; break; } }
+        if (!has) merged.push(cur);
+      }
+      out[key] = merged;
+    }
+    return out;
+  }
+
   function normalizeData(d) {
     if (!d) return d;
     if (!d.wordSets) d.wordSets = JSON.parse(JSON.stringify(DEFAULT_DATA.wordSets));
     if (!d.wordTasks) d.wordTasks = [];
     (d.resources || []).forEach(r => {
+      // 兜底自愈：压缩格式若没被解开，这里重建分集
+      if ((!r.episodes || !r.episodes.length) && Array.isArray(r._et) && typeof r._eb === 'string') {
+        r.episodes = r._et.map((t, k) => ({ title: t, url: r._eb + (k > 0 ? '?p=' + (k + 1) : '') }));
+      }
       if (!r.category) r.category = 'learn';
       if (SUBJECT_MIGRATE[r.subject]) r.subject = SUBJECT_MIGRATE[r.subject];
       if (!SUBJECTS[r.subject]) r.subject = 'suyang';
@@ -513,20 +611,50 @@
     SYNC.pending = true;
     if (!SYNC.busy) doSyncPush();
   }
-  async function doSyncPush() {
+  async function doSyncPush(retry) {
     if (!SYNC.code || SYNC.busy) return;
     SYNC.busy = true; SYNC.pending = false;
     try {
+      // 推送前先合并远端：否则会用本地旧数据把别人刚写的东西（孩子的打卡、妈妈在
+      // 另一台设备加的词库）整个冲掉。本地有未推送改动时本地优先，保住自己的新增。
+      try {
+        const rm = await fetchRemote();
+        if (rm && rm.d && rm._ts && rm._ts !== SYNC.lastRemoteTs) {
+          const inc = normalizeData(unpackFromSync(rm.d));
+          const mg = mergeData(DATA, inc, SYNC.dirty);
+          SYNC.lastRemoteTs = rm._ts;
+          if (rm._ts > SYNC.lastTs) SYNC.lastTs = rm._ts;
+          if (JSON.stringify(mg) !== JSON.stringify(DATA)) { DATA = mg; saveLocalOnly(DATA); }
+        }
+      } catch (e) { /* 拉不到就照常推，不阻塞 */ }
       const ts = Date.now();
+      const res = await fetch(syncUrl(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ _ts: ts, d: packForSync(DATA) })
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
       SYNC.lastTs = ts;
-      await fetch(syncUrl(), { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ _ts: ts, d: DATA }) });
+      SYNC.lastRemoteTs = ts;
+      SYNC.dirty = false;
+      SYNC.lastErr = '';
       SYNC.status = 'on';
-    } catch (e) { SYNC.status = 'err'; }
+    } catch (e) {
+      SYNC.status = 'err';
+      SYNC.lastErr = String((e && e.message) || e);
+      SYNC.dirty = true; // 没推上去 -> 拉数据时本地优先，绝不让它被冲掉
+      if (!retry) {
+        setTimeout(() => { SYNC.pending = true; if (!SYNC.busy) doSyncPush(true); }, 3000);
+      } else if (typeof toast === 'function') {
+        toast('⚠️ 这次没保存到云端，数据已存在本机');
+      }
+    }
     SYNC.busy = false;
     if (SYNC.pending) doSyncPush();
   }
   async function fetchRemote() {
     const res = await fetch(syncUrl() + '?t=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     let raw = (await res.text()).replace(/=+\s*$/, '');
     if (!raw || raw === 'null') return null;
     return JSON.parse(raw);
@@ -537,23 +665,32 @@
     let applied = false;
     try {
       const remote = await fetchRemote();
-      if (remote && remote._ts && remote._ts > SYNC.lastTs && remote.d) {
-        SYNC.lastTs = remote._ts;
-        DATA = normalizeData(remote.d);
-        saveLocalOnly(DATA);
-        applied = true;
-        if (!silent) toast('☁️ 已同步最新数据');
-        render();
+      if (remote && remote._ts && remote.d && remote._ts !== SYNC.lastRemoteTs) {
+        const incoming = normalizeData(unpackFromSync(remote.d));
+        const merged = mergeData(DATA, incoming, SYNC.dirty);
+        SYNC.lastRemoteTs = remote._ts;
+        if (remote._ts > SYNC.lastTs) SYNC.lastTs = remote._ts;
+        if (JSON.stringify(merged) !== JSON.stringify(DATA)) {
+          DATA = merged;
+          saveLocalOnly(DATA);
+          applied = true;
+          if (!silent && typeof toast === 'function') toast('☁️ 已同步最新数据');
+          render();
+        }
       }
       SYNC.status = 'on';
-    } catch (e) { SYNC.status = 'err'; }
+      SYNC.lastErr = '';
+    } catch (e) {
+      SYNC.status = 'err';
+      SYNC.lastErr = String((e && e.message) || e);
+    }
     SYNC.busy = false;
     if (SYNC.pending) doSyncPush();
     return applied;
   }
   function startSyncPoll() {
     if (SYNC.poll) clearInterval(SYNC.poll);
-    SYNC.poll = setInterval(() => { syncPull().catch(() => {}); }, 5000);
+    SYNC.poll = setInterval(() => { syncPull(true).catch(() => {}); }, 5000);
   }
   async function enableSync() {
     const code = document.getElementById('sync-code').value.trim();
@@ -567,16 +704,28 @@
     try {
       const remote = await fetchRemote();
       const hasRemote = remote && remote._ts && remote.d;
-      const differs = hasRemote && JSON.stringify(normalizeData(remote.d)) !== JSON.stringify(DATA);
-      if (hasRemote && differs) {
-        const useRemote = first && confirm('云端已有这台设备之外的同步数据。\n\n「确定」= 采用云端数据（推荐，其他设备的打卡会拉过来）\n「取消」= 用本机数据覆盖云端');
-        if (useRemote || !first) {
-          SYNC.lastTs = remote._ts;
-          DATA = normalizeData(remote.d);
-          saveLocalOnly(DATA);
-          render();
+      if (hasRemote) {
+        if (first) {
+          const useRemote = confirm('云端已有这台设备之外的同步数据。\n\n「确定」= 采用云端数据（推荐，其他设备的打卡会拉过来）\n「取消」= 用本机数据覆盖云端');
+          if (useRemote) {
+            SYNC.lastRemoteTs = remote._ts;
+            SYNC.lastTs = remote._ts;
+            SYNC.dirty = false;
+            DATA = normalizeData(unpackFromSync(remote.d));
+            saveLocalOnly(DATA);
+            render();
+          } else {
+            await doSyncPush();
+          }
         } else {
-          await doSyncPush();
+          // 非首次：合并，绝不整包覆盖
+          const incoming = normalizeData(unpackFromSync(remote.d));
+          const merged = mergeData(DATA, incoming, SYNC.dirty);
+          SYNC.lastRemoteTs = remote._ts;
+          if (remote._ts > SYNC.lastTs) SYNC.lastTs = remote._ts;
+          if (JSON.stringify(merged) !== JSON.stringify(DATA)) {
+            DATA = merged; saveLocalOnly(DATA); render();
+          }
         }
       } else {
         await doSyncPush();
@@ -586,6 +735,7 @@
       startSyncPoll();
     } catch (e) {
       SYNC.status = 'err';
+      SYNC.lastErr = String((e && e.message) || e);
       toast('同步通道暂时连不上，会自动重试');
       startSyncPoll();
     }
