@@ -2996,7 +2996,9 @@
         <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
         <h3>${esc(title)}</h3>
         <div class="video-wrap">
-          <video controls playsinline preload="metadata" style="position:absolute;inset:0;width:100%;height:100%;background:#000">
+          <video controls controlsList="nodownload" playsinline webkit-playsinline preload="metadata"
+                 oncontextmenu="return false"
+                 style="position:absolute;inset:0;width:100%;height:100%;background:#000;-webkit-touch-callout:none">
             <source src="${esc(url)}" />
             你的浏览器不支持播放这个视频
           </video>
