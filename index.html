@@ -2883,9 +2883,9 @@
 
   // 内嵌 B 站播放器（电脑端）
   function openBiliPlayer(title, b) {
-    const pref = biliPref();
-    const useEmbed = pref === 'embed' ? true : (pref === 'outside' ? false : !biliIsTouch());
-    if (!useEmbed) return openBiliCard(title, b);
+    // 默认一律内嵌播放：手机 / 电脑上本来能播的设备完全不受影响。
+    // 只有在这台设备点过一次「用 B站 打开」之后，才记住并改成外跳卡。
+    if (biliPref() === 'outside') return openBiliCard(title, b);
     const u = biliUrls(b);
     const ua = navigator.userAgent || '';
     const isMobile = /AppleWebKit.*Mobile/i.test(ua) || /Android|iPhone|iPod|Windows Phone/i.test(ua);
@@ -2901,7 +2901,11 @@
         <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
         <h3>${esc(title)}</h3>
         <div class="video-wrap"><iframe class="bili-frame" src="${escA(src)}" scrolling="no" frameborder="no" allowfullscreen="true" allow="autoplay; fullscreen; encrypted-media; picture-in-picture"></iframe></div>
-        <div class="bili-mini">播不出来？<button type="button" onclick="biliShowFallback(this)">换个方式看</button></div>
+        <div class="bili-mini">一直转圈 / 打不开？
+          <button type="button" data-b="${escA(b.kind + '|' + b.id + '|' + (b.p || ''))}" data-t="${escA(title)}" onclick="biliGoCard(this)">用 B站 打开（一定能播）</button>
+          <span style="margin:0 4px;color:var(--gray-400)">·</span>
+          <button type="button" onclick="biliShowFallback(this)">更多办法</button>
+        </div>
         <div class="bili-fallback" style="display:none;margin-top:10px;padding:12px;background:#fff4e6;border:1px solid #ffd9a8;border-radius:10px;font-size:13px;line-height:1.7">
           <div style="margin-bottom:8px;color:#8a5a00">平板和学习机常拦截 B站内嵌播放，任选一种方式：</div>
           <a href="${escA(u.page)}" target="_blank" rel="noopener" style="display:inline-block;padding:9px 15px;background:#ff6b9d;color:#fff;border-radius:9px;text-decoration:none;font-weight:600">① 用浏览器打开（一定能播）</a>
@@ -2922,13 +2926,23 @@
     });
   }
 
-  // 只有用户说"播不出来"才展开备用方案，不再自动弹出来打扰
+  // 内嵌播不动时，一键切到外跳卡（并记住这台设备的选择）
+  function biliGoCard(btn) {
+    const k = (btn.getAttribute('data-b') || '').split('|');
+    const b = { kind: k[0] || 'bvid', id: k[1] || '', p: k[2] || null };
+    const title = btn.getAttribute('data-t') || '';
+    biliSetPref('outside');
+    const m = document.querySelector('.modal-mask.video-mask'); if (m) m.remove();
+    openBiliCard(title, b);
+    if (typeof toast === 'function') toast('已记住：这台设备以后直接打开 B站');
+  }
+  // 只有用户点"更多办法"才展开备用方案，不再自动弹出来打扰
   function biliShowFallback(btn) {
     const card = btn && btn.closest ? btn.closest('.video-modal') : null;
     if (!card) return;
     const box = card.querySelector('.bili-fallback');
     if (box) box.style.display = 'block';
-    if (btn.parentNode) btn.parentNode.style.display = 'none';
+    if (btn) btn.style.display = 'none';
   }
   function biliAlwaysOutside() {
     biliSetPref('outside');
@@ -2958,7 +2972,7 @@
             <button type="button" data-u="${escA(u.page)}" onclick="biliOpenHere(this)" style="background:none;border:none;color:var(--pink-600);font-size:12px;text-decoration:underline;cursor:pointer;padding:0 2px">在本页打开</button>
           </div>
           <div class="bc-link">还是不行？长按复制下面的链接，粘到浏览器里打开：<br/><b>${esc(u.page)}</b></div>
-          <button type="button" class="bc-try" data-b="${key}" data-t="${escA(title)}" onclick="biliTryEmbed(this)">仍要在平台内播放（可能一直转圈）</button>
+          <button type="button" class="bc-try" data-b="${key}" data-t="${escA(title)}" onclick="biliTryEmbed(this)">改回在平台内播放（以后都这样）</button>
         </div>
       </div>
     `;
@@ -2974,7 +2988,7 @@
     biliSetPref('embed');
     const m = document.querySelector('.modal-mask.video-mask'); if (m) m.remove();
     openBiliPlayer(btn.getAttribute('data-t') || '', b);
-    if (typeof toast === 'function') toast('已记住：以后都在平台内播放');
+    if (typeof toast === 'function') toast('已改回：这台设备以后在平台内播放');
   }
 
   // 内嵌直链视频播放（video 标签，不跳转）
