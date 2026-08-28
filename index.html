@@ -33,12 +33,8 @@
     button { font-family: inherit; cursor:pointer; border:none; background:none; padding:0; color:inherit; }
     input { font-family: inherit; font-size:14px; }
 
-    /* ===== 应用容器（手机框） ===== */
+    /* ===== 应用容器（手机框 / 学习机大屏自适应） ===== */
     .app { max-width: 480px; margin: 0 auto; min-height: 100vh; background: var(--bg-page); position: relative; padding-bottom: 76px; }
-    @media (min-width: 768px) {
-      body { background: #ECEFF1; padding: 24px 0; }
-      .app { border-radius: var(--radius-xl); box-shadow: 0 8px 32px rgba(0,0,0,0.08); overflow: hidden; }
-    }
 
     /* ===== 顶部导航 ===== */
     .topbar {
@@ -331,6 +327,15 @@
     .ep-play { width: 18px; height: 18px; color: var(--pink-400); flex-shrink: 0; }
     .ep-play svg { width: 18px; height: 18px; }
 
+    /* ===== 类型筛选 Tab（科目内 视频/音频/文件） ===== */
+    .type-tabs { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+    .type-tab { flex: 1; min-width: 76px; padding: 9px 10px; border-radius: 10px; background: var(--gray-100); text-align: center; font-size: 13px; font-weight: 500; color: var(--gray-600); border: 0.5px solid transparent; }
+    .type-tab.on { background: var(--pink-400); color: #fff; }
+
+    /* ===== 奖励分类分组 ===== */
+    .reward-cat-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; margin: 18px 0 10px; color: var(--gray-900); }
+    .reward-cat-title .rcnt { font-size: 12px; color: var(--gray-600); font-weight: 500; }
+
     /* ===== Toast ===== */
     .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: #fff; padding: 10px 16px; border-radius: var(--radius-md); font-size: 13px; z-index: 200; }
 
@@ -343,6 +348,38 @@
     .text-mute { color: var(--gray-600); font-size: 12px; }
     .text-pink { color: var(--pink-600); }
     .hidden { display: none !important; }
+
+    /* ===== 学习机 / 平板 大屏适配（放最后确保覆盖基础样式） ===== */
+    @media (min-width: 768px) {
+      body { background: #ECEFF1; padding: 24px 0; }
+      .app { max-width: 760px; border-radius: var(--radius-xl); box-shadow: 0 8px 32px rgba(0,0,0,0.08); overflow: hidden; }
+      .tabbar { max-width: 760px; }
+      .modal { max-width: 640px; border-radius: var(--radius-xl); }
+      .video-modal { max-width: 720px; }
+      .subject-row { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (min-width: 1100px) {
+      .app { max-width: 920px; }
+      .tabbar { max-width: 920px; }
+      .modal { max-width: 700px; }
+      .video-modal { max-width: 860px; }
+      .page { padding: 18px 24px 24px; }
+      .topbar { padding: 16px 22px; }
+      .topbar h1 { font-size: 20px; }
+      .subject-card { padding: 24px 16px; }
+      .subject-card .emoji { font-size: 34px; }
+      .subject-card .name { font-size: 17px; }
+      .subject-card .count { font-size: 13px; }
+      .resource .info .name { font-size: 16px; }
+      .resource .info .meta { font-size: 13px; }
+      .task .title .name { font-size: 16px; }
+      .task .title .meta { font-size: 12px; }
+      .section { padding: 18px; }
+      .section h3 { font-size: 16px; }
+      .ep-title { font-size: 16px; }
+      .icon-btn { width: 42px; height: 42px; }
+      .icon-btn svg { width: 20px; height: 20px; }
+    }
   </style>
 </head>
 <body data-page-node-id="3DqP1Xb73JvetEw9f46gVv">
@@ -376,15 +413,15 @@
       { id: 'r6', type: 'pdf', subject: 'math', title: '口算题卡 100题.pdf', url: 'https://share.weiyun.com/xxx', category: 'learn' },
       { id: 'r7', type: 'video', subject: 'english', title: 'Peppa Pig S1E1 (英字)', url: 'https://share.weiyun.com/xxx', category: 'learn' },
       { id: 'r8', type: 'audio', subject: 'chinese', title: '成语故事音频 50 集', url: 'https://share.weiyun.com/xxx', category: 'learn' },
-      { id: 'r9', type: 'video', subject: 'physics', title: '物理启蒙：水的三态', url: 'https://share.weiyun.com/xxx', category: 'learn' },
+      { id: 'r9', type: 'video', subject: 'wuhua', title: '科学小实验：水的三态', url: 'https://share.weiyun.com/xxx', category: 'learn' },
       { id: 'r10', type: 'video', subject: 'english', title: '🎁 奖励：佩奇和乔治的搞笑片段', url: 'https://share.weiyun.com/xxx', category: 'fun' },
     ],
     rewards: [
-      { id: 'rw1', title: '奖励：小猪佩奇 第27集', emoji: '🐷', threshold: 50, url: 'https://share.weiyun.com/xxx' },
-      { id: 'rw2', title: '奖励：冰雪奇缘片段', emoji: '❄️', threshold: 100, url: 'https://share.weiyun.com/xxx' },
-      { id: 'rw3', title: '奖励：汪汪队立大功', emoji: '🐶', threshold: 150, url: 'https://share.weiyun.com/xxx' },
-      { id: 'rw4', title: '奖励：海底小纵队', emoji: '🐙', threshold: 200, url: 'https://share.weiyun.com/xxx' },
-      { id: 'rw5', title: '奖励：超级飞侠', emoji: '✈️', threshold: 300, url: 'https://share.weiyun.com/xxx' },
+      { id: 'rw1', title: '奖励：小猪佩奇 第27集', emoji: '🐷', threshold: 50, url: 'https://share.weiyun.com/xxx', cat: 'cartoon' },
+      { id: 'rw2', title: '奖励：冰雪奇缘片段', emoji: '❄️', threshold: 100, url: 'https://share.weiyun.com/xxx', cat: 'movie' },
+      { id: 'rw3', title: '奖励：汪汪队立大功', emoji: '🐶', threshold: 150, url: 'https://share.weiyun.com/xxx', cat: 'cartoon' },
+      { id: 'rw4', title: '奖励：海底小纵队', emoji: '🐙', threshold: 200, url: 'https://share.weiyun.com/xxx', cat: 'cartoon' },
+      { id: 'rw5', title: '奖励：超级飞侠', emoji: '✈️', threshold: 300, url: 'https://share.weiyun.com/xxx', cat: 'game' },
     ],
     pointsHistory: [
       { id: 'h1', childId: 'c1', date: '2026-08-27', title: '读绘本《小猪佩奇》', points: 3 },
@@ -403,10 +440,17 @@
     ],
   };
 
+  // 旧科目迁移（不依赖常量，供加载早期调用）：物理/化学→物化，历史/政治→小四门，辩论/音乐→素养
+  function migrateOld(d) {
+    const map = { physics: 'wuhua', chemistry: 'wuhua', history: 'small4', politics: 'small4', debate: 'suyang', music: 'suyang' };
+    (d.resources || []).forEach(r => { if (map[r.subject]) r.subject = map[r.subject]; });
+    (d.tasks || []).forEach(t => { if (map[t.subject]) t.subject = map[t.subject]; });
+    return d;
+  }
   function loadData() {
     try {
       const raw = localStorage.getItem(LS_KEY);
-      if (raw) return JSON.parse(raw);
+      if (raw) return migrateOld(JSON.parse(raw));
     } catch (e) {}
     saveData(DEFAULT_DATA);
     return JSON.parse(JSON.stringify(DEFAULT_DATA));
@@ -429,13 +473,19 @@
     if (!d) return d;
     if (!d.wordSets) d.wordSets = JSON.parse(JSON.stringify(DEFAULT_DATA.wordSets));
     if (!d.wordTasks) d.wordTasks = [];
-    (d.resources || []).forEach(r => { if (!r.category) r.category = 'learn'; });
+    (d.resources || []).forEach(r => {
+      if (!r.category) r.category = 'learn';
+      if (SUBJECT_MIGRATE[r.subject]) r.subject = SUBJECT_MIGRATE[r.subject];
+      if (!SUBJECTS[r.subject]) r.subject = 'suyang';
+    });
     (d.tasks || []).forEach(t => {
       if (!('proof' in t)) t.proof = '';
       if (!('remindAt' in t)) t.remindAt = '';
       if (!('doneAt' in t)) t.doneAt = null;
       if (!('subject' in t)) t.subject = '';
+      if (SUBJECT_MIGRATE[t.subject]) t.subject = SUBJECT_MIGRATE[t.subject];
     });
+    (d.rewards || []).forEach(r => { if (!r.cat || !REWARD_CATS[r.cat]) r.cat = 'cartoon'; });
     return d;
   }
   function syncUrl() { return 'https://textdb.dev/api/data/flp-lebaomaibao-' + encodeURIComponent(SYNC.code.trim()); }
@@ -549,17 +599,24 @@
   }
   const TODAY = todayStr(); // 动态日期，每天自动滚动
   const SUBJECTS = {
-    chinese:   { name: '语文', emoji: '📖', color: 'pink' },
-    math:      { name: '数学', emoji: '🔢', color: 'orange' },
-    english:   { name: '英语', emoji: '🎤', color: 'cyan' },
-    physics:   { name: '物理', emoji: '⚛️', color: 'purple' },
-    chemistry: { name: '化学', emoji: '🧪', color: 'green' },
-    history:   { name: '历史', emoji: '📜', color: 'amber' },
-    politics:  { name: '政治', emoji: '🚩', color: 'red' },
-    debate:    { name: '辩论', emoji: '🗣️', color: 'indigo' },
-    music:     { name: '音乐', emoji: '🎵', color: 'teal' },
+    chinese: { name: '语文', emoji: '📖', color: 'pink' },
+    math:    { name: '数学', emoji: '🔢', color: 'orange' },
+    english: { name: '英语', emoji: '🎤', color: 'cyan' },
+    wuhua:   { name: '物化', emoji: '⚛️', color: 'purple' },
+    small4:  { name: '小四门', emoji: '🗂️', color: 'green' },
+    suyang:  { name: '素养', emoji: '🌟', color: 'amber' },
   };
+  // 旧科目映射到新分类（历史数据迁移）
+  const SUBJECT_MIGRATE = { physics: 'wuhua', chemistry: 'wuhua', history: 'small4', politics: 'small4', debate: 'suyang', music: 'suyang' };
   const SUBJECT_FALLBACK = { name: '其他', emoji: '📦', color: 'gray' };
+  // 奖励分类：游戏 / 电影 / 动画片 / 漫画 / 听说
+  const REWARD_CATS = {
+    game:    { name: '游戏',   emoji: '🎮', color: 'purple' },
+    movie:   { name: '电影',   emoji: '🎬', color: 'indigo' },
+    cartoon: { name: '动画片', emoji: '🐱', color: 'pink' },
+    comic:   { name: '漫画',   emoji: '📚', color: 'amber' },
+    listen:  { name: '听说',   emoji: '🎧', color: 'cyan' },
+  };
   function toast(msg) {
     const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
     document.getElementById('toast-root').appendChild(t);
@@ -871,16 +928,18 @@
         </div>
         <div class="section">
           <h3>当前奖励（按积分门槛排序）</h3>
-          ${DATA.rewards.sort((a,b)=>a.threshold-b.threshold).map(r => `
+          ${DATA.rewards.sort((a,b)=>a.threshold-b.threshold).map(r => {
+            const rc = REWARD_CATS[r.cat] || REWARD_CATS.cartoon;
+            return `
             <div class="reward">
               <div class="thumb">${r.emoji}</div>
               <div class="info">
                 <div class="name">${esc(r.title)}</div>
-                <div class="threshold">需要 <strong>${r.threshold}</strong> 积分</div>
+                <div class="threshold">${rc.emoji} ${rc.name} · 需要 <strong>${r.threshold}</strong> 积分</div>
               </div>
               <button class="icon-btn" onclick="delReward('${r.id}')">${ICN.trash}</button>
             </div>
-          `).join('')}
+          `}).join('')}
         </div>
         <div class="section">
           <h3>规则说明</h3>
@@ -1082,7 +1141,7 @@
       <div class="topbar">
         <button class="icon-btn" data-back>${ICN.back}</button>
         <h1>📚 资源库</h1>
-        <div style="width:36px"></div>
+        <button class="icon-btn" onclick="location.hash='kid-tasks'" title="回首页">${ICN.home}</button>
       </div>
       <div class="page">
         <div class="section">
@@ -1129,19 +1188,30 @@
   }
 
   // ========== 学科详情 ==========
+  let SUBJ_FILTER = 'all'; // 科目内类型筛选：all | video | audio | pdf
+  function subjTypeLabel(t) { return t === 'video' ? '🎬 视频' : t === 'audio' ? '🎵 音频' : '📄 文件'; }
   function viewSubject(p) {
     const isMom = p.role === 'mom';
     const s = SUBJECTS[p.key] || SUBJECT_FALLBACK;
-    const list = DATA.resources.filter(r => r.subject === p.key);
+    const all = DATA.resources.filter(r => r.subject === p.key);
+    const list = SUBJ_FILTER === 'all' ? all : all.filter(r => r.type === SUBJ_FILTER);
+    const TYPE_TABS = [['all', '全部'], ['video', '🎬 视频'], ['audio', '🎵 音频'], ['pdf', '📄 文件']];
     return `
       <div class="topbar">
         <button class="icon-btn" data-back>${ICN.back}</button>
         <h1>${s.emoji} ${s.name}</h1>
-        <div style="width:36px"></div>
+        <div class="actions">
+          ${isMom ? `<button class="icon-btn" onclick="openResourceModal('${p.key}')" title="添加资源">${ICN.add}</button>` : `<div style="width:36px"></div>`}
+        </div>
       </div>
       <div class="page">
         <div class="section">
           <h3>${s.name}资源 <span class="badge">${list.length} 个</span></h3>
+          <div class="type-tabs">
+            ${TYPE_TABS.map(([k, label]) => `
+              <div class="type-tab ${SUBJ_FILTER === k ? 'on' : ''}" onclick="SUBJ_FILTER='${k}';render()">${label}</div>
+            `).join('')}
+          </div>
           ${list.length ? list.map(r => `
             <div class="resource" onclick="openResource('${r.id}')">
               <div class="thumb">${ICN[r.type]||ICN.pdf}</div>
@@ -1151,7 +1221,7 @@
               </div>
               ${isMom ? `<button class="icon-btn" onclick="event.stopPropagation();delResource('${r.id}')">${ICN.trash}</button>` : ''}
             </div>
-          `).join('') : '<div class="empty"><div class="emoji">📦</div>还没有资源</div>'}
+          `).join('') : `<div class="empty"><div class="emoji">📦</div>该分类还没有资源${isMom ? '，点右上角 ＋ 添加' : ''}</div>`}
         </div>
       </div>
     `;
@@ -1162,11 +1232,14 @@
     const c = kidCheck();
     if (!c) { location.hash='kid-select'; return ''; }
     const unlocked = DATA.rewards.filter(r => c.points >= r.threshold);
+    const sorted = DATA.rewards.slice().sort((a,b)=>a.threshold-b.threshold);
+    const grouped = Object.entries(REWARD_CATS).map(([k, v]) => ({ k, v, list: sorted.filter(r => (r.cat||'cartoon') === k) })).filter(g => g.list.length);
     return `
       <div class="topbar">
         <h1>🎁 我的奖励</h1>
         <div class="actions">
           <div class="icon-btn" style="background:var(--amber-50);color:var(--amber-600);font-size:13px;font-weight:600">★ ${c.points}</div>
+          <button class="icon-btn" onclick="location.hash='kid-tasks'" title="回首页">${ICN.home}</button>
         </div>
       </div>
       <div class="page">
@@ -1176,17 +1249,20 @@
           <div class="meta"><div>积分 <span>${c.points}</span></div><div>连签 <span>${c.streak}</span> 天</div></div>
         </div>
         <div class="section">
-          <h3>奖励视频库</h3>
-          ${DATA.rewards.sort((a,b)=>a.threshold-b.threshold).map(r => {
-            const got = c.points >= r.threshold;
-            return `<div class="reward ${got?'':'locked'}" onclick="${got?`openReward('${r.id}')`:`''`}">
-              <div class="thumb">${r.emoji}</div>
-              <div class="info">
-                <div class="name">${esc(r.title)}</div>
-                <div class="threshold">需要 ${r.threshold} 积分 ${got?'· ✓ 已解锁':'· 还差 '+(r.threshold-c.points)+' 分'}</div>
-              </div>
-            </div>`;
-          }).join('')}
+          <h3>奖励宝库 <span class="badge">${DATA.rewards.length} 个</span></h3>
+          ${grouped.map(g => `
+            <div class="reward-cat-title">${g.v.emoji} ${g.v.name} <span class="rcnt">${g.list.length} 个</span></div>
+            ${g.list.map(r => {
+              const got = c.points >= r.threshold;
+              return `<div class="reward ${got?'':'locked'}" onclick="${got?`openReward('${r.id}')`:`''`}">
+                <div class="thumb">${r.emoji}</div>
+                <div class="info">
+                  <div class="name">${esc(r.title)}</div>
+                  <div class="threshold">需要 ${r.threshold} 积分 ${got?'· ✓ 已解锁':'· 还差 '+(r.threshold-c.points)+' 分'}</div>
+                </div>
+              </div>`;
+            }).join('')}
+          `).join('') || '<div class="empty"><div class="emoji">🎁</div>妈妈还没放奖励</div>'}
         </div>
         <div class="section">
           <h3>勋章 <span class="badge">收集</span></h3>
@@ -1464,7 +1540,7 @@
     return `
       <div class="topbar">
         <h1>${c.avatar} ${esc(c.name)} · 单词打卡</h1>
-        <div class="actions"><div class="icon-btn" style="background:var(--amber-50);color:var(--amber-600);font-size:13px;font-weight:600">★ ${c.points}</div></div>
+        <div class="actions"><div class="icon-btn" style="background:var(--amber-50);color:var(--amber-600);font-size:13px;font-weight:600">★ ${c.points}</div><button class="icon-btn" onclick="location.hash='kid-tasks'" title="回首页">${ICN.home}</button></div>
       </div>
       <div class="page">
         ${wts.length ? wts.map(wt => {
@@ -2002,7 +2078,7 @@
     return `
       <div class="topbar">
         <h1>🎡 星星乐园</h1>
-        <div class="actions"><div class="icon-btn" style="background:var(--amber-50);color:var(--amber-600);font-size:13px;font-weight:600">★ ${c.points}</div></div>
+        <div class="actions"><div class="icon-btn" style="background:var(--amber-50);color:var(--amber-600);font-size:13px;font-weight:600">★ ${c.points}</div><button class="icon-btn" onclick="location.hash='kid-tasks'" title="回首页">${ICN.home}</button></div>
       </div>
       <div class="page">
         <div class="fun-hero">
@@ -2075,7 +2151,7 @@
             <option value="photo">📷 拍照打卡（拍作业/计算/练习）</option>
             <option value="audio">🎙 朗读录音打卡（读课文/跟读）</option>
           </select>
-          <p class="wq-hint" style="text-align:left;margin-top:6px">选科目会自动推荐：数学/物理/化学 → 拍照，语文/英语 → 朗读</p>
+          <p class="wq-hint" style="text-align:left;margin-top:6px">选科目会自动推荐：数学/物化 → 拍照，语文/英语 → 朗读</p>
         </div>
         <div class="field">
           <label>配套学习资料（可选）</label>
@@ -2125,7 +2201,7 @@
   }
   function proofSuggest() {
     const s = document.getElementById('t-subject').value;
-    const map = { math: 'photo', physics: 'photo', chemistry: 'photo', chinese: 'audio', english: 'audio' };
+    const map = { math: 'photo', wuhua: 'photo', chinese: 'audio', english: 'audio' };
     document.getElementById('t-proof').value = map[s] || '';
   }
   // 选了资源后，若该资源是合集，显示"选哪一集"下拉；若是 B站单链接，显示"第几集"输入
@@ -2212,10 +2288,11 @@
   }
 
   // ========== 模态：添加资源 ==========
-  function openResourceModal() {
+  function openResourceModal(preselectSubject) {
     const modal = document.createElement('div');
     modal.className = 'modal-mask';
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    window.__biliEps = null; window.__biliEpsUrl = '';
     modal.innerHTML = `
       <div class="modal">
         <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
@@ -2223,7 +2300,7 @@
         <p class="text-mute" style="margin-top:-8px;margin-bottom:12px">支持微云 / B站视频 / 任意网页链接，直接粘贴即可</p>
         <div class="field">
           <label>类型</label>
-          <select id="r-type"><option value="video">视频</option><option value="pdf">PDF</option><option value="audio">音频</option></select>
+          <select id="r-type"><option value="video">视频</option><option value="pdf">PDF 文件</option><option value="audio">音频</option></select>
         </div>
         <div class="field">
           <label>类别</label>
@@ -2231,7 +2308,7 @@
         </div>
         <div class="field">
           <label>学科</label>
-          <select id="r-subject">${Object.entries(SUBJECTS).map(([k,v]) => `<option value="${k}">${v.emoji} ${v.name}</option>`).join('')}</select>
+          <select id="r-subject">${Object.entries(SUBJECTS).map(([k,v]) => `<option value="${k}" ${k===preselectSubject?'selected':''}>${v.emoji} ${v.name}</option>`).join('')}</select>
         </div>
         <div class="field">
           <label>标题</label>
@@ -2288,6 +2365,15 @@
     if ((checkBili(url) || eps.some(e => checkBili(e.url))) && type !== 'video') type = 'video';
 
     const res = { id: 'r'+Date.now(), type, subject, title, url, category: cat };
+    // B站自动识别的分集（妈妈贴一条链接时已异步拉取）
+    if (window.__biliEps && window.__biliEps.length >= 2 && window.__biliEpsUrl === url && eps.length === 0) {
+      const base = url.replace(/[?&]p=\d+/, '').replace(/#.*$/, '');
+      res.episodes = window.__biliEps.map(pg => ({
+        title: pg.part ? ('第' + pg.page + '集 · ' + pg.part) : ('第' + pg.page + '集'),
+        url: base + (pg.page > 1 ? (base.indexOf('?') >= 0 ? '&' : '?') + 'p=' + pg.page : '')
+      }));
+      res.url = res.episodes[0].url;
+    }
     if (eps.length >= 2) {
       // 合集：存分集列表
       res.episodes = eps.map((ep, i) => ({ title: ep.title || ('第' + (i + 1) + '集'), url: ep.url }));
@@ -2305,7 +2391,7 @@
     const area = document.getElementById('ep-area');
     if (area) area.style.display = area.style.display === 'none' ? 'block' : 'none';
   }
-  // 粘贴链接时自动识别类型 + 友好提示
+  // 粘贴链接时自动识别类型 + 尝试自动拉取 B站分集
   function autoDetectType() {
     const el = document.getElementById('r-url');
     const sel = document.getElementById('r-type');
@@ -2316,11 +2402,67 @@
       toast('识别到 B站视频，已自动选「视频」类型');
     }
     const statusEl = document.getElementById('bili-eps-status');
+    const b = parseBilibili(url);
     if (statusEl) {
-      statusEl.innerHTML = parseBilibili(url)
-        ? '<span style="color:var(--green-600)">✅ B站视频 · 一条链接即可</span><br><span style="font-size:12px;color:var(--gray-600)">多集/番剧孩子点开能在播放器里自行选集，不用逐集添加；若要布置任务时精确指定某一集，直接填标题旁的「第几集」，或点下方「合集」给每集起名字</span>'
-        : '';
+      if (b && b.kind !== 'ep') {
+        statusEl.innerHTML = '<span style="color:var(--green-600)">✅ B站视频 · 一条链接即可</span><br><span style="font-size:12px;color:var(--gray-600)">正在自动识别分集…</span>';
+        fetchBiliEpisodes(url).then(eps => {
+          const st = document.getElementById('bili-eps-status');
+          if (!st) return;
+          if (eps && eps.length >= 2) {
+            window.__biliEps = eps; window.__biliEpsUrl = url;
+            st.innerHTML = `<span style="color:var(--green-600)">✅ B站视频 · 已自动识别 <b>${eps.length}</b> 集</span><br><span style="font-size:12px;color:var(--gray-600)">添加后孩子点开可自由选集，布置任务也能指定看第几集</span>`;
+          } else {
+            window.__biliEps = null;
+            st.innerHTML = '<span style="color:var(--green-600)">✅ B站视频 · 一条链接即可</span><br><span style="font-size:12px;color:var(--gray-600)">未能自动识别分集（B站对第三方有风控），若是多集视频可点下方「合集」手动粘贴每集链接</span>';
+          }
+        });
+      } else if (b) {
+        statusEl.innerHTML = '<span style="color:var(--green-600)">✅ B站番剧 · 一条链接即可</span><br><span style="font-size:12px;color:var(--gray-600)">番剧暂不支持自动识别全部集数，可在播放器里逐集观看；若要按集布置任务，可点下方「合集」粘贴</span>';
+      } else {
+        statusEl.innerHTML = '';
+      }
     }
+  }
+
+  // 通过公共 CORS 代理链拉取 B站分P列表（api 直调会被浏览器 CORS 拦截）
+  function fetchBiliEpisodes(url) {
+    const b = parseBilibili(url);
+    if (!b || b.kind === 'ep') return Promise.resolve(null);
+    const idParam = b.kind === 'bvid' ? 'bvid=' + b.id : 'aid=' + b.id;
+    const api = 'https://api.bilibili.com/x/player/pagelist?' + idParam;
+    const proxies = [
+      u => 'https://api.allorigins.win/get?url=' + encodeURIComponent(u),
+      u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+      u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
+      u => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
+      u => 'https://yacdn.org/proxy/' + u,
+      u => 'https://cors.bridged.cc/' + u,
+    ];
+    const tryOne = (mk) => new Promise(resolve => {
+      let done = false;
+      const finish = (v) => { if (!done) { done = true; resolve(v); } };
+      const timer = setTimeout(() => finish(null), 8000);
+      fetch(mk(api)).then(r => r.text()).then(txt => {
+        clearTimeout(timer);
+        try {
+          const obj = JSON.parse(txt);
+          let arr = obj && Array.isArray(obj.data) ? obj.data : null;
+          if (!arr && obj && obj.contents) {
+            const inner = JSON.parse(obj.contents);
+            if (inner && Array.isArray(inner.data)) arr = inner.data;
+          }
+          finish(arr);
+        } catch (e) { finish(null); }
+      }).catch(() => { clearTimeout(timer); finish(null); });
+    });
+    return (async () => {
+      for (const p of proxies) {
+        const arr = await tryOne(p);
+        if (arr) return arr;
+      }
+      return null;
+    })();
   }
   function delResource(id) {
     if (!confirm('确认删除？')) return;
@@ -2499,6 +2641,10 @@
           <input id="rw-title" placeholder="例：奖励：冰雪奇缘片段" />
         </div>
         <div class="field">
+          <label>分类</label>
+          <select id="rw-cat">${Object.entries(REWARD_CATS).map(([k,v]) => `<option value="${k}">${v.emoji} ${v.name}</option>`).join('')}</select>
+        </div>
+        <div class="field">
           <label>微云链接</label>
           <input id="rw-url" placeholder="https://share.weiyun.com/xxx" />
         </div>
@@ -2519,8 +2665,9 @@
     const title = document.getElementById('rw-title').value.trim();
     const url = document.getElementById('rw-url').value.trim();
     const threshold = parseInt(document.getElementById('rw-threshold').value) || 100;
+    const cat = document.getElementById('rw-cat') ? document.getElementById('rw-cat').value : 'cartoon';
     if (!title || !url) { toast('标题和链接都要填'); return; }
-    DATA.rewards.push({ id: 'rw'+Date.now(), title, emoji, threshold, url });
+    DATA.rewards.push({ id: 'rw'+Date.now(), title, emoji, threshold, url, cat });
     saveData(DATA); document.querySelector('.modal-mask').remove(); render(); toast('已添加');
   }
   function delReward(id) {
