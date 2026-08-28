@@ -6,7 +6,8 @@
     </linearGradient>
   </defs>
   <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-  <text x="256" y="300" text-anchor="middle" font-size="200">🐷</text>
-  <text x="256" y="400" text-anchor="middle" font-size="56" font-weight="600" fill="#fff" font-family="-apple-system, PingFang SC, sans-serif">乐宝麦宝</text>
-  <text x="256" y="448" text-anchor="middle" font-size="28" fill="#fff" opacity="0.9" font-family="-apple-system, PingFang SC, sans-serif">学习平台</text>
+  <polygon points="256,78 271.5,124.4 320.8,124.6 281.8,153.4 297.2,199.8 256,174.6 214.8,199.8 230.2,153.4 191.2,124.6 240.5,124.4" fill="#FFD54F"/>
+  <rect x="243" y="212" width="26" height="210" rx="13" fill="#FFFFFF"/>
+  <path d="M243,222 L112,178 L112,388 L243,432 Z" fill="#FFFFFF" opacity="0.88"/>
+  <path d="M269,222 L400,178 L400,388 L269,432 Z" fill="#FFFFFF" opacity="0.88"/>
 </svg>
