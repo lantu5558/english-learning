@@ -2954,12 +2954,19 @@
           <a class="bc-btn bc-main" href="${escA(u.page)}" target="_blank" rel="noopener">▶ 开始播放</a>
           <a class="bc-btn bc-sub" href="${escA(u.app)}">在 B站 App 里看</a>
           <div class="bc-tip">没装 App 点上面这个是没反应的，用「开始播放」</div>
-          <div class="bc-link">按钮点不动？长按复制下面的链接，粘到浏览器里打开：<br/><b>${esc(u.page)}</b></div>
+          <div class="bc-tip">按钮点了没动静（学习机常见）？
+            <button type="button" data-u="${escA(u.page)}" onclick="biliOpenHere(this)" style="background:none;border:none;color:var(--pink-600);font-size:12px;text-decoration:underline;cursor:pointer;padding:0 2px">在本页打开</button>
+          </div>
+          <div class="bc-link">还是不行？长按复制下面的链接，粘到浏览器里打开：<br/><b>${esc(u.page)}</b></div>
           <button type="button" class="bc-try" data-b="${key}" data-t="${escA(title)}" onclick="biliTryEmbed(this)">仍要在平台内播放（可能一直转圈）</button>
         </div>
       </div>
     `;
     document.getElementById('modal-root').appendChild(modal);
+  }
+  function biliOpenHere(btn) {
+    const url = btn && btn.getAttribute ? btn.getAttribute('data-u') : '';
+    if (url) location.href = url;
   }
   function biliTryEmbed(btn) {
     const k = (btn.getAttribute('data-b') || '').split('|');
