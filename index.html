@@ -538,7 +538,16 @@
   }
 
   // ========== 工具 ==========
-  const TODAY = '2026-08-27'; // 演示日期；上线后用 new Date()
+  function todayStr() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function addDays(dateStr, n) {
+    const d = new Date(dateStr + 'T00:00:00');
+    d.setDate(d.getDate() + n);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  const TODAY = todayStr(); // 动态日期，每天自动滚动
   const SUBJECTS = {
     chinese:   { name: '语文', emoji: '📖', color: 'pink' },
     math:      { name: '数学', emoji: '🔢', color: 'orange' },
@@ -777,7 +786,7 @@
                 <div class="checkbox">${t.done?ICN.check:''}</div>
                 <div class="title">
                   <div class="name">${esc(t.title)}</div>
-                  <div class="meta">${k.avatar} ${esc(k.name)}${t.remindAt?` · ⏰ ${t.remindAt}`:''}${t.done&&t.doneAt?` · ✅ ${fmtClock(t.doneAt)} 完成`:''}${t.proof?` · <span class="proof-badge" onclick="viewTaskProof(event,'${t.id}')">${t.proof==='photo'?'📷':'🎙'}${t.proofData?' 凭证✓':' 待交'}</span>`:''}${res?` · 📎 <span style="color:var(--pink-600)" onclick="openTaskRes(event,'${t.id}')">${esc(res.title)}</span>`:''}</div>
+                  <div class="meta">${k.avatar} ${esc(k.name)}${t.groupId&&DATA.tasks.filter(x=>x.groupId===t.groupId).length>1?` · 📅 连排${DATA.tasks.filter(x=>x.groupId===t.groupId).length}天`:''}${t.remindAt?` · ⏰ ${t.remindAt}`:''}${t.done&&t.doneAt?` · ✅ ${fmtClock(t.doneAt)} 完成`:''}${t.proof?` · <span class="proof-badge" onclick="viewTaskProof(event,'${t.id}')">${t.proof==='photo'?'📷':'🎙'}${t.proofData?' 凭证✓':' 待交'}</span>`:''}${res?` · 📎 <span style="color:var(--pink-600)" onclick="openTaskRes(event,'${t.id}')">${esc(res.title)}</span>`:''}</div>
                 </div>
                 <div class="pts">+${t.points}</div>
               </div>`;
@@ -1213,13 +1222,13 @@
       t.doneAt = Date.now();
       const k = DATA.children.find(c => c.id === t.childId);
       k.points += t.points;
-      DATA.pointsHistory.unshift({ id: 'h'+Date.now(), childId: k.id, date: TODAY, title: t.title, points: t.points, at: Date.now() });
+      DATA.pointsHistory.unshift({ id: 'h'+Date.now(), childId: k.id, date: t.date || TODAY, title: t.title, points: t.points, at: Date.now() });
       toast(`+${t.points} 分 · 已记录给 ${k.name}`);
     } else {
       t.doneAt = null;
       const k = DATA.children.find(c => c.id === t.childId);
       k.points = Math.max(0, k.points - t.points);
-      DATA.pointsHistory = DATA.pointsHistory.filter(h => !(h.childId===k.id && h.title===t.title && h.date===TODAY));
+      DATA.pointsHistory = DATA.pointsHistory.filter(h => !(h.childId===k.id && h.title===t.title && h.date===(t.date||TODAY)));
     }
     saveData(DATA); render();
   }
@@ -2070,10 +2079,18 @@
         </div>
         <div class="field">
           <label>配套学习资料（可选）</label>
-          <select id="t-res">
+          <select id="t-res" onchange="onTaskResChange()">
             <option value="">不挂资料，孩子自己找</option>
-            ${DATA.resources.map(r => `<option value="${r.id}">📚 ${esc(r.title)}</option>`).join('')}
+            ${DATA.resources.map(r => `<option value="${r.id}">📚 ${esc(r.title)}${r.episodes&&r.episodes.length>=2?`（${r.episodes.length}集）`:''}</option>`).join('')}
           </select>
+          <div id="t-ep-area" style="display:none;margin-top:8px">
+            <select id="t-ep">
+              <option value="-1">整部（孩子自己选集）</option>
+            </select>
+          </div>
+          <div id="t-epnum-area" style="display:none;margin-top:8px">
+            <input id="t-epnum" type="number" min="1" placeholder="B站视频第几集？例：18（留空=孩子自己选集）" style="margin-top:0" />
+          </div>
           <input id="t-res-url" placeholder="或直接粘贴链接（选了上面就不填这里）" style="margin-top:8px" />
         </div>
         <div class="field">
@@ -2084,6 +2101,19 @@
         <div class="field">
           <label>积分</label>
           <input id="t-points" type="number" value="3" min="1" max="20" />
+        </div>
+        <div class="field">
+          <label>📅 重复天数</label>
+          <select id="t-repeat">
+            <option value="1">只今天（1 天）</option>
+            <option value="2">连续 2 天</option>
+            <option value="3">连续 3 天</option>
+            <option value="4">连续 4 天</option>
+            <option value="5">连续 5 天</option>
+            <option value="6">连续 6 天</option>
+            <option value="7" selected>连续 7 天</option>
+          </select>
+          <p class="wq-hint" style="text-align:left;margin-top:6px">选「连续 N 天」会一次生成未来 N 天的打卡任务，孩子每天只看到当天的，你一周布置一次即可</p>
         </div>
         <div class="btn-row">
           <button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">取消</button>
@@ -2098,6 +2128,24 @@
     const map = { math: 'photo', physics: 'photo', chemistry: 'photo', chinese: 'audio', english: 'audio' };
     document.getElementById('t-proof').value = map[s] || '';
   }
+  // 选了资源后，若该资源是合集，显示"选哪一集"下拉；若是 B站单链接，显示"第几集"输入
+  function onTaskResChange() {
+    const resId = document.getElementById('t-res').value;
+    const area = document.getElementById('t-ep-area');
+    const epSel = document.getElementById('t-ep');
+    const numArea = document.getElementById('t-epnum-area');
+    if (area) area.style.display = 'none';
+    if (numArea) numArea.style.display = 'none';
+    const r = resId ? DATA.resources.find(x => x.id === resId) : null;
+    if (!r) return;
+    if (r.episodes && r.episodes.length >= 2) {
+      if (epSel) epSel.innerHTML = '<option value="-1">整部（孩子自己选集）</option>' +
+        r.episodes.map((ep, i) => `<option value="${i}">第${i + 1}集 · ${esc(ep.title)}</option>`).join('');
+      if (area) area.style.display = 'block';
+    } else if (parseBilibili(r.url)) {
+      if (numArea) numArea.style.display = 'block';
+    }
+  }
   function addTask() {
     const childId = document.getElementById('t-child').value;
     const title = document.getElementById('t-title').value.trim();
@@ -2107,25 +2155,60 @@
     const resId = document.getElementById('t-res').value || '';
     const resUrl = document.getElementById('t-res-url').value.trim();
     const remindAt = document.getElementById('t-remind').value || '';
+    const epIndex = (document.getElementById('t-ep') && document.getElementById('t-ep').value !== '-1') ? parseInt(document.getElementById('t-ep').value) : -1;
+    const epNum = parseInt((document.getElementById('t-epnum') || {}).value) || 0;
+    const repeat = parseInt((document.getElementById('t-repeat') || {}).value) || 1;
     if (!title) { toast('写个标题'); return; }
     if (resId && resUrl) { toast('资料二选一：选了资源库就不用再贴链接'); return; }
-    DATA.tasks.push({ id: 't'+Date.now(), childId, date: TODAY, title, points, done: false, resId, resUrl, subject, proof, proofData: null, remindAt, doneAt: null });
-    saveData(DATA); document.querySelector('.modal-mask').remove(); render(); toast('已布置');
+    const groupId = 'g' + Date.now();
+    for (let i = 0; i < repeat; i++) {
+      DATA.tasks.push({ id: 't' + Date.now() + '-' + i, groupId, childId, date: addDays(TODAY, i), title, points, done: false, resId, resUrl, subject, proof, proofData: null, remindAt, doneAt: null, epIndex, epNum });
+    }
+    saveData(DATA); document.querySelector('.modal-mask').remove(); render();
+    toast(repeat > 1 ? ('已布置未来 ' + repeat + ' 天的任务') : '已布置');
   }
   // 取任务挂的资料（资源库引用 或 自定义链接）
   function taskRes(t) {
     if (!t) return null;
     if (t.resId) {
       const r = DATA.resources.find(x => x.id === t.resId);
-      if (r) return { title: r.title, url: r.url, type: r.type };
+      if (r) {
+        const epIndex = (typeof t.epIndex === 'number' && t.epIndex >= 0) ? t.epIndex : -1;
+        const epNum = (typeof t.epNum === 'number') ? t.epNum : 0;
+        let label = r.title;
+        if (r.episodes && r.episodes.length >= 2 && epIndex >= 0 && r.episodes[epIndex]) label = r.title + ' · 第' + (epIndex + 1) + '集';
+        else if (epNum > 0) label = r.title + ' · 第' + epNum + '集';
+        return { title: label, url: r.url, type: r.type, episodes: r.episodes, epIndex: epIndex, epNum: epNum };
+      }
     }
     if (t.resUrl) return { title: '学习资料', url: t.resUrl, type: 'link' };
     return null;
   }
   function openTaskRes(e, taskId) {
     e.stopPropagation();
-    const res = taskRes(DATA.tasks.find(x => x.id === taskId));
-    if (res && res.url) openResourceLink(res.title, res.type, res.url);
+    const t = DATA.tasks.find(x => x.id === taskId);
+    const res = taskRes(t);
+    if (!res || !res.url) return;
+    // 合集资料：妈妈指定了某集则直接播该集，否则弹分集选择
+    if (res.episodes && res.episodes.length >= 2) {
+      const epIndex = res.epIndex >= 0 ? res.epIndex : -1;
+      if (epIndex >= 0 && res.episodes[epIndex]) {
+        const ep = res.episodes[epIndex];
+        openResourceLink(ep.title || (res.title + ' 第' + (epIndex + 1) + '集'), res.type, ep.url);
+      } else {
+        const r = DATA.resources.find(x => x.id === t.resId);
+        openEpisodePicker(r);
+      }
+      return;
+    }
+    // B站单链接：妈妈填了「第几集」则直接定位到该集
+    const bili = parseBilibili(res.url);
+    if (bili && res.epNum > 0) {
+      bili.p = String(res.epNum);
+      openBiliPlayer(res.title + ' · 第' + res.epNum + '集', bili);
+      return;
+    }
+    openResourceLink(res.title, res.type, res.url);
   }
 
   // ========== 模态：添加资源 ==========
@@ -2157,6 +2240,7 @@
         <div class="field">
           <label>链接（微云 / B站 / 网页均可）</label>
           <input id="r-url" placeholder="粘贴链接，如 https://www.bilibili.com/video/BV..." oninput="autoDetectType()" />
+          <div id="bili-eps-status" style="margin-top:8px;font-size:13px;line-height:1.5"></div>
         </div>
         <div class="field">
           <button type="button" class="btn-secondary" onclick="toggleEpisodes()" style="border:1px dashed var(--pink-300);background:var(--pink-50);color:var(--pink-600)">＋ 这是合集/连续剧，有多集（分集）</button>
@@ -2180,8 +2264,8 @@
     let type = document.getElementById('r-type').value;
     const cat = document.getElementById('r-cat') ? document.getElementById('r-cat').value : 'learn';
     const subject = document.getElementById('r-subject').value;
-    const title = document.getElementById('r-title').value.trim();
-    const url = document.getElementById('r-url').value.trim();
+    let title = document.getElementById('r-title').value.trim();
+    let url = document.getElementById('r-url').value.trim();
     const epsText = document.getElementById('r-eps') ? document.getElementById('r-eps').value.trim() : '';
 
     // 解析分集：每行「标题 | 链接」或纯链接
@@ -2221,14 +2305,21 @@
     const area = document.getElementById('ep-area');
     if (area) area.style.display = area.style.display === 'none' ? 'block' : 'none';
   }
-  // 粘贴链接时自动识别类型
+  // 粘贴链接时自动识别类型 + 友好提示
   function autoDetectType() {
     const el = document.getElementById('r-url');
     const sel = document.getElementById('r-type');
     if (!el || !sel) return;
-    if (parseBilibili(el.value) && sel.value !== 'video') {
+    const url = el.value.trim();
+    if (parseBilibili(url) && sel.value !== 'video') {
       sel.value = 'video';
       toast('识别到 B站视频，已自动选「视频」类型');
+    }
+    const statusEl = document.getElementById('bili-eps-status');
+    if (statusEl) {
+      statusEl.innerHTML = parseBilibili(url)
+        ? '<span style="color:var(--green-600)">✅ B站视频 · 一条链接即可</span><br><span style="font-size:12px;color:var(--gray-600)">多集/番剧孩子点开能在播放器里自行选集，不用逐集添加；若要布置任务时精确指定某一集，直接填标题旁的「第几集」，或点下方「合集」给每集起名字</span>'
+        : '';
     }
   }
   function delResource(id) {
