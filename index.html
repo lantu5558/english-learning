@@ -438,6 +438,8 @@
     wordTasks: [
       { id: 'wt1', childId: 'c1', date: '2026-08-27', setId: 'ws1', count: 5, points: 5, done: false, wordState: {} },
     ],
+    // 上网白名单：孩子点开外部链接时，仅白名单域名可直接访问，其余需妈妈密码解锁
+    safeDomains: ['bilibili.com', 'weiyun.com', 'basic.smartedu.cn', 'open.163.com', 'docs.qq.com'],
   };
 
   // 旧科目迁移（不依赖常量，供加载早期调用）：物理/化学→物化，历史/政治→小四门，辩论/音乐→素养
@@ -486,6 +488,7 @@
       if (SUBJECT_MIGRATE[t.subject]) t.subject = SUBJECT_MIGRATE[t.subject];
     });
     (d.rewards || []).forEach(r => { if (!r.cat || !REWARD_CATS[r.cat]) r.cat = 'cartoon'; });
+    if (!Array.isArray(d.safeDomains)) d.safeDomains = JSON.parse(JSON.stringify(DEFAULT_DATA.safeDomains));
     return d;
   }
   function syncUrl() { return 'https://textdb.dev/api/data/flp-lebaomaibao-' + encodeURIComponent(SYNC.code.trim()); }
@@ -977,6 +980,22 @@
         <div class="section">
           <h3>妈妈密码</h3>
           <button class="btn-secondary" onclick="changePassword()">修改密码</button>
+        </div>
+        <div class="section">
+          <h3>🌐 上网白名单</h3>
+          <p class="text-mute" style="font-size:12px;margin-bottom:8px">孩子点开外部链接时，只有名单里的网站能直接打开；其他网站需要妈妈密码解锁才能访问。</p>
+          <div class="chip-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+            ${(DATA.safeDomains || []).map(d => `
+              <span style="display:inline-flex;align-items:center;gap:4px;background:var(--green-50);color:var(--green-600);border-radius:10px;padding:4px 10px;font-size:12px">${esc(d)}
+                <button class="icon-btn" style="width:18px;height:18px;border-radius:6px;background:transparent;font-size:12px;line-height:1" onclick="removeSafeDomain('${escA(d)}')" title="移除">✕</button>
+              </span>
+            `).join('')}
+            ${(DATA.safeDomains || []).length ? '' : '<span class="text-mute" style="font-size:12px">暂无白名单</span>'}
+          </div>
+          <div style="display:flex;gap:8px">
+            <input id="safe-domain-input" placeholder="添加域名，如 basic.smartedu.cn" style="flex:1;padding:9px 12px;border:0.5px solid var(--border-soft);border-radius:12px;font-size:13px" />
+            <button class="btn-primary" style="white-space:nowrap" onclick="addSafeDomainFromInput()">添加</button>
+          </div>
         </div>
         <div class="section">
           <h3>☁️ 云端同步</h3>
@@ -2617,8 +2636,127 @@
     if (isDirectVideo(url)) { openHtmlVideo(title, url); return; }
     // 直接音频文件链接：audio 标签内嵌
     if (isDirectAudio(url)) { openHtmlAudio(title, url); return; }
-    // 其他网页（微云分享页等）：跳转
-    window.open(url, '_blank');
+    // 其他网页（微云分享页、官网课程等）：走安全审核跳转页（白名单拦截）
+    openExternal(url, title);
+  }
+
+  // ========== 安全跳转页 + 上网白名单 ==========
+  function escA(s) { return esc(String(s == null ? '' : s)).replace(/'/g, '&#39;'); }
+  function hostOf(url) {
+    try { return new URL(url).hostname.toLowerCase(); } catch (e) { return ''; }
+  }
+  function isDomainAllowed(url) {
+    const host = hostOf(url);
+    if (!host) return false;
+    return (DATA.safeDomains || []).some(d => {
+      let dm = String(d || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '');
+      return dm && (host === dm || host.endsWith('.' + dm));
+    });
+  }
+  function openExternal(url, title) {
+    const host = hostOf(url);
+    const allowed = isDomainAllowed(url);
+    const isMom = !!sessionStorage.getItem('mom-auth');
+    const modal = document.createElement('div');
+    modal.className = 'modal-mask';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    const inner = allowed ? `
+      <div style="text-align:center;padding:10px 4px">
+        <div style="font-size:44px">🛡️</div>
+        <h3 style="margin:10px 0 4px;color:var(--green-600)">已授权学习网站</h3>
+        <p class="text-mute" style="font-size:13px;margin:0 0 2px">${esc(title || '')}</p>
+        <p class="text-mute" style="font-size:12px">${esc(host)} · 妈妈已允许访问</p>
+        <div class="btn-row" style="margin-top:16px">
+          <button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">返回</button>
+          <button class="btn-primary" onclick="window.open('${escA(url)}','_blank');this.closest('.modal-mask').remove()">继续前往 ▶</button>
+        </div>
+      </div>
+    ` : (isMom ? `
+      <div style="text-align:center;padding:10px 4px">
+        <div style="font-size:44px">⛔</div>
+        <h3 style="margin:10px 0 4px;color:var(--red-600)">未授权网站</h3>
+        <p class="text-mute" style="font-size:13px;margin:0 0 2px">${esc(title || '')}</p>
+        <p class="text-mute" style="font-size:12px">${esc(host)} · 不在白名单里</p>
+        <p class="text-mute" style="font-size:12px;margin-top:6px">你是妈妈，可以加入白名单放行</p>
+        <div class="btn-row" style="margin-top:16px">
+          <button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">返回</button>
+          <button class="btn-primary" onclick="addSafeDomain('${escA(host)}');this.closest('.modal-mask').remove();openExternal('${escA(url)}','${escA(title || '')}')">加入白名单并前往</button>
+          <button class="btn-secondary" onclick="window.open('${escA(url)}','_blank');this.closest('.modal-mask').remove()">仅此一次</button>
+        </div>
+      </div>
+    ` : `
+      <div style="text-align:center;padding:10px 4px">
+        <div style="font-size:44px">⛔</div>
+        <h3 style="margin:10px 0 4px;color:var(--red-600)">此网站未授权</h3>
+        <p class="text-mute" style="font-size:13px;margin:0 0 2px">${esc(title || '')}</p>
+        <p class="text-mute" style="font-size:12px">${esc(host)}</p>
+        <p class="text-mute" style="font-size:12px;margin-top:8px">这个网站不在妈妈的名单里，<br>需要妈妈输入密码才能打开哦</p>
+        <div class="btn-row" style="margin-top:16px">
+          <button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">返回</button>
+          <button class="btn-primary" onclick="unlockExternal('${escA(url)}','${escA(title || '')}')">请妈妈解锁 🔑</button>
+        </div>
+      </div>
+    `);
+    modal.innerHTML = `<div class="modal"><button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>${inner}</div>`;
+    document.getElementById('modal-root').appendChild(modal);
+  }
+  // 孩子端：弹妈妈密码框，验证通过解锁一次
+  function unlockExternal(url, title) {
+    const pm = document.createElement('div');
+    pm.className = 'modal-mask';
+    pm.dataset.url = url;
+    pm.onclick = (e) => { if (e.target === pm) pm.remove(); };
+    pm.innerHTML = `
+      <div class="modal">
+        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+        <h3>🔑 妈妈解锁</h3>
+        <p class="text-mute" style="margin:-8px 0 12px;font-size:12px">${esc(title || '')}</p>
+        <input id="unlock-pwd" type="password" placeholder="输入妈妈密码" style="width:100%;padding:10px 12px;border:0.5px solid var(--border-soft);border-radius:12px;font-size:14px" />
+        <div class="btn-row" style="margin-top:14px">
+          <button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">取消</button>
+          <button class="btn-primary" onclick="doUnlock(this.closest('.modal-mask'))">解锁前往</button>
+        </div>
+      </div>`;
+    document.getElementById('modal-root').appendChild(pm);
+    pm.querySelector('#unlock-pwd').addEventListener('keydown', e => { if (e.key === 'Enter') doUnlock(pm); });
+    setTimeout(() => { const i = pm.querySelector('#unlock-pwd'); if (i) i.focus(); }, 50);
+  }
+  function doUnlock(mask) {
+    const v = (mask.querySelector('#unlock-pwd') || {}).value || '';
+    if (v.trim() === String(DATA.momPassword)) {
+      const u = mask.dataset.url;
+      if (u) window.open(u, '_blank');
+      mask.remove();
+      toast('🔓 已解锁，完成学习后请回到平台');
+    } else {
+      toast('❌ 密码不对，无法解锁');
+    }
+  }
+  // 妈妈端：把域名加入/移出白名单
+  function addSafeDomain(host) {
+    if (!host) return;
+    const dm = host.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '');
+    if (!dm) { toast('❌ 网址格式不对'); return; }
+    const list = DATA.safeDomains || (DATA.safeDomains = []);
+    if (!list.includes(dm)) { list.push(dm); saveData(DATA); toast('✅ 已加入白名单: ' + dm); }
+    else toast('ℹ️ 已在白名单中');
+  }
+  function removeSafeDomain(dm) {
+    DATA.safeDomains = (DATA.safeDomains || []).filter(x => x !== dm);
+    saveData(DATA);
+    toast('已移除: ' + dm);
+    render();
+  }
+  function addSafeDomainFromInput() {
+    const el = document.getElementById('safe-domain-input');
+    if (!el) return;
+    const v = el.value.trim();
+    if (!v) { toast('先输入要添加的网址'); return; }
+    let dm = v;
+    try { dm = new URL(v.includes('://') ? v : 'http://' + v).hostname; } catch (e) {}
+    addSafeDomain(dm);
+    el.value = '';
+    render();
   }
 
   // 分集选择弹窗
