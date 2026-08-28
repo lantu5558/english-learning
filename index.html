@@ -2387,10 +2387,41 @@
     toast(eps.length >= 2 ? '已添加合集（' + eps.length + '集）' : '已添加');
   }
   // ========== 批量导入（AI 识别好的导入码） ==========
-  // 格式：WBEPS1: + base64url(UTF-8 JSON)，JSON 为资源数组
-  // [{title, type, subject, category, url, eps:[{title,url}]}]
+  // 格式：WBEPS1: + base64url(UTF-8 JSON)，JSON 为资源数组 [{title,type,subject,category,url,eps:[{title,url}]}]
+  // 格式：WBEPS2: 紧凑版 [{title,type,subject,category,base,eps:[标题字符串|null]}]，url 由 base+?p=N 生成
   function decodeImportCode(code) {
     code = (code || '').trim();
+    if (/^WBEPS2:/i.test(code)) {
+      const b64 = code.slice(7).replace(/-/g, '+').replace(/_/g, '/');
+      try {
+        const bin = atob(b64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        const items = JSON.parse(new TextDecoder().decode(bytes));
+        if (!Array.isArray(items)) return null;
+        const hasBili = u => !!parseBilibili(u);
+        return items.filter(x => x && (x.base || x.url)).map(x => {
+          let type = ['video', 'pdf', 'audio'].includes(x.type) ? x.type : 'video';
+          if (hasBili(x.base) || hasBili(x.url)) type = 'video';
+          const base = String(x.base || x.url || '');
+          const eps = Array.isArray(x.eps) ? x.eps.map((e, i) => {
+            const t = (typeof e === 'string' ? e : '').trim();
+            return {
+              title: t ? t.slice(0, 60) : '第' + (i + 1) + '集',
+              url: base + (i > 0 ? '?p=' + (i + 1) : '')
+            };
+          }) : [];
+          return {
+            title: String(x.title || '').slice(0, 80),
+            type,
+            subject: SUBJECTS[x.subject] ? x.subject : 'suyang',
+            category: x.category === 'fun' ? 'fun' : 'learn',
+            url: eps.length ? eps[0].url : base,
+            eps
+          };
+        });
+      } catch (e) { return null; }
+    }
     if (!/^WBEPS1:/i.test(code)) return null;
     const b64 = code.slice(7).replace(/-/g, '+').replace(/_/g, '/');
     try {
