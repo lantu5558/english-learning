@@ -730,7 +730,7 @@
       <div class="topbar">
         <h1>👩 妈妈后台</h1>
         <div class="actions">
-          <button class="icon-btn" onclick="logout()" title="退出">${ICN.sett}</button>
+          <button class="icon-btn" onclick="logout()" title="回到首页">${ICN.home}</button>
         </div>
       </div>
       <div class="page">
@@ -802,11 +802,11 @@
   function viewMomResources() {
     if (!sessionStorage.getItem('mom-auth')) { location.hash='mom-pin'; return ''; }
     return `
-      <div class="topbar"><h1>📚 资源库</h1></div>
+      <div class="topbar"><h1>📚 资源库</h1><div class="actions"><button class="icon-btn" onclick="openResourceModal()" title="添加资源">${ICN.add}</button></div></div>
       <div class="page">
         <div class="section">
           <h3>添加资源 <span class="badge">${DATA.resources.length} 个</span></h3>
-          <button class="btn-primary" onclick="openResourceModal()">+ 添加新资源</button>
+          <button class="btn-primary" onclick="openResourceModal()">＋ 添加新资源</button>
         </div>
         <div class="section">
           <h3>按学科</h3>
