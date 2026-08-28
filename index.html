@@ -877,7 +877,7 @@
   function viewMomResources() {
     if (!sessionStorage.getItem('mom-auth')) { location.hash='mom-pin'; return ''; }
     return `
-      <div class="topbar"><h1>📚 资源库</h1><div class="actions"><button class="icon-btn" onclick="openResourceModal()" title="添加资源">${ICN.add}</button></div></div>
+      <div class="topbar"><h1>📚 资源库</h1><div class="actions"><button class="icon-btn" onclick="openImportModal()" title="批量导入（粘贴AI识别好的导入码）" style="font-size:18px">📥</button><button class="icon-btn" onclick="openResourceModal()" title="添加资源">${ICN.add}</button></div></div>
       <div class="page">
         <div class="section">
           <h3>添加资源 <span class="badge">${DATA.resources.length} 个</span></h3>
@@ -2385,6 +2385,96 @@
     DATA.resources.push(res);
     saveData(DATA); document.querySelector('.modal-mask').remove(); render();
     toast(eps.length >= 2 ? '已添加合集（' + eps.length + '集）' : '已添加');
+  }
+  // ========== 批量导入（AI 识别好的导入码） ==========
+  // 格式：WBEPS1: + base64url(UTF-8 JSON)，JSON 为资源数组
+  // [{title, type, subject, category, url, eps:[{title,url}]}]
+  function decodeImportCode(code) {
+    code = (code || '').trim();
+    if (!/^WBEPS1:/i.test(code)) return null;
+    const b64 = code.slice(7).replace(/-/g, '+').replace(/_/g, '/');
+    try {
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const items = JSON.parse(new TextDecoder().decode(bytes));
+      if (!Array.isArray(items)) return null;
+      const hasBili = u => !!parseBilibili(u);
+      return items.filter(x => x && (x.url || (x.eps && x.eps.length))).map(x => {
+        let type = ['video', 'pdf', 'audio'].includes(x.type) ? x.type : 'video';
+        if (hasBili(x.url) || (x.eps || []).some(e => hasBili(e.url))) type = 'video';
+        return {
+          title: String(x.title || '').slice(0, 80),
+          type,
+          subject: SUBJECTS[x.subject] ? x.subject : 'suyang',
+          category: x.category === 'fun' ? 'fun' : 'learn',
+          url: String(x.url || ''),
+          eps: Array.isArray(x.eps) ? x.eps.filter(e => e && e.url).map(e => ({ title: String(e.title || '').slice(0, 60), url: String(e.url) })) : []
+        };
+      });
+    } catch (e) { return null; }
+  }
+  function openImportModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal-mask';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    window.__importItems = null;
+    modal.innerHTML = `
+      <div class="modal">
+        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+        <h3>📥 批量导入资源</h3>
+        <p class="text-mute" style="margin-top:-8px;margin-bottom:12px">把 AI 帮你识别好的「导入码」粘贴进来，一键添加多个资源及分集，不用逐条填写</p>
+        <div class="field">
+          <label>导入码</label>
+          <textarea id="imp-code" rows="6" placeholder="以 WBEPS1: 开头的一长串字符（复制粘贴即可）"></textarea>
+        </div>
+        <div id="imp-preview"></div>
+        <div class="btn-row">
+          <button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">取消</button>
+          <button class="btn-primary" onclick="previewImport()">解析预览</button>
+          <button class="btn-primary" id="imp-go" style="display:none" onclick="doImport()">确认导入</button>
+        </div>
+      </div>
+    `;
+    document.getElementById('modal-root').appendChild(modal);
+  }
+  function previewImport() {
+    const el = document.getElementById('imp-code');
+    const box = document.getElementById('imp-preview');
+    const goBtn = document.getElementById('imp-go');
+    if (!el || !box || !goBtn) return;
+    const items = decodeImportCode(el.value);
+    if (!items || !items.length) {
+      box.innerHTML = '<p style="margin-top:10px;color:var(--red-600);font-size:13px">❌ 导入码无效，请确认复制完整（以 WBEPS1: 开头）</p>';
+      goBtn.style.display = 'none';
+      return;
+    }
+    window.__importItems = items;
+    box.innerHTML = '<div class="section" style="padding:12px;margin-top:10px"><h3 style="margin-bottom:4px">识别到 ' + items.length + ' 个资源：</h3>' + items.map((x, i) => {
+      const s = SUBJECTS[x.subject] || SUBJECT_FALLBACK;
+      const n = (x.eps && x.eps.length >= 2) ? ' · <span style="color:var(--amber-600)">共' + x.eps.length + '集</span>' : '';
+      return '<div class="resource" style="padding:10px 0"><div class="info"><div class="name">' + esc(x.title || ('资源' + (i + 1))) + n + '</div><div class="meta"><span class="badge-subj" style="background:var(--' + s.color + '-50);color:var(--' + s.color + '-600)">' + s.emoji + ' ' + s.name + '</span>' + (x.category === 'fun' ? '<span class="badge-subj" style="background:var(--purple-50);color:var(--purple-600)">🎁 奖励</span>' : '') + '</div></div></div>';
+    }).join('') + '</div>';
+    goBtn.style.display = 'inline-flex';
+  }
+  function doImport() {
+    const items = window.__importItems;
+    if (!items || !items.length) return;
+    const now = Date.now();
+    items.forEach((x, i) => {
+      const res = { id: 'r' + (now + i), type: x.type, subject: x.subject, title: x.title || ('资源' + (i + 1)), url: x.url || (x.eps[0] ? x.eps[0].url : ''), category: x.category };
+      if (x.eps && x.eps.length >= 2) {
+        res.episodes = x.eps.map((e, j) => ({ title: e.title || ('第' + (j + 1) + '集'), url: e.url }));
+        res.url = res.episodes[0].url;
+      } else if (x.eps && x.eps.length === 1) {
+        res.url = x.eps[0].url;
+      }
+      DATA.resources.push(res);
+    });
+    saveData(DATA);
+    document.querySelector('.modal-mask').remove();
+    render();
+    toast('已导入 ' + items.length + ' 个资源');
   }
   // 展开/收起分集输入区
   function toggleEpisodes() {
