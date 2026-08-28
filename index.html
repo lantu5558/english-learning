@@ -2887,33 +2887,29 @@
     // 只有在这台设备点过一次「用 B站 打开」之后，才记住并改成外跳卡。
     if (biliPref() === 'outside') return openBiliCard(title, b);
     const u = biliUrls(b);
-    const ua = navigator.userAgent || '';
-    const isMobile = /AppleWebKit.*Mobile/i.test(ua) || /Android|iPhone|iPod|Windows Phone/i.test(ua);
-    const src = isMobile ? u.mobile : u.desktop;
-    const tip2 = isMobile
-      ? '② 或在浏览器菜单里勾选「<b>桌面版网站</b>」后重开平台（安卓平板有时有效）'
-      : '② 或在浏览器设置里允许「第三方 Cookie」后重试';
+    // 恢复手机原来能正常播放的写法：一律用 player.bilibili.com/player.html（B站官方嵌入地址）。
+    // 教训：改成「移动端直接加载 mbplayer.html」后手机直接黑屏连 B站标识都不出来 ——
+    // mbplayer 跑在 www.bilibili.com 域下，被第三方页面嵌入时拿不到播放地址。
+    // 所以这里不再按 UA 分流，一律交给 B站自己的 player.html 判断。
+    const src = u.desktop;
     const modal = document.createElement('div');
     modal.className = 'modal-mask video-mask';
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     modal.innerHTML = `
       <div class="modal video-modal">
         <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+        <button class="icon-btn" title="更多播放方式" style="float:right;margin-top:-8px;margin-right:6px;font-size:15px" onclick="biliToggleMenu(this)">↗</button>
         <h3>${esc(title)}</h3>
         <div class="video-wrap"><iframe class="bili-frame" src="${escA(src)}" scrolling="no" frameborder="no" allowfullscreen="true" allow="autoplay; fullscreen; encrypted-media; picture-in-picture"></iframe></div>
-        <div class="bili-mini">一直转圈 / 打不开？
-          <button type="button" data-b="${escA(b.kind + '|' + b.id + '|' + (b.p || ''))}" data-t="${escA(title)}" onclick="biliGoCard(this)">用 B站 打开（一定能播）</button>
-          <span style="margin:0 4px;color:var(--gray-400)">·</span>
-          <button type="button" onclick="biliShowFallback(this)">更多办法</button>
-        </div>
-        <div class="bili-fallback" style="display:none;margin-top:10px;padding:12px;background:#fff4e6;border:1px solid #ffd9a8;border-radius:10px;font-size:13px;line-height:1.7">
-          <div style="margin-bottom:8px;color:#8a5a00">平板和学习机常拦截 B站内嵌播放，任选一种方式：</div>
-          <a href="${escA(u.page)}" target="_blank" rel="noopener" style="display:inline-block;padding:9px 15px;background:#ff6b9d;color:#fff;border-radius:9px;text-decoration:none;font-weight:600">① 用浏览器打开（一定能播）</a>
-          <div style="margin-top:8px;color:#8a5a00">${tip2}</div>
-          <div style="margin-top:8px;color:#8a5a00">③ 以后都这样：<button type="button" onclick="biliAlwaysOutside()" style="padding:6px 12px;border:1px solid #ffb37a;background:#fff;border-radius:8px;cursor:pointer;color:#8a5a00">记住：B站视频直接打开 B站</button></div>
-          <div style="margin-top:8px;color:#8a5a00">④ 换个播放器版本试试：
-            <button type="button" class="bili-swap" data-src="${escA(u.desktop)}" style="padding:6px 12px;margin-right:6px;border:1px solid #ffb37a;background:#fff;border-radius:8px;cursor:pointer;color:#8a5a00">桌面版</button>
-            <button type="button" class="bili-swap" data-src="${escA(u.mobile)}" style="padding:6px 12px;border:1px solid #ffb37a;background:#fff;border-radius:8px;cursor:pointer;color:#8a5a00">移动版</button>
+        <div class="bili-fallback" style="display:none;margin-top:10px;padding:12px;background:#fff4e6;border:1px solid #ffd9a8;border-radius:10px;font-size:13px;line-height:1.9">
+          <div style="color:#8a5a00;margin-bottom:6px">一直转圈时，任选一种方式：</div>
+          <a href="${escA(u.page)}" target="_blank" rel="noopener" style="display:inline-block;padding:9px 15px;background:#ff6b9d;color:#fff;border-radius:9px;text-decoration:none;font-weight:600">① 用浏览器打开 B站（一定能播）</a>
+          <div style="margin-top:6px;color:#8a5a00">② <button type="button" data-u="${escA(u.page)}" onclick="biliOpenHere(this)" style="background:none;border:none;color:#8a5a00;font-size:13px;text-decoration:underline;cursor:pointer;padding:0">在本页打开（学习机点这个）</button></div>
+          <div style="color:#8a5a00">③ <a href="${escA(u.app)}" style="color:#8a5a00">在 B站 App 里看</a>（没装 App 点了没反应）</div>
+          <div style="color:#8a5a00">④ 以后都这样：<button type="button" onclick="biliAlwaysOutside()" style="padding:5px 10px;border:1px solid #ffb37a;background:#fff;border-radius:8px;cursor:pointer;color:#8a5a00">记住：直接打开 B站</button></div>
+          <div style="color:#8a5a00">⑤ 换个播放器版本：
+            <button type="button" class="bili-swap" data-src="${escA(u.desktop)}" style="padding:5px 10px;margin-right:6px;border:1px solid #ffb37a;background:#fff;border-radius:8px;cursor:pointer;color:#8a5a00">官方版</button>
+            <button type="button" class="bili-swap" data-src="${escA(u.mobile)}" style="padding:5px 10px;border:1px solid #ffb37a;background:#fff;border-radius:8px;cursor:pointer;color:#8a5a00">移动版</button>
           </div>
         </div>
       </div>
@@ -2936,13 +2932,12 @@
     openBiliCard(title, b);
     if (typeof toast === 'function') toast('已记住：这台设备以后直接打开 B站');
   }
-  // 只有用户点"更多办法"才展开备用方案，不再自动弹出来打扰
-  function biliShowFallback(btn) {
+  // 只有点右上角 ↗ 才展开备用方案；平时完全隐藏，不打扰、不自动弹出
+  function biliToggleMenu(btn) {
     const card = btn && btn.closest ? btn.closest('.video-modal') : null;
     if (!card) return;
     const box = card.querySelector('.bili-fallback');
-    if (box) box.style.display = 'block';
-    if (btn) btn.style.display = 'none';
+    if (box) box.style.display = (box.style.display === 'block') ? 'none' : 'block';
   }
   function biliAlwaysOutside() {
     biliSetPref('outside');
