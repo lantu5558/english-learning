@@ -2636,6 +2636,8 @@
     if (isDirectVideo(url)) { openHtmlVideo(title, url); return; }
     // 直接音频文件链接：audio 标签内嵌
     if (isDirectAudio(url)) { openHtmlAudio(title, url); return; }
+    // 直接 PDF 文件链接（阿里云 OSS 直链）：内嵌预览，不跳转
+    if (isDirectPdf(url)) { openPdfViewer(title, url); return; }
     // 其他网页（微云分享页、官网课程等）：走安全审核跳转页（白名单拦截）
     openExternal(url, title);
   }
@@ -2821,6 +2823,11 @@
     if (!url) return false;
     return /\.(mp3|wav|m4a|aac|ogg|flac|opus)([?#].*)?$/i.test(url);
   }
+  // 是否直接 PDF 文件链接（阿里云 OSS 等直链）
+  function isDirectPdf(url) {
+    if (!url) return false;
+    return /\.(pdf)([?#].*)?$/i.test(url);
+  }
 
   // 内嵌 B 站播放器
   function openBiliPlayer(title, b) {
@@ -2881,6 +2888,28 @@
           </audio>
         </div>
         <div class="video-meta">音频 · 在平台内播放</div>
+      </div>
+    `;
+    document.getElementById('modal-root').appendChild(modal);
+  }
+
+  // 内嵌 PDF 预览（阿里云 OSS 等直链；部分安卓内核不支持内嵌渲染，提供浏览器打开兜底）
+  function openPdfViewer(title, url) {
+    const modal = document.createElement('div');
+    modal.className = 'modal-mask video-mask';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+      <div class="modal video-modal">
+        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+        <h3>${esc(title)}</h3>
+        <div class="video-wrap" style="padding-top:125%;background:#f5f5f5">
+          <iframe src="${esc(url)}" style="background:#fff"></iframe>
+        </div>
+        <div class="video-meta">PDF · 若上方显示空白，点下方按钮用浏览器打开阅读</div>
+        <div class="btn-row" style="margin-top:10px">
+          <button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">关闭</button>
+          <button class="btn-primary" onclick="window.open('${escA(url)}','_blank')">📖 用浏览器打开</button>
+        </div>
       </div>
     `;
     document.getElementById('modal-root').appendChild(modal);
