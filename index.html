@@ -181,6 +181,12 @@
     .sv-ctrl { display:flex; gap:6px; margin-top:10px; }
     .sv-ctrl button { flex:1; padding:9px 2px; border-radius:9px; border:1px solid var(--border); background:var(--bg-card); font-size:13px; cursor:pointer; }
     .sv-tip { text-align:center; font-size:12px; color:var(--gray-600); margin-top:10px; }
+    .sv-subrow { display:none; margin-top:9px; text-align:center; }
+    .sv-subrow .btn-sm { min-width:96px; }
+    .sv-subrow.on .btn-sm { background:var(--indigo-50); border-color:var(--indigo-400); color:var(--indigo-600); }
+    .sv-subinfo { display:block; font-size:12px; color:var(--gray-600); margin-top:6px; line-height:1.5; }
+    .sv-stage video::cue { font-size:19px; color:#fff; background:rgba(0,0,0,.62); line-height:1.55; }
+    .res-sub-tag { display:inline-block; margin-left:5px; padding:0 5px; border-radius:5px; background:var(--indigo-50); color:var(--indigo-600); font-size:11px; vertical-align:middle; }
     /* ---- 作业栏 ---- */
     .hw-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:11px 12px; margin-bottom:8px; }
     .hw-head { display:flex; align-items:center; gap:6px; margin-bottom:5px; }
@@ -573,6 +579,8 @@
     for (let n = 0; n < rs.length; n++) {
       const r = rs[n], eps = r.episodes;
       if (!eps || !eps.length || eps.length < 3) continue;
+      // 分集挂了字幕就不压缩：压成 _eb+_et 会把每集的 sub 丢掉
+      if (r.sub || eps.some(e => e && e.sub)) continue;
       const base = String(eps[0].url || '').split('?p=')[0];
       if (!base) continue;
       let ok = true;
@@ -1543,8 +1551,9 @@
               <div class="thumb">${ICN[r.type]||ICN.pdf}</div>
               <div class="info">
                 <div class="name">${esc(r.title)}</div>
-                <div class="meta">${r.type==='video'?'🎬 视频':r.type==='pdf'?'📄 PDF':'🎵 音频'}${r.episodes&&r.episodes.length>=2?` · <span style="color:var(--amber-600)">共${r.episodes.length}集</span>`:''}</div>
+                <div class="meta">${r.type==='video'?'🎬 视频':r.type==='pdf'?'📄 PDF':'🎵 音频'}${r.episodes&&r.episodes.length>=2?` · <span style="color:var(--amber-600)">共${r.episodes.length}集</span>`:''}${resSubCount(r)?`<span class="res-sub-tag">CC 字幕</span>`:''}</div>
               </div>
+              ${isMom ? (r.type === 'video' ? `<button class="icon-btn" onclick="event.stopPropagation();openResSubModal('${r.id}')" title="挂字幕" style="font-size:11px;font-weight:600">CC</button>` : '') : ''}
               ${isMom ? `<button class="icon-btn" onclick="event.stopPropagation();delResource('${r.id}')">${ICN.trash}</button>` : ''}
             </div>
           `).join('') : `<div class="empty"><div class="emoji">📦</div>该分类还没有资源${isMom ? '，点右上角 ＋ 添加' : ''}</div>`}
@@ -3578,26 +3587,27 @@
     if (!res || !res.url) return null;
     if (res.episodes && res.episodes.length >= 2 && res.epIndex >= 0 && res.episodes[res.epIndex]) {
       const ep = res.episodes[res.epIndex];
-      return { url: ep.url, title: res.title + ' · 第' + (res.epIndex + 1) + '集', res };
+      const t2 = res.title + ' · 第' + (res.epIndex + 1) + '集';
+      return { url: ep.url, title: t2, res, sub: resSubUrl(res, res.epIndex) };
     }
-    return { url: res.url, title: res.title, res };
+    return { url: res.url, title: res.title, res, sub: resSubUrl(res, -1) };
   }
   function openTaskVideo(taskId) {
     const t = DATA.tasks.find(x => x.id === taskId);
     if (!t) return;
     const v = taskVideoUrl(t);
     if (!v) { toast('这个任务还没挂视频，让妈妈去编辑一下'); return; }
-    if (isDirectVideo(v.url)) { openStrictVideo(t, v.title, v.url); return; }
+    if (isDirectVideo(v.url)) { openStrictVideo(t, v.title, v.url, v.sub); return; }
     const b = parseBilibili(v.url);
-    if (b) { openLooseVideo(t, v.title, b); return; }
+    if (b) { openLooseVideo(t, v.title, b, null, v.sub); return; }
     // 其他网页：外站一律宽松模式
-    openLooseVideo(t, v.title, null, v.url);
+    openLooseVideo(t, v.title, null, v.url, v.sub);
   }
 
   // ---- 严格模式（平台自己的播放器，完全可控）----
   let SV = null;   // { task, video, maxSeen, finished, rate }
   const SV_RATES = [1, 1.25, 1.5];   // 最高 1.5 倍速
-  function openStrictVideo(task, title, url) {
+  function openStrictVideo(task, title, url, subUrl) {
     closeSv();
     const mask = document.createElement('div');
     mask.className = 'modal-mask';
@@ -3617,12 +3627,18 @@
           <button type="button" id="sv-rate" onclick="svRate()">1.0×</button>
           <button type="button" onclick="svFull()">⛶ 全屏</button>
         </div>
+        <div class="sv-subrow" id="sv-subrow">
+          <button type="button" class="btn-sm" id="sv-sub" onclick="svToggleSub()">字幕：开</button>
+          <span class="sv-subinfo" id="sv-subinfo"></span>
+        </div>
         <div class="sv-tip">🔒 不能拖进度条、最高 1.5 倍速，看到最后自动打卡 +${task.points} 分</div>
       </div>`;
     document.getElementById('modal-root').appendChild(mask);
-    SV = { task, video: document.getElementById('sv-video'), maxSeen: 0, finished: false, rate: 0 };
+    SV = { task, video: document.getElementById('sv-video'), maxSeen: 0, finished: false, rate: 0,
+           subUrl: '', subOn: false, subBlob: '' };
     const v = SV.video;
     if (!v) { closeSv(); return; }
+    if (subUrl) svLoadSub(v, subUrl);
     v.playbackRate = SV_RATES[0];
     v.addEventListener('loadedmetadata', svResume);
     v.addEventListener('timeupdate', svTick);
@@ -3638,6 +3654,82 @@
     if (p && p.catch) p.catch(() => {});
   }
   function svBtn(txt) { const b = document.getElementById('sv-playbtn'); if (b) b.textContent = txt; }
+  // ---- 字幕 ----
+  // srt → vtt：浏览器只认 WebVTT。差别就是把时间轴的逗号换成点，再加个 WEBVTT 头。
+  function srtToVtt(txt) {
+    let s = String(txt == null ? '' : txt).replace(/^\uFEFF/, '');
+    if (!s.trim()) return '';
+    if (/^\s*WEBVTT/.test(s)) return s;                 // 已经是 vtt，原样返回
+    s = s.replace(/\r\n?/g, '\n');
+    s = s.replace(/\{\\[^}]*\}/g, '');                  // 去掉 {\an8} 这类 vtt 不认的定位标记
+    s = s.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
+    s = s.replace(/(\d{2}:\d{2}),(\d{3})/g, '$1.$2');
+    return 'WEBVTT\n\n' + s.replace(/\n{3,}/g, '\n\n');
+  }
+  function svSubInfo(html) { const e = document.getElementById('sv-subinfo'); if (e) e.innerHTML = html; }
+  function svSubBtn() {
+    const b = document.getElementById('sv-sub');
+    const row = document.getElementById('sv-subrow');
+    if (!b || !SV) return;
+    b.textContent = '字幕：' + (SV.subOn ? '开' : '关');
+    if (row) row.classList.toggle('on', !!SV.subOn);
+  }
+  // 字幕是跨域文件，浏览器默认不让读 → 先 fetch 成文本转 blob 再挂 track（最稳）。
+  // fetch 不通（网盘没开 CORS）就退一步直接挂 track，同时也把原因告诉妈妈。
+  function svLoadSub(v, url) {
+    if (!v || !url) return;
+    const row = document.getElementById('sv-subrow');
+    if (row) row.style.display = 'block';
+    svSubInfo('字幕加载中…');
+    fetch(url).then(r => { if (!r.ok) throw new Error('http ' + r.status); return r.text(); })
+      .then(txt => {
+        const vtt = srtToVtt(txt);
+        if (!vtt) throw new Error('empty');
+        let bu = '';
+        try { bu = URL.createObjectURL(new Blob([vtt], { type: 'text/vtt' })); } catch (e) { throw e; }
+        if (!SV) return;
+        SV.subBlob = bu; SV.subUrl = url;
+        svAddTrack(v, bu, true);
+        svSubInfo('字幕已就绪，点上面的按钮可以开关');
+      })
+      .catch(() => {
+        // 退一步：直接挂 track（同源或已开 CORS 时能用）
+        const tr = svAddTrack(v, url, true);
+        if (tr) tr.addEventListener('error', () => svSubCorsHint());
+        svSubInfo('字幕加载中…');
+      });
+  }
+  function svAddTrack(v, src, show) {
+    if (!v || !src || !SV) return null;
+    try {
+      const tr = document.createElement('track');
+      tr.kind = 'subtitles'; tr.label = '字幕'; tr.srclang = 'zh'; tr.src = src;
+      tr.default = !!show;
+      v.appendChild(tr);
+      if (v.textTracks && v.textTracks.length) {
+        try { v.textTracks[v.textTracks.length - 1].mode = show ? 'showing' : 'hidden'; } catch (e) {}
+      }
+      SV.subOn = !!show;
+      svSubBtn();
+      return tr;
+    } catch (e) { return null; }
+  }
+  function svSubCorsHint() {
+    if (!SV) return;
+    svSubInfo('<span style="color:var(--orange-600)">字幕没读出来 —— 存字幕的网盘/OSS 需要开一次「跨域 CORS」，' +
+      '允许来源填 <b>https://lantu5558.github.io</b>。开完一次就一直有效，视频本身不受影响。</span>');
+  }
+  function svToggleSub() {
+    const v = SV && SV.video;
+    if (!v) return;
+    if (!v.textTracks || !v.textTracks.length) { toast('这个视频还没挂字幕'); return; }
+    SV.subOn = !SV.subOn;
+    for (let i = 0; i < v.textTracks.length; i++) {
+      try { v.textTracks[i].mode = SV.subOn ? 'showing' : 'hidden'; } catch (e) {}
+    }
+    svSubBtn();
+    toast(SV.subOn ? '字幕已开' : '字幕已关');
+  }
   function fmtDur(sec) {
     if (!isFinite(sec) || sec < 0) sec = 0;
     const m = Math.floor(sec / 60), ss = Math.floor(sec % 60);
@@ -3750,6 +3842,7 @@
         toast('没看完不算打卡哦，下次接着看（已记到 ' + Math.round(pct) + '%）');
       }
     }
+    if (SV && SV.subBlob) { try { URL.revokeObjectURL(SV.subBlob); } catch (e) {} }
     SV = null;
     const m = document.getElementById('sv-mask');
     if (m) m.remove();
@@ -3757,7 +3850,7 @@
   }
 
   // ---- 宽松模式（B站等外站，管不了播放器，孩子自己确认）----
-  function openLooseVideo(task, title, bili, rawUrl) {
+  function openLooseVideo(task, title, bili, rawUrl, subUrl) {
     let iframe = '';
     if (bili) {
       const u = biliUrls(bili);
@@ -3773,7 +3866,7 @@
         <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
         <h3 style="padding-right:34px">${esc(title)}</h3>
         ${iframe}
-        <p class="wq-hint" style="margin-top:10px">这个视频在别的网站上，我们管不了它的播放器，所以没法自动判断有没有看完</p>
+        <p class="wq-hint" style="margin-top:10px">这个视频在别的网站上，我们管不了它的播放器，所以没法自动判断有没有看完${subUrl ? '，也没法把字幕挂上去（视频存到自己的空间才能带字幕）' : ''}</p>
         <button class="btn-primary" style="width:100%;margin-top:10px" onclick="lvDone('${task.id}')">✅ 我看完了，打卡 +${task.points} 分</button>
       </div>`;
     document.getElementById('modal-root').appendChild(mask);
@@ -3856,6 +3949,11 @@
           <div id="bili-eps-status" style="margin-top:8px;font-size:13px;line-height:1.5"></div>
         </div>
         <div class="field">
+          <label>字幕链接（可选，.vtt 或 .srt）</label>
+          <textarea id="r-sub" rows="3" placeholder="每行一个字幕链接，单集视频填 1 行&#10;合集按顺序每行对应一集，可留空跳过某一集"></textarea>
+          <p class="text-mute" style="margin-top:6px">视频本身不用动，字幕单独挂在旁边。孩子看的时候可以自己开关。</p>
+        </div>
+        <div class="field">
           <button type="button" class="btn-secondary" onclick="toggleEpisodes()" style="border:1px dashed var(--pink-300);background:var(--pink-50);color:var(--pink-600)">＋ 这是合集/连续剧，有多集（分集）</button>
         </div>
         <div id="ep-area" style="display:none">
@@ -3873,6 +3971,66 @@
     `;
     document.getElementById('modal-root').appendChild(modal);
   }
+  // ========== 挂字幕 ==========
+  // 视频本身一个字节都不用动，字幕单独挂链接，播放器里可以开关。
+  function resSubCount(r) {
+    if (!r) return 0;
+    let n = r.sub ? 1 : 0;
+    if (r.episodes) for (let i = 0; i < r.episodes.length; i++) if (r.episodes[i] && r.episodes[i].sub) n++;
+    return n;
+  }
+  // 取某一集（或单集资源）的字幕地址
+  function resSubUrl(res, epIndex) {
+    if (!res) return '';
+    if (res.episodes && res.episodes.length >= 2 && typeof epIndex === 'number' && epIndex >= 0) {
+      const ep = res.episodes[epIndex];
+      if (ep && ep.sub) return ep.sub;
+    }
+    return res.sub || '';
+  }
+  function openResSubModal(id) {
+    const r = DATA.resources.find(x => x.id === id);
+    if (!r) return;
+    const eps = r.episodes || [];
+    const multi = eps.length >= 2;
+    const cur = multi ? eps.map(e => (e && e.sub) || '').join('\n') : (r.sub || '');
+    const modal = document.createElement('div');
+    modal.className = 'modal-mask';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+      <div class="modal">
+        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+        <h3>挂字幕</h3>
+        <p class="text-mute" style="margin-top:-8px;margin-bottom:12px">${esc(r.title)}${multi ? '（共 ' + eps.length + ' 集）' : ''}</p>
+        <div class="field">
+          <label>${multi ? '字幕链接，每行一个，按顺序对应第1集、第2集…' : '字幕链接'}</label>
+          <textarea id="rs-sub" rows="${multi ? 8 : 3}" placeholder="https://你的空间/peppa01.vtt&#10;https://你的空间/peppa02.vtt">${esc(cur)}</textarea>
+          <p class="text-mute" style="margin-top:6px">支持 .vtt 和 .srt（srt 会自动转成 vtt）。某一集不想挂就把那行留空。全部删掉再保存 = 取消字幕。</p>
+        </div>
+        <div class="sv-subinfo" style="text-align:left">💡 字幕文件要和视频放在<b>同一个网盘/存储</b>里，并且要在那个存储的后台开一次「跨域 CORS」，来源填 <b>https://lantu5558.github.io</b>，否则浏览器拿不到字幕。开一次就一直有效。</div>
+        <div class="btn-row">
+          <button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">取消</button>
+          <button class="btn-primary" onclick="saveResSub('${id}')">保存</button>
+        </div>
+      </div>`;
+    document.getElementById('modal-root').appendChild(modal);
+  }
+  function saveResSub(id) {
+    const r = DATA.resources.find(x => x.id === id);
+    if (!r) return;
+    const el = document.getElementById('rs-sub');
+    const lines = String((el && el.value) || '').split('\n').map(x => x.trim());
+    if (r.episodes && r.episodes.length >= 2) {
+      r.episodes.forEach((ep, i) => { if (lines[i]) ep.sub = lines[i]; else delete ep.sub; });
+      delete r.sub;
+    } else {
+      if (lines[0]) r.sub = lines[0]; else delete r.sub;
+    }
+    saveData(DATA);
+    document.querySelector('.modal-mask').remove();
+    render();
+    toast(resSubCount(r) ? '字幕已挂上' : '已取消字幕');
+  }
   function addResource() {
     let type = document.getElementById('r-type').value;
     const cat = document.getElementById('r-cat') ? document.getElementById('r-cat').value : 'learn';
@@ -3880,6 +4038,8 @@
     let title = document.getElementById('r-title').value.trim();
     let url = document.getElementById('r-url').value.trim();
     const epsText = document.getElementById('r-eps') ? document.getElementById('r-eps').value.trim() : '';
+    const subText = document.getElementById('r-sub') ? document.getElementById('r-sub').value.trim() : '';
+    const subs = subText ? subText.split('\n').map(x => x.trim()) : [];
 
     // 解析分集：每行「标题 | 链接」或纯链接
     let eps = [];
@@ -3911,12 +4071,19 @@
       res.url = res.episodes[0].url;
     }
     if (eps.length >= 2) {
-      // 合集：存分集列表
-      res.episodes = eps.map((ep, i) => ({ title: ep.title || ('第' + (i + 1) + '集'), url: ep.url }));
+      // 合集：存分集列表（字幕按行对应，某一行留空就跳过那一集）
+      res.episodes = eps.map((ep, i) => {
+        const o = { title: ep.title || ('第' + (i + 1) + '集'), url: ep.url };
+        if (subs[i]) o.sub = subs[i];
+        return o;
+      });
       res.url = eps[0].url;
     } else if (eps.length === 1) {
       // 只填了一集：当单集处理
       res.url = eps[0].url;
+      if (subs[0]) res.sub = subs[0];
+    } else if (subs[0]) {
+      res.sub = subs[0];
     }
     DATA.resources.push(res);
     saveData(DATA); document.querySelector('.modal-mask').remove(); render();
