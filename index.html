@@ -4923,11 +4923,29 @@
    *  提前判出来，就能给出「去 OSS 控制台点哪里」这种能照着做的指引。 */
   function pdfPreflight(url) {
     if (typeof fetch !== 'function') return Promise.resolve({ ok: true, attachment: false });
+    var out = { ok: true, attachment: false, status: 0, range: 'unknown', exposed: false };
     return fetch(url, { method: 'HEAD' }).then(function (r) {
-      var cd = (r.headers && r.headers.get ? r.headers.get('content-disposition') : '') || '';
-      return { ok: true, status: r.status, attachment: /attachment/i.test(cd) };
+      var h = r.headers || {};
+      var cd = (h.get ? h.get('content-disposition') : '') || '';
+      out.status = r.status;
+      out.attachment = /attachment/i.test(cd);
+      // Accept-Ranges 不在浏览器默认可读的那几个响应头里。读不到它，
+      // pdf.js 就不知道服务器支持分段，只能老老实实整本下完 —— 所以这一项必须暴露。
+      out.exposed = !!(h.get && h.get('accept-ranges'));
+      // 关键一探：带 Range 的跨域 GET 会触发预检（OPTIONS）。
+      // 阿里云 OSS 的 CORS 规则里没勾 OPTIONS 的话，预检直接 403，这个请求就废了。
+      return fetch(url, { headers: { Range: 'bytes=0-0' } });
+    }).then(function (r) {
+      out.range = (r.status === 206) ? 'ok' : 'full';
+      if (r && r.body && r.body.cancel) { try { r.body.cancel(); } catch (e) {} }
+      return out;
     }).catch(function (e) {
-      return { ok: false, detail: String((e && e.message) || e) };
+      if (!out.status) { // HEAD 就没过去 —— 跨域压根没开
+        out.ok = false; out.detail = String((e && e.message) || e); return out;
+      }
+      // HEAD 过得去、带 Range 的过不去 —— 十有八九是预检被拦
+      out.range = 'blocked';
+      return out;
     });
   }
 
@@ -4983,6 +5001,10 @@
       if (!stage2) return; // 已经关掉了
       if (!pf.ok) { pdfFail('cors', url, pf.detail || '', !!pf.attachment); return; }
       if (pf.status && pf.status >= 400) { pdfFail('http', url, 'HTTP ' + pf.status, !!pf.attachment); return; }
+      // 分段取不到，几十兆的课本就得整本下完才出第一页 —— 这体验等于不可用，
+      // 所以这里直接拦下来给修复指引，而不是让人干等一分钟。
+      if (pf.range === 'blocked') { pdfFail('preflight', url, '', !!pf.attachment); return; }
+      if (pf.range === 'ok' && !pf.exposed) { pdfFail('expose', url, '', !!pf.attachment); return; }
       pdfLoadText('正在加载阅读器…');
       return loadPdfjs().then(function (lib) {
         pdfLoadText('正在打开文档…');
@@ -5036,8 +5058,37 @@
           <li>打开 <b>阿里云 OSS 控制台</b>，进 Bucket <code>${esc(host.split('.')[0] || host)}</code></li>
           <li>左侧 <b>数据安全 → 跨域设置</b> → 创建规则</li>
           <li>来源填 <code>https://lantu5558.github.io</code></li>
-          <li>允许 Methods 勾 <b>GET、HEAD</b>；允许 Headers 填 <code>*</code></li>
+          <li>允许 Methods 勾 <b>GET、HEAD、OPTIONS</b>；允许 Headers 填 <code>*</code></li>
           <li>暴露 Headers 填 <code>*</code>；缓存时间 <code>3600</code></li>
+        </ol>
+        保存后等 1 分钟，把 APP 完全关掉重开再试。
+      </div>`;
+    } else if (kind === 'preflight') {
+      html = `<div class="pdf-err">
+        <b>跨域开了，但缺少 <code>OPTIONS</code>，文件没法分段读取。</b><br>
+        课本有几十兆，本来可以「翻到哪页下载哪页」，几秒就出第一页。
+        现在只能等整本 70MB 全部下完，慢很多，中途断一下还得重来。
+        <div style="margin:8px 0 4px"><b>改一下就好：</b></div>
+        <ol>
+          <li><b>阿里云 OSS 控制台</b> → Bucket <code>${esc(host.split('.')[0] || host)}</code></li>
+          <li><b>数据安全 → 跨域设置</b> → 点开已有那条规则（不是新建）</li>
+          <li>允许 Methods <b>再勾上 OPTIONS</b>（GET、HEAD 已有，别取消）</li>
+          <li>允许 Headers 填 <code>*</code>，<b>暴露 Headers 也填 <code>*</code></b></li>
+        </ol>
+        <b>为什么：</b>浏览器在发带 Range 头的请求之前，会先发一个 OPTIONS 探路；
+        OSS 规则里没允许 OPTIONS 就会直接回绝，分段读取整个失效。
+      </div>`;
+    } else if (kind === 'expose') {
+      html = `<div class="pdf-err">
+        <b>还差一步：没填「暴露 Headers」。</b><br>
+        服务器虽然支持分段，但没把 <code>Accept-Ranges</code> 这个响应头列进白名单，
+        浏览器就不许网页读它 —— 阅读器不知道能分段，还是会整本下完。
+        <div style="margin:8px 0 4px"><b>改一下就好：</b></div>
+        <ol>
+          <li><b>阿里云 OSS 控制台</b> → Bucket <code>${esc(host.split('.')[0] || host)}</code></li>
+          <li><b>数据安全 → 跨域设置</b> → 点开已有规则</li>
+          <li>找到 <b>暴露 Headers</b>，填 <code>*</code></li>
+          <li>顺便确认允许 Methods 里 <b>OPTIONS 是勾上的</b></li>
         </ol>
         保存后等 1 分钟，把 APP 完全关掉重开再试。
       </div>`;
