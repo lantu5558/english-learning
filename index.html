@@ -429,6 +429,8 @@
     .pdf-page { font-size: 13px; color: var(--gray-600); font-variant-numeric: tabular-nums; white-space: nowrap; }
     .pdf-page input { width: 56px; text-align: center; padding: 6px 4px; border: 1px solid var(--border-soft); border-radius: 8px; font-size: 13px; }
     .pdf-tip { font-size: 12px; color: var(--gray-600); margin-top: 8px; text-align: center; line-height: 1.7; }
+    .pdf-warnlink { color: #b45309; cursor: pointer; text-decoration: underline; }
+    .pdf-fixbox-scroll { max-height: 42vh; overflow: auto; }
     .pdf-err { margin: 10px 0 0; padding: 12px 14px; background: #fff4e6; border: 1px solid #ffd9a8; border-radius: 10px; font-size: 12.5px; color: #8a5a00; line-height: 1.9; text-align: left; }
     .pdf-err b { color: #7a4a00; }
     .pdf-err code { background: #fff; padding: 1px 5px; border-radius: 4px; font-size: 12px; word-break: break-all; }
@@ -603,10 +605,18 @@
       const raw = localStorage.getItem(LS_KEY);
       if (raw) return migrateOld(JSON.parse(raw));
     } catch (e) {}
-    saveData(DEFAULT_DATA);
-    return JSON.parse(JSON.stringify(DEFAULT_DATA));
+    // 第一次打开（新装的设备 / 数据被清过 / 点了重置）：塞一份出厂示例。
+    // 打 __seed 标记 = 「这里头一条真数据都没有」，同步时一律以云端为准（见 mergeData）。
+    // 不然这份示例会被当成「用户的新增」推上去，把全家刚删掉的示例集体救回来。
+    const seed = JSON.parse(JSON.stringify(DEFAULT_DATA));
+    seed.__seed = true;
+    try { localStorage.setItem(LS_KEY, JSON.stringify(seed)); } catch (e) {}
+    return seed;
   }
   function saveData(d) {
+    // 用户一动手，这份数据就不再是出厂示例了 —— 之后的同步要保住本地的新增。
+    // （初始化那条路径不走这里，见 loadData）
+    if (d && d.__seed) delete d.__seed;
     localStorage.setItem(LS_KEY, JSON.stringify(d));
     try {
       SYNC.dirty = true; // 有改动待推送；推送成功前拉取时本地优先，防止被别的设备冲掉
@@ -637,6 +647,7 @@
   function packForSync(d) {
     let o;
     try { o = JSON.parse(JSON.stringify(d || {})); } catch (e) { return d; }
+    delete o.__seed; // 纯本机标记，没必要占用云端的空间
     const rs = o.resources || [];
     for (let n = 0; n < rs.length; n++) {
       const r = rs[n], eps = r.episodes;
@@ -681,7 +692,10 @@
   const MERGE_KEYS = ['resources', 'wordSets', 'wordTasks', 'dictations', 'homeworks', 'tasks', 'rewards', 'pointsHistory', 'children'];
   // 墓碑：删掉的东西记一笔，别的设备推回来时不许复活
   // （合并规则是「本地新增一律保留」，只删数组会被另一台设备的旧缓存救回来）
-  const TOMB_KEYS = ['tasks', 'homeworks'];
+  // 坑（2026-08-30）：原来这里只写了 tasks/homeworks，于是资源、奖励、词库这些
+  // 删完又活 —— 尤其出厂那 10 条示例资源，任何一台新设备首次打开都自带一份，
+  // 一推送就把全家删掉的东西全带回来。凡是用户能删的实体，一律进墓碑。
+  const TOMB_KEYS = ['tasks', 'homeworks', 'resources', 'rewards', 'wordSets', 'wordTasks', 'dictations', 'children'];
   const TOMB_TTL = 14 * 86400000;
   function tombAdd(kind, id) {
     if (!id) return;
@@ -713,6 +727,13 @@
       if (m.length) tomb[k] = m;
     }
     out.tomb = tomb;
+    // __seed 是纯本机标记（这份数据还是出厂示例、用户还没动过），绝不能跨设备传播：
+    // 否则一台新装设备的「出厂」状态会顺着云端标到妈妈手机上，把真数据当成示例覆盖掉。
+    if (base && base.__seed) out.__seed = true; else delete out.__seed;
+    // 出厂示例状态下，「本地新增一律保留」是在帮倒忙：那 10 条示例会被当成用户的新增
+    // 塞回云端，全家人删掉的东西集体复活。所以 seed 状态一律以远端为准。
+    const seed = !!(base && base.__seed);
+    if (seed) localWins = false;
     // ---- 妈妈密码：单点标量，用「最后修改时间」判定谁新（last-write-wins）----
     // 坑（重要）：以前所有标量一律以远端为准。而推送流程的第一步就是先合并一次远端，
     // 于是妈妈刚改完的密码，在推送前的合并阶段就被远端旧值冲掉，推出去的还是旧值 ——
@@ -736,6 +757,7 @@
       if (MERGE_KEYS.indexOf(k) >= 0) continue;
       if (typeof incoming[k] === 'object') continue;
       if (k === 'momPassword' || k === 'momPwdTs') continue; // 上面已单独处理
+      if (k === '__seed') continue;                          // 本机标记，不跟着远端跑
       out[k] = incoming[k];
     }
     if (Array.isArray(incoming.safeDomains) && incoming.safeDomains.length) {
@@ -746,6 +768,8 @@
       const a = (base && Array.isArray(base[key])) ? base[key] : [];
       const b = Array.isArray(incoming[key]) ? incoming[key] : [];
       if (!a.length && !b.length) continue;
+      // 出厂示例 + 云端这一项也是空的 = 这个家还没开始配数据，那就先把示例留着给家长看
+      if (seed && !b.length) { out[key] = a.slice(); continue; }
       const merged = [];
       // 远端为准（孩子的打卡、妈妈在别的设备上的改动能同步过来）
       for (let x = 0; x < b.length; x++) {
@@ -754,12 +778,13 @@
         merged.push((localWins && local) ? local : b[x]);
       }
       // 本地新增（还没推上去的词库、资源等）一律保留
+      // 例外：本机还是出厂示例时，那点「新增」就是 r1~r10 那几条占位示例，留不得
       for (let x = 0; x < a.length; x++) {
         const cur = a[x];
-        if (!cur || !cur.id) { merged.push(cur); continue; }
+        if (!cur || !cur.id) { if (!seed) merged.push(cur); continue; }
         let has = false;
         for (let y = 0; y < b.length; y++) { if (b[y] && b[y].id === cur.id) { has = true; break; } }
-        if (!has) merged.push(cur);
+        if (!has && !seed) merged.push(cur);
       }
       out[key] = merged;
     }
@@ -2690,6 +2715,7 @@
   }
   function delDictation(id) {
     if (!confirm('删除这个听写任务？')) return;
+    tombAdd('dictations', id);
     DATA.dictations = (DATA.dictations || []).filter(t => t.id !== id);
     saveData(DATA); render();
   }
@@ -2815,6 +2841,7 @@
   }
   function delWordSet(id) {
     if (!confirm('删除词库？已布置的任务会显示"词库已删除"')) return;
+    tombAdd('wordSets', id);
     DATA.wordSets = DATA.wordSets.filter(s => s.id !== id);
     saveData(DATA); render();
   }
@@ -2830,6 +2857,7 @@
   }
   function delWordTask(id) {
     if (!confirm('删除这个单词任务？')) return;
+    tombAdd('wordTasks', id);
     DATA.wordTasks = DATA.wordTasks.filter(t => t.id !== id);
     saveData(DATA); render();
   }
@@ -4482,6 +4510,7 @@
   }
   function delResource(id) {
     if (!confirm('确认删除？')) return;
+    tombAdd('resources', id);   // 先记墓碑：别的设备（尤其是刚装的新设备）不许再把它推回来
     DATA.resources = DATA.resources.filter(r => r.id !== id);
     saveData(DATA); render();
   }
@@ -5094,7 +5123,70 @@
   }
 
   var PDF = null; // { doc, num, total, scale, rendering, pending }
+  var PDF_DIAG = null;        // 最近一次的探测结果，用来在打开后提示「还能更快」
+  var PDF_ATTACHMENT = false; // 服务器是不是设了强制下载
+  var PDF_WARN = '';         // 底部那行非阻断提示（不挡着阅读）
+  var PDF_URL = '';          // 当前这份文档的链接，指引里要用
+  var PDF_FIX_OPEN = false;  // 「怎么修」那段指引是不是正展开着
 
+  /** 打不开 / 想优化时，给一段能照着做的指引，而不是一句「加载失败」。 */
+  function pdfGuideHtml(kind, url, detail) {
+    var host = '';
+    try { host = new URL(url).hostname; } catch (e) { host = ''; }
+    var html = '';
+    if (kind === 'cors') {
+      html = `<div class="pdf-err">
+        <b>读不到这份 PDF —— 服务器没开跨域（CORS）。</b><br>
+        浏览器不许网页去别的域名取数据，除非对方明确同意。阿里云 OSS 默认是关的，
+        需要你手动开一次（开完所有资料就都能看了，一劳永逸）：
+        <ol>
+          <li>打开 <b>阿里云 OSS 控制台</b>，进 Bucket <code>${esc(host.split('.')[0] || host)}</code></li>
+          <li>左侧 <b>数据安全 → 跨域设置</b> → 创建规则</li>
+          <li>来源填 <code>https://lantu5558.github.io</code></li>
+          <li>允许 Methods 勾 <b>GET、HEAD、OPTIONS</b>；允许 Headers 填 <code>*</code></li>
+          <li>暴露 Headers 填 <code>*</code>；缓存时间 <code>3600</code></li>
+        </ol>
+        保存后等 1 分钟，把 APP 完全关掉重开再试。
+      </div>`;
+    } else if (kind === 'preflight') {
+      html = `<div class="pdf-err">
+        <b>能看，但是慢 —— 跨域规则里少了 <code>OPTIONS</code>。</b><br>
+        课本有几十兆，本来可以「翻到哪页下载哪页」，几秒钟出第一页。
+        少了 OPTIONS，浏览器分段读取的那一步被回绝，只能整本下完才出第一页。
+        <div style="margin:8px 0 4px"><b>改一下就快了：</b></div>
+        <ol>
+          <li><b>阿里云 OSS 控制台</b> → Bucket <code>${esc(host.split('.')[0] || host)}</code></li>
+          <li><b>数据安全 → 跨域设置</b> → 点开已有那条规则（不是新建）</li>
+          <li>允许 Methods <b>再勾上 OPTIONS</b>（GET、HEAD 已有，别取消）</li>
+          <li>允许 Headers 填 <code>*</code>，<b>暴露 Headers 也填 <code>*</code></b></li>
+        </ol>
+        <b>为什么：</b>浏览器在发带 Range 头的请求之前会先发一个 OPTIONS 探路，
+        OSS 规则里没允许 OPTIONS 就直接回绝。
+      </div>`;
+    } else if (kind === 'expose') {
+      html = `<div class="pdf-err">
+        <b>能看，但是慢 —— 没填「暴露 Headers」。</b><br>
+        服务器其实支持分段，但没把 <code>Accept-Ranges</code> 这个响应头列进白名单，
+        浏览器就不许网页读它 —— 阅读器以为不支持分段，只好整本下完。
+        <div style="margin:8px 0 4px"><b>改一下就快了：</b></div>
+        <ol>
+          <li><b>阿里云 OSS 控制台</b> → Bucket <code>${esc(host.split('.')[0] || host)}</code></li>
+          <li><b>数据安全 → 跨域设置</b> → 点开已有规则</li>
+          <li>找到 <b>暴露 Headers</b>，填 <code>*</code></li>
+          <li>顺便确认允许 Methods 里 <b>OPTIONS 是勾上的</b></li>
+        </ol>
+        保存后等 1 分钟，把 APP 完全关掉重开再试。
+      </div>`;
+    } else if (kind === 'http') {
+      html = `<div class="pdf-err"><b>文件取不回来（${esc(detail)}）。</b><br>链接可能过期、被删了，或者权限不是公开读。</div>`;
+    } else {
+      html = `<div class="pdf-err"><b>文档打开失败。</b><br>
+        ${esc(detail || '')}<br>
+        常见原因：文件太大（几十兆的课本第一次打开要等一会儿）、文件本身损坏，
+        或者上面那个跨域没配好。</div>`;
+    }
+    return html;
+  }
   function openPdfViewer(title, url) {
     var modal = document.createElement('div');
     modal.className = 'modal-mask video-mask pdf-mask';
@@ -5136,114 +5228,126 @@
     var el = document.getElementById('pdf-loadtext');
     if (el) el.textContent = t;
   }
-  function pdfStart(url) {
-    PDF = null;
-    var stage = document.getElementById('pdf-stage');
-    if (!stage) return;
-    pdfPreflight(url).then(function (pf) {
-      var stage2 = document.getElementById('pdf-stage');
-      if (!stage2) return; // 已经关掉了
-      if (!pf.ok) { pdfFail('cors', url, pf.detail || '', !!pf.attachment); return; }
-      if (pf.status && pf.status >= 400) { pdfFail('http', url, 'HTTP ' + pf.status, !!pf.attachment); return; }
-      // 分段取不到，几十兆的课本就得整本下完才出第一页 —— 这体验等于不可用，
-      // 所以这里直接拦下来给修复指引，而不是让人干等一分钟。
-      if (pf.range === 'blocked') { pdfFail('preflight', url, '', !!pf.attachment); return; }
-      if (pf.range === 'ok' && !pf.exposed) { pdfFail('expose', url, '', !!pf.attachment); return; }
-      pdfLoadText('正在加载阅读器…');
-      return loadPdfjs().then(function (lib) {
-        pdfLoadText('正在打开文档…');
-        // cMap 跟着当前真正用上的那个源走。写死 CDN 的话，国内网络一卡就把首屏拖住。
-        // 注：只有用到旧式 CJK 预定义编码的 PDF 才会去取 cmap，取不到也只是一句警告。
-        var cmapBase = (PDFJS_ACTIVE_BASE || PDFJS_BASES[0]).replace(/build\/\s*$/, 'cmaps/');
-        var task = lib.getDocument({
-          url: url,
-          cMapUrl: cmapBase,
-          cMapPacked: true,
-          // 大文件（几十兆的课本）必须开按需加载：只取当前要看的那一页附近的数据。
-          // 设成 false 的话 pdf.js 会在后台把整个文件默默拖完，流量和等待都翻倍。
-          disableAutoFetch: true,
-          // 默认 64KB 一段，对大文件太碎；放大到 256KB 少跑几趟。
-          rangeChunkSize: 262144
-        });
-        task.onProgress = function (d) {
-          if (d && d.total) {
-            pdfSetProgress(d.loaded / d.total * 100);
-            var mb = function (n) { return (n / 1048576).toFixed(1) + 'MB'; };
-            pdfLoadText('边看边加载… ' + mb(d.loaded) + ' / ' + mb(d.total) + '（不用等全部下完）');
-          }
-        };
-        return task.promise;
-      }).then(function (doc) {
-        var s = document.getElementById('pdf-stage');
-        if (!s) return;
-        PDF = { doc: doc, num: 1, total: doc.numPages, scale: 1, rendering: false, pending: null };
-        var t = document.getElementById('pdf-total');
-        if (t) t.textContent = doc.numPages;
-        s.innerHTML = '<div class="pdf-stage-inner"><canvas id="pdf-canvas" class="pdf-canvas"></canvas></div>';
-        pdfRender();
-      }).catch(function (e) {
-        pdfFail('load', url, (e && e.message) || String(e), !!pf.attachment);
-      });
+  /**
+   * 真正去打开文档。useRange=false 走「整本下载」：不发 Range 头就不会触发 OPTIONS 预检，
+   * 只要对方允许跨域就一定拿得到数据 —— 代价是几十兆的课本要整本下完，慢，但至少能看。
+   */
+  function pdfLoadDoc(url, useRange) {
+    pdfLoadText(useRange ? '正在加载阅读器…' : '正在整本下载…（大文件会慢一点）');
+    return loadPdfjs().then(function (lib) {
+      pdfLoadText(useRange ? '正在打开文档…' : '正在整本下载…（大文件会慢一点）');
+      // cMap 跟着当前真正用上的那个源走。写死 CDN 的话，国内网络一卡就把首屏拖住。
+      // 注：只有用到旧式 CJK 预定义编码的 PDF 才会去取 cmap，取不到也只是一句警告。
+      var cmapBase = (PDFJS_ACTIVE_BASE || PDFJS_BASES[0]).replace(/build\/\s*$/, 'cmaps/');
+      var cfg = {
+        url: url,
+        cMapUrl: cmapBase,
+        cMapPacked: true,
+        // 分段模式下必须开按需加载：只取当前要看的那一页附近的数据。
+        // 设成 false 的话 pdf.js 会在后台把整个文件默默拖完，流量和等待都翻倍。
+        // 整本模式反过来 —— 本来就是要把整本取回来。
+        disableAutoFetch: !!useRange,
+        // 默认 64KB 一段，对大文件太碎；放大到 256KB 少跑几趟。
+        rangeChunkSize: 262144
+      };
+      if (!useRange) cfg.disableRange = true;
+      var task = lib.getDocument(cfg);
+      task.onProgress = function (d) {
+        if (!d) return;
+        var mb = function (n) { return (n / 1048576).toFixed(1) + 'MB'; };
+        if (d.total) {
+          pdfSetProgress(d.loaded / d.total * 100);
+          pdfLoadText(useRange
+            ? '边看边加载… ' + mb(d.loaded) + ' / ' + mb(d.total) + '（不用等全部下完）'
+            : '正在整本下载… ' + mb(d.loaded) + ' / ' + mb(d.total));
+        } else if (d.loaded) {
+          pdfLoadText('正在整本下载… 已取 ' + mb(d.loaded));
+        }
+      };
+      return task.promise;
     });
   }
-  /** 打不开时给一段能照着做的指引，而不是一句「加载失败」。 */
+  function pdfStart(url) {
+    PDF = null; PDF_URL = url;
+    PDF_DIAG = null; PDF_ATTACHMENT = false; PDF_WARN = ''; PDF_FIX_OPEN = false;
+    var stage = document.getElementById('pdf-stage');
+    if (!stage) return;
+    // 探测结果只用来「解释」，不再用来「放行」。
+    // 坑（2026-08-30 实测）：以前一探测到 OPTIONS 预检失败就直接弹指引把人挡在外面，
+    // 于是明明能读的课本也打不开 —— Range 在多数浏览器内核里属于安全头、根本不发预检，
+    // 而「暴露 Headers 没填」只是让阅读器不知道能分段、退化成整本下载，并不影响能不能读。
+    // 现在一律先真的去读，读不通再解释。
+    pdfPreflight(url).then(function (pf) {
+      var s2 = document.getElementById('pdf-stage');
+      if (!s2) return null; // 已经关掉了
+      PDF_DIAG = pf;
+      PDF_ATTACHMENT = !!pf.attachment;
+      if (!pf.ok) { pdfFail('cors', url, pf.detail || '', !!pf.attachment); return null; }
+      if (pf.status && pf.status >= 400) { pdfFail('http', url, 'HTTP ' + pf.status, !!pf.attachment); return null; }
+      // 探测说分段这条路走不通，就别去闯预检了，直接整本下
+      var useRange = (pf.range === 'ok' && pf.exposed);
+      return pdfLoadDoc(url, useRange).catch(function (e) {
+        if (!useRange) throw e;
+        if (!document.getElementById('pdf-stage')) return null;
+        // 分段被拦（多半是预检 403）→ 退回整本，至少能把课本打开
+        pdfSetProgress(0);
+        return pdfLoadDoc(url, false);
+      });
+    }).then(function (doc) {
+      if (!doc) return;
+      var s = document.getElementById('pdf-stage');
+      if (!s) return;
+      PDF = { doc: doc, num: 1, total: doc.numPages, scale: 1, rendering: false, pending: null };
+      var t = document.getElementById('pdf-total');
+      if (t) t.textContent = doc.numPages;
+      s.innerHTML = '<div class="pdf-stage-inner"><canvas id="pdf-canvas" class="pdf-canvas"></canvas></div>';
+      pdfRender();
+      pdfSetWarn(PDF_DIAG);
+    }).catch(function (e) {
+      pdfFail('load', url, (e && e.message) || String(e), PDF_ATTACHMENT);
+    });
+  }
+  /** 能读但读得慢的时候，在底部挂一行提示 —— 不弹框、不挡着看。 */
+  function pdfSetWarn(pf) {
+    PDF_WARN = '';
+    if (pf && (pf.range === 'blocked' || pf.range === 'full' || !pf.exposed)) {
+      PDF_WARN = ' · <span class="pdf-warnlink" onclick="pdfFixToggle()">⚠️ 打开偏慢？点这里</span>';
+    }
+    pdfRenderTip();
+  }
+  function pdfFixToggle() {
+    var m = document.querySelector('.pdf-mask');
+    if (!m) return;
+    // 用状态位判断，别去查 DOM：弹窗里本来就有各种同 id 的元素，查出来容易误判
+    if (PDF_FIX_OPEN) {
+      var box = document.getElementById('pdf-fixbox');
+      if (box && box.remove) box.remove();
+      PDF_FIX_OPEN = false;
+      return;
+    }
+    var kind = 'expose';
+    if (PDF_DIAG && PDF_DIAG.range === 'blocked') kind = 'preflight';
+    else if (PDF_DIAG && !PDF_DIAG.ok) kind = 'cors';
+    var d = document.createElement('div');
+    d.id = 'pdf-fixbox';
+    d.className = 'pdf-err';
+    d.innerHTML = pdfGuideHtml(kind, PDF_URL || '', '') +
+      '<div style="margin-top:8px"><button class="btn-secondary" onclick="pdfFixToggle()">收起</button></div>';
+    var bar = m.querySelector('.pdf-bar');
+    if (bar && bar.parentNode) bar.parentNode.insertBefore(d, bar.nextSibling);
+    else m.appendChild(d);
+    PDF_FIX_OPEN = true;
+  }
+  function pdfRenderTip() {
+    var tip = document.getElementById('pdf-tip');
+    if (!tip || !PDF) return;
+    tip.innerHTML = '第 ' + PDF.num + ' / ' + PDF.total + ' 页 · 缩放 ' +
+      Math.round(PDF.scale * 100) + '% · 在页面上双指可以放大' + (PDF_WARN || '');
+  }
   function pdfFail(kind, url, detail, attachment) {
     var stage = document.getElementById('pdf-stage');
     if (!stage) return;
-    var host = '';
-    try { host = new URL(url).hostname; } catch (e) { host = ''; }
-    var html = '';
-    if (kind === 'cors') {
-      html = `<div class="pdf-err">
-        <b>读不到这份 PDF —— 服务器没开跨域（CORS）。</b><br>
-        浏览器不许网页去别的域名取数据，除非对方明确同意。阿里云 OSS 默认是关的，
-        需要你手动开一次（开完所有资料就都能看了，一劳永逸）：
-        <ol>
-          <li>打开 <b>阿里云 OSS 控制台</b>，进 Bucket <code>${esc(host.split('.')[0] || host)}</code></li>
-          <li>左侧 <b>数据安全 → 跨域设置</b> → 创建规则</li>
-          <li>来源填 <code>https://lantu5558.github.io</code></li>
-          <li>允许 Methods 勾 <b>GET、HEAD、OPTIONS</b>；允许 Headers 填 <code>*</code></li>
-          <li>暴露 Headers 填 <code>*</code>；缓存时间 <code>3600</code></li>
-        </ol>
-        保存后等 1 分钟，把 APP 完全关掉重开再试。
-      </div>`;
-    } else if (kind === 'preflight') {
-      html = `<div class="pdf-err">
-        <b>跨域开了，但缺少 <code>OPTIONS</code>，文件没法分段读取。</b><br>
-        课本有几十兆，本来可以「翻到哪页下载哪页」，几秒就出第一页。
-        现在只能等整本 70MB 全部下完，慢很多，中途断一下还得重来。
-        <div style="margin:8px 0 4px"><b>改一下就好：</b></div>
-        <ol>
-          <li><b>阿里云 OSS 控制台</b> → Bucket <code>${esc(host.split('.')[0] || host)}</code></li>
-          <li><b>数据安全 → 跨域设置</b> → 点开已有那条规则（不是新建）</li>
-          <li>允许 Methods <b>再勾上 OPTIONS</b>（GET、HEAD 已有，别取消）</li>
-          <li>允许 Headers 填 <code>*</code>，<b>暴露 Headers 也填 <code>*</code></b></li>
-        </ol>
-        <b>为什么：</b>浏览器在发带 Range 头的请求之前，会先发一个 OPTIONS 探路；
-        OSS 规则里没允许 OPTIONS 就会直接回绝，分段读取整个失效。
-      </div>`;
-    } else if (kind === 'expose') {
-      html = `<div class="pdf-err">
-        <b>还差一步：没填「暴露 Headers」。</b><br>
-        服务器虽然支持分段，但没把 <code>Accept-Ranges</code> 这个响应头列进白名单，
-        浏览器就不许网页读它 —— 阅读器不知道能分段，还是会整本下完。
-        <div style="margin:8px 0 4px"><b>改一下就好：</b></div>
-        <ol>
-          <li><b>阿里云 OSS 控制台</b> → Bucket <code>${esc(host.split('.')[0] || host)}</code></li>
-          <li><b>数据安全 → 跨域设置</b> → 点开已有规则</li>
-          <li>找到 <b>暴露 Headers</b>，填 <code>*</code></li>
-          <li>顺便确认允许 Methods 里 <b>OPTIONS 是勾上的</b></li>
-        </ol>
-        保存后等 1 分钟，把 APP 完全关掉重开再试。
-      </div>`;
-    } else if (kind === 'http') {
-      html = `<div class="pdf-err"><b>文件取不回来（${esc(detail)}）。</b><br>链接可能过期、被删了，或者权限不是公开读。</div>`;
-    } else {
-      html = `<div class="pdf-err"><b>文档打开失败。</b><br>
-        ${esc(detail || '')}<br>
-        常见原因：文件太大（几十兆的课本第一次打开要等一会儿）、文件本身损坏，
-        或者上面那个跨域没配好。</div>`;
-    }
+    var html = pdfGuideHtml(kind, url, detail);
     if (attachment) {
       html += `<div class="pdf-err">另外：这个文件被设成了<b>强制下载</b>，
         所以点「下载 / 其他应用打开」会直接存成一个文件，不会在浏览器里显示 —— 这是正常的，不影响在平台里阅读。</div>`;
@@ -5282,8 +5386,7 @@
       PDF.rendering = false;
       var n = document.getElementById('pdf-num');
       if (n && document.activeElement !== n) n.value = PDF.num;
-      var tip = document.getElementById('pdf-tip');
-      if (tip) tip.textContent = '第 ' + PDF.num + ' / ' + PDF.total + ' 页 · 缩放 ' + Math.round(PDF.scale * 100) + '% · 在页面上双指可以放大';
+      pdfRenderTip();
       if (PDF.pending != null && PDF.pending !== PDF.num) { PDF.num = PDF.pending; PDF.pending = null; pdfRender(); }
       else PDF.pending = null;
     }).catch(function (e) {
@@ -5388,6 +5491,7 @@
   }
   function delReward(id) {
     if (!confirm('确认删除？')) return;
+    tombAdd('rewards', id);
     DATA.rewards = DATA.rewards.filter(r => r.id !== id);
     saveData(DATA); render();
   }
@@ -5458,6 +5562,9 @@
   }
   function delChild(id) {
     if (!confirm('确认删除这个孩子？')) return;
+    tombAdd('children', id);
+    // 顺带删掉这个孩子的任务 —— 不一起记墓碑的话，孩子的档案没了、任务还会飘回来
+    (DATA.tasks || []).forEach(t => { if (t.childId === id) tombAdd('tasks', t.id); });
     DATA.children = DATA.children.filter(c => c.id !== id);
     DATA.tasks = DATA.tasks.filter(t => t.childId !== id);
     saveData(DATA); document.querySelector('.modal-mask').remove(); render(); toast('已删除');
@@ -5493,7 +5600,13 @@
     if (!confirm('确认重置？所有数据会回到初始演示状态')) return;
     localStorage.removeItem(LS_KEY);
     DATA = loadData();
-    render(); toast('已重置');
+    render();
+    // 开着同步时，「重置」只是把本机清回出厂状态，下一秒云端的真实数据就会拉回来，
+    // 不会把示例推上去覆盖全家的数据（出厂数据带 __seed 标记，合并时一律以云端为准）
+    if (SYNC && SYNC.code) {
+      toast('已重置本机，正在从云端取回家里的数据…');
+      syncPull(true).catch(() => {});
+    } else toast('已重置');
   }
   function logout() {
     sessionStorage.removeItem('mom-auth');
