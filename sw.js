@@ -1,10 +1,10 @@
-const CACHE = 'lebao-v4';
+const CACHE = 'lebao-v5';
 // 动态计算基准路径，兼容根目录和子目录部署（如 /english-learning/）
 const BASE = self.location.pathname.replace(/sw\.js$/, '');
 const ASSETS = [BASE, BASE + 'index.html', BASE + 'manifest.json', BASE + 'icon.svg'];
 
-// 音视频后缀：这些一律不进 Cache Storage
-const MEDIA_RE = /\.(mp4|m3u8|ts|mp3|m4a|aac|wav|ogg|webm|flv|mov|mkv)(\?|$)/i;
+// 音视频 + 文档后缀：这些一律不进 Cache Storage
+const MEDIA_RE = /\.(mp4|m3u8|ts|mp3|m4a|aac|wav|ogg|webm|flv|mov|mkv|pdf)(\?|$)/i;
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).catch(() => {}));
@@ -35,13 +35,22 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // 视频/音频直接走网络，不缓存。
-  // 原因：整段 mp4 塞进 Cache Storage 会几十兆几十兆地涨，很快就触发配额上限，
-  // 连带把页面和图标的离线缓存也挤掉。视频本来就是在线看的，缓存下来没意义。
+  // 视频/音频/PDF 直接走网络，不缓存。
+  // 原因：整段 mp4 或一本几十兆的 PDF 塞进 Cache Storage，会几十兆几十兆地涨，
+  // 很快就触发配额上限，连带把页面和图标的离线缓存也挤掉。
+  // 这些本来就是在线看的，缓存下来没意义。
   // （destination 在老 WebView 里可能为空，所以再用后缀兜一层）
   const dest = e.request.destination || '';
   if (dest === 'video' || dest === 'audio' || MEDIA_RE.test(url.pathname)) {
     e.respondWith(fetch(e.request).catch(() => new Response('', { status: 504 })));
+    return;
+  }
+
+  // 跨域资源（阿里云 OSS 上的 PDF / 字幕 / pdf.js 库）只做「网络优先、失败不兜底」。
+  // 绝不能回退到 index.html —— pdf.js 拿到一份 HTML 会报出莫名其妙的解析错误，
+  // 一眼看上去像文件坏了，实际只是没配跨域。让它原样失败，页面才好给出准确的提示。
+  if (url.origin !== self.location.origin) {
+    e.respondWith(fetch(e.request));
     return;
   }
 
