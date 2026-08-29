@@ -187,6 +187,13 @@
     .sv-subinfo { display:block; font-size:12px; color:var(--gray-600); margin-top:6px; line-height:1.5; }
     .sv-stage video::cue { font-size:19px; color:#fff; background:rgba(0,0,0,.62); line-height:1.55; }
     .res-sub-tag { display:inline-block; margin-left:5px; padding:0 5px; border-radius:5px; background:var(--indigo-50); color:var(--indigo-600); font-size:11px; vertical-align:middle; }
+    /* 网盘链接标记：这类资源平台内打不开，只能跳出去看，得让妈妈一眼看出来 */
+    .res-nd-tag { display:inline-block; margin-left:5px; padding:0 5px; border-radius:5px; background:var(--orange-50); color:var(--orange-600); font-size:11px; vertical-align:middle; }
+    .nd-note { text-align:left; background:var(--gray-50); border-radius:12px; padding:12px 14px; font-size:12.5px; line-height:1.75; color:#555; margin-top:10px; }
+    .nd-note b { color:#333; }
+    /* 妈妈端汇总提示条：不点开就发现不了自己有多少资源其实是废的 */
+    .nd-bar { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:0 0 10px; padding:9px 12px; border-radius:10px; background:var(--orange-50); color:var(--orange-600); font-size:12.5px; line-height:1.45; cursor:pointer; }
+    .nd-bar span { flex:none; font-weight:600; white-space:nowrap; }
     /* ---- 作业栏 ---- */
     .hw-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:11px 12px; margin-bottom:8px; }
     .hw-head { display:flex; align-items:center; gap:6px; margin-bottom:5px; }
@@ -1628,12 +1635,17 @@
               <div class="type-tab ${SUBJ_FILTER === k ? 'on' : ''}" onclick="SUBJ_FILTER='${k}';render()">${label}</div>
             `).join('')}
           </div>
+          ${(isMom && list.filter(resIsNetdisk).length) ? `
+            <div class="nd-bar" onclick="showNetdiskHelp(${list.filter(resIsNetdisk).length})">
+              <span style="flex:1;font-weight:400">⚠️ 有 ${list.filter(resIsNetdisk).length} 个资源挂在网盘上，平台里打不开</span>
+              <span>怎么办 ›</span>
+            </div>` : ''}
           ${list.length ? list.map(r => `
             <div class="resource" onclick="openResource('${r.id}')">
               <div class="thumb">${ICN[r.type]||ICN.pdf}</div>
               <div class="info">
                 <div class="name">${esc(r.title)}</div>
-                <div class="meta">${r.type==='video'?'🎬 视频':r.type==='pdf'?'📄 PDF':'🎵 音频'}${r.episodes&&r.episodes.length>=2?` · <span style="color:var(--amber-600)">共${r.episodes.length}集</span>`:''}${resSubCount(r)?`<span class="res-sub-tag">CC 字幕</span>`:''}</div>
+                <div class="meta">${r.type==='video'?'🎬 视频':r.type==='pdf'?'📄 PDF':'🎵 音频'}${r.episodes&&r.episodes.length>=2?` · <span style="color:var(--amber-600)">共${r.episodes.length}集</span>`:''}${resSubCount(r)?`<span class="res-sub-tag">CC 字幕</span>`:''}${isMom && resIsNetdisk(r)?`<span class="res-nd-tag" title="网盘链接，平台里打不开，只能跳转">↗ 网盘</span>`:''}</div>
               </div>
               ${isMom ? (r.type === 'video' ? `<button class="icon-btn" onclick="event.stopPropagation();openResSubModal('${r.id}')" title="挂字幕" style="font-size:11px;font-weight:600">CC</button>` : '') : ''}
               ${isMom ? `<button class="icon-btn" onclick="event.stopPropagation();delResource('${r.id}')">${ICN.trash}</button>` : ''}
@@ -4081,7 +4093,7 @@
       <div class="modal">
         <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
         <h3>添加资源</h3>
-        <p class="text-mute" style="margin-top:-8px;margin-bottom:12px">支持微云 / B站视频 / 任意网页链接，直接粘贴即可</p>
+        <p class="text-mute" style="margin-top:-8px;margin-bottom:12px">支持 B站视频 / 阿里云 OSS 文件直链 / 任意网页链接，直接粘贴即可</p>
         <div class="field">
           <label>类型</label>
           <select id="r-type"><option value="video">视频</option><option value="pdf">PDF 文件</option><option value="audio">音频</option></select>
@@ -4099,7 +4111,7 @@
           <input id="r-title" placeholder="例：小猪佩奇 第27集" />
         </div>
         <div class="field">
-          <label>链接（微云 / B站 / 网页均可）</label>
+          <label>链接（B站 / OSS 直链 / 网页均可）</label>
           <input id="r-url" placeholder="粘贴链接，如 https://www.bilibili.com/video/BV..." oninput="autoDetectType()" />
           <div id="bili-eps-status" style="margin-top:8px;font-size:13px;line-height:1.5"></div>
         </div>
@@ -4399,7 +4411,11 @@
       } else if (b) {
         statusEl.innerHTML = '<span style="color:var(--green-600)">✅ B站番剧 · 一条链接即可</span><br><span style="font-size:12px;color:var(--gray-600)">番剧暂不支持自动识别全部集数，可在播放器里逐集观看；若要按集布置任务，可点下方「合集」粘贴</span>';
       } else {
-        statusEl.innerHTML = '';
+        // 网盘链接当场提醒：别等加完了才发现孩子点不开
+        const nd = netdiskInfo(url);
+        statusEl.innerHTML = nd
+          ? `<span style="color:var(--orange-600)">⚠️ 这是 <b>${esc(nd.name)}</b> 的分享链接</span><br><span style="font-size:12px;color:var(--gray-600)">可以加，但孩子点开<b>读不了</b> —— 网盘不允许平台直接读取内容，会变成下载。想要一点就开，请把文件传到阿里云 OSS 再贴直链。</span>`
+          : '';
       }
     }
   }
@@ -4464,6 +4480,10 @@
 
   // 统一打开单个资源链接（视频/音频尽量内嵌，不跳转）
   function openResourceLink(title, type, url) {
+    // 网盘分享链接（百度/微云/夸克…）：内嵌读不了，先讲清楚再给退路，
+    // 别直接跳过去让浏览器默默开始下载（详见 netdiskInfo 上方的说明）
+    const nd = netdiskInfo(url);
+    if (nd) { openNetdiskCard(title, type, url, nd); return; }
     // B站视频：内嵌播放，不跳转
     const bili = parseBilibili(url);
     if (bili) { openBiliPlayer(title, bili); return; }
@@ -4669,6 +4689,109 @@
       if (/\.pdf$/i.test(decodeURIComponent(new URL(url).pathname || ''))) return true;
     } catch (e) {}
     return false;
+  }
+
+  // ===== 网盘链接识别 =====
+  // 坑（重要）：网盘分享链接（百度/微云/夸克/阿里盘…）**不是文件本身，是一个 HTML 页面**。
+  // 两条死结，都绕不过去：
+  //   ① 网盘的下载服务器一律不给 CORS 头，浏览器里 fetch 不到文件字节流 ——
+  //      pdf.js、<video>、<audio> 全读不了，只能整块下载；
+  //   ② 就算想办法拿到临时直链，也带时效 + 登录态，存进平台过几小时就失效。
+  // 所以这类链接只能「跳出去在网盘里看」，不可能内嵌阅读。
+  // 必须显式提示：否则点下去就是浏览器默默开始下载一个 PDF（孩子端连下载了什么都看不到），
+  // 谁也不知道发生了什么、还以为平台坏了。
+  const NETDISK_HOSTS = [
+    [/pan\.baidu\.com$/, '百度网盘'],
+    [/yun\.baidu\.com$/, '百度网盘'],
+    [/share\.weiyun\.com$/, '腾讯微云'],
+    [/(^|\.)weiyun\.com$/, '腾讯微云'],
+    [/pan\.quark\.cn$/, '夸克网盘'],
+    [/(^|\.)quark\.cn$/, '夸克网盘'],
+    [/(^|\.)aliyundrive\.com$/, '阿里云盘'],
+    [/(^|\.)alipan\.com$/, '阿里云盘'],
+    [/lanzou[a-z]*\.com$/, '蓝奏云'],
+    [/(^|\.)115\.com$/, '115网盘'],
+    [/(^|\.)123pan\.(com|cn)$/, '123云盘'],
+    [/pan\.xunlei\.com$/, '迅雷网盘'],
+    [/(^|\.)cowtransfer\.com$/, '奶牛快传'],
+    [/(^|\.)wenshushu\.cn$/, '文叔叔'],
+    [/(^|\.)mypikpak\.com$/, 'PikPak'],
+    [/(^|\.)terabox\.com$/, 'Terabox']
+  ];
+  function netdiskInfo(url) {
+    const h = hostOf(url);
+    if (!h) return null;
+    for (let i = 0; i < NETDISK_HOSTS.length; i++) {
+      if (NETDISK_HOSTS[i][0].test(h)) return { name: NETDISK_HOSTS[i][1], host: h };
+    }
+    return null;
+  }
+  // 整条资源（可能多集）是否挂在网盘上 —— 列表页用它打标记
+  function resIsNetdisk(r) {
+    if (!r) return false;
+    if (netdiskInfo(r.url)) return true;
+    return (r.episodes || []).some(function (ep) { return netdiskInfo(ep.url); });
+  }
+  // 网盘链接专用说明卡：讲清楚「为什么不能直接读」+ 给退路，别默默下载
+  function openNetdiskCard(title, type, url, nd) {
+    const isMom = !!sessionStorage.getItem('mom-auth');
+    const tname = type === 'video' ? '视频' : type === 'pdf' ? 'PDF' : '音频';
+    const modal = document.createElement('div');
+    modal.className = 'modal-mask';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+      <div class="modal">
+        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+        <div style="text-align:center;padding:6px 2px">
+          <div style="font-size:42px">📦</div>
+          <h3 style="margin:8px 0 4px">这是${esc(nd.name)}的分享链接</h3>
+          <p class="text-mute" style="font-size:13px;margin:0">${esc(title || '')}</p>
+          <div class="nd-note">
+            网盘链接<b>不是文件本身，是一个网页</b>。<br>
+            网盘不允许别的网站直接读取里面的内容，所以平台<b>没法在这里直接打开</b>这个${tname} ——
+            要是直接跳过去，浏览器只会开始下载，孩子在平板上照样读不了。<br><br>
+            <b>想让孩子在平台里直接翻，把文件存到阿里云 OSS 就行</b>，一次上传永久有效。
+          </div>
+          <div class="btn-row" style="margin-top:16px">
+            <button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">知道了</button>
+            <button class="btn-primary" onclick="this.closest('.modal-mask').remove();openExternal('${escA(url)}','${escA(title || '')}')">去${esc(nd.name)}看 ▶</button>
+          </div>
+          ${isMom ? `<p class="text-mute" style="font-size:11.5px;margin:12px 0 0">妈妈：文件传到 OSS 后，回资源库把这条的链接换掉即可</p>` : ''}
+        </div>
+      </div>`;
+    document.getElementById('modal-root').appendChild(modal);
+  }
+  // 妈妈端：网盘资源怎么搬到能直接读的地方
+  function showNetdiskHelp(count) {
+    const n = parseInt(count, 10) || 0;
+    const modal = document.createElement('div');
+    modal.className = 'modal-mask';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+      <div class="modal">
+        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+        <h3>📦 网盘资源怎么办</h3>
+        <p class="text-mute" style="margin:-8px 0 12px;font-size:12.5px">这一科有 <b>${n}</b> 个资源挂在网盘上（卡片上带「↗ 网盘」标记）</p>
+        <div class="nd-note" style="margin-top:0">
+          <b>为什么打不开</b><br>
+          网盘链接是一个网页，不是文件本身。网盘不允许别的网站读取里面的内容，
+          所以平台没法直接播放或翻页 —— 只能跳出去在网盘里看，
+          而网盘页面在孩子平板上通常会变成「开始下载」，孩子根本看不到内容。
+        </div>
+        <div class="nd-note">
+          <b>怎么才能让孩子一点就开</b><br>
+          把文件存到<b>阿里云 OSS</b>，拿到的是永久直链，平台里直接读，不依赖任何第三方。<br><br>
+          ① 在电脑上把网盘里的文件下载下来<br>
+          ② 放进一个文件夹，跑 <code>python3 oss_upload.py 文件夹名</code><br>
+          ③ 把生成的 <code>oss_import_code.txt</code> 在妈妈端导入，或发给我批量导<br><br>
+          单本超过 20MB 建议先压缩，平板打开会快好几倍；<b>压缩后文件名要一字不差</b>再覆盖上传，
+          改名等于换文件，平台里那条会变死链。
+        </div>
+        <div class="btn-row" style="margin-top:16px">
+          <button class="btn-primary" onclick="this.closest('.modal-mask').remove()">知道了</button>
+        </div>
+      </div>`;
+    document.getElementById('modal-root').appendChild(modal);
   }
 
   // ===== B站播放：内嵌 / 外跳 双通道 =====
