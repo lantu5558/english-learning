@@ -14,6 +14,7 @@ import android.view.ViewGroup;
 import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
+import android.webkit.WebChromeClient.FileChooserParams;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
@@ -78,7 +79,7 @@ public class MainActivity extends AppCompatActivity {
         configClients();
         askPermissions();
 
-        swipe.setColorSchemeResources(android.R.color.holo_pink_dark);
+        swipe.setColorSchemeResources(android.R.color.holo_blue_bright);
         swipe.setOnRefreshListener(() -> web.reload());
 
         if (savedInstanceState != null) {
