@@ -713,11 +713,29 @@
       if (m.length) tomb[k] = m;
     }
     out.tomb = tomb;
-    // 标量设置项（妈妈密码等）以远端为准
+    // ---- 妈妈密码：单点标量，用「最后修改时间」判定谁新（last-write-wins）----
+    // 坑（重要）：以前所有标量一律以远端为准。而推送流程的第一步就是先合并一次远端，
+    // 于是妈妈刚改完的密码，在推送前的合并阶段就被远端旧值冲掉，推出去的还是旧值 ——
+    // 界面提示「已修改」，实际等于没改，换台设备或过一会儿就变回原来那个。
+    // 数组类数据有 localWins 兜底，标量没有，所以这里单独给密码加时间戳判定。
+    if (typeof incoming.momPassword === 'string' && incoming.momPassword) {
+      const lt = Number((base && base.momPwdTs) || 0);
+      const rt = Number(incoming.momPwdTs || 0);
+      const lp = (base && base.momPassword) ? String(base.momPassword) : '';
+      // 本地是出厂默认值 8888 且从没改过（连时间戳都没有）→ 说明这台设备还没自己的密码，
+      // 必须采用远端。否则刚装的新设备会把云端密码反向覆盖回 8888，全家设备一起被打回出厂。
+      const localIsVirgin = (!lp || lp === '8888') && !lt;
+      if (!lp || localIsVirgin) out.momPassword = incoming.momPassword;
+      else if (rt > lt) out.momPassword = incoming.momPassword; // 远端更新
+      else out.momPassword = lp;                                 // 本地更新（或同时改），保住本地
+      out.momPwdTs = Math.max(lt, rt);
+    }
+    // 其余标量设置项以远端为准
     for (const k in incoming) {
       if (!Object.prototype.hasOwnProperty.call(incoming, k)) continue;
       if (MERGE_KEYS.indexOf(k) >= 0) continue;
       if (typeof incoming[k] === 'object') continue;
+      if (k === 'momPassword' || k === 'momPwdTs') continue; // 上面已单独处理
       out[k] = incoming[k];
     }
     if (Array.isArray(incoming.safeDomains) && incoming.safeDomains.length) {
@@ -760,6 +778,9 @@
     if (!d.wordTasks) d.wordTasks = [];
     if (!d.dictations) d.dictations = [];
     if (!d.tomb) d.tomb = {};
+    // 老版本改过的密码没有 momPwdTs，补一个最早的标记，让后续合并有得可比
+    // （保持「8888 且无时间戳」= 出厂未改过，新设备才能正确采用云端密码）
+    if (d.momPassword && String(d.momPassword) !== '8888' && !d.momPwdTs) d.momPwdTs = 1;
     tombGc(d);
     (d.resources || []).forEach(r => {
       // 兜底自愈：压缩格式若没被解开，这里重建分集
@@ -1112,7 +1133,7 @@
       </div>
       <div class="page">
         <p class="pin-title">输入妈妈密码</p>
-        <p class="pin-sub">初始密码 8888</p>
+        ${String(DATA.momPassword || '8888') === '8888' ? '<p class="pin-sub">初始密码 8888，进设置里可以改</p>' : '<p class="pin-sub">忘了密码？用妈妈端的「导出数据」备份可找回</p>'}
         <div class="pin-display" id="pin-display">
           ${[0,1,2,3].map(i => `<div class="pin-dot${i<momPinBuf.length?' filled':''}"></div>`).join('')}
         </div>
@@ -5443,9 +5464,23 @@
   }
 
   function changePassword() {
+    // 先验旧密码：孩子万一摸到妈妈端设置，不能让他直接把妈妈锁在外面
+    const old = prompt('请输入当前的妈妈密码');
+    if (old === null) return;
+    if (String(old).trim() !== String(DATA.momPassword || '8888')) { toast('当前密码不对'); return; }
     const np = prompt('新密码（4 位数字）');
-    if (!np || !/^\d{4}$/.test(np)) { toast('必须是 4 位数字'); return; }
-    DATA.momPassword = np; toast('已修改'); saveData(DATA);
+    if (np === null) return;
+    if (!/^\d{4}$/.test(String(np).trim())) { toast('必须是 4 位数字'); return; }
+    const np2 = prompt('请再输入一次新密码，确认没打错');
+    if (np2 === null) return;
+    if (String(np2).trim() !== String(np).trim()) { toast('两次输入不一致，已取消'); return; }
+    // momPwdTs 是同步合并的判定依据，缺了它改完会被远端旧值冲掉（见 mergeData）
+    DATA.momPassword = String(np).trim();
+    DATA.momPwdTs = Date.now();
+    saveData(DATA);
+    const syncing = SYNC && SYNC.code && SYNC.status === 'on';
+    toast(syncing ? '密码已改为 ' + DATA.momPassword + '，其他设备稍后自动同步'
+                  : '密码已改为 ' + DATA.momPassword + '（本机未开同步，其他设备不会变）');
   }
   function exportData() {
     const blob = new Blob([JSON.stringify(DATA, null, 2)], { type: 'application/json' });
