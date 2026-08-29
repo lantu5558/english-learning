@@ -205,22 +205,12 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(MainActivity.this, "已进入全屏，按返回键退出", Toast.LENGTH_SHORT).show();
             }
 
+            /**
+             * 网页（或播放器）自己退出全屏时走这里，转交给下面的 exitFullscreen 统一收尾。
+             */
             @Override
             public void onHideCustomView() {
-                if (customView == null) return;
-
-                fullscreenContainer.removeView(customView);
-                customView = null;
-                fullscreenContainer.setVisibility(View.GONE);
-
-                applyFullscreen(false);
-                swipe.setEnabled(true);
-                setRequestedOrientation(originalOrientation);
-
-                if (customCallback != null) {
-                    customCallback.onCustomViewHidden();       // 必须回调，否则 WebView 会卡在全屏状态
-                    customCallback = null;
-                }
+                exitFullscreen();
             }
 
             /**
@@ -245,6 +235,28 @@ public class MainActivity extends AppCompatActivity {
                 swipe.setRefreshing(newProgress < 100);
             }
         });
+    }
+
+    /**
+     * 收起全屏，把一切恢复原样。
+     * 放在 Activity 这一层（而不是 WebChromeClient 内部）是为了让
+     * 返回键、切后台、销毁这几种情况都能调到同一套收尾逻辑。
+     */
+    private void exitFullscreen() {
+        if (customView == null) return;
+
+        fullscreenContainer.removeView(customView);
+        customView = null;
+        fullscreenContainer.setVisibility(View.GONE);
+
+        applyFullscreen(false);
+        swipe.setEnabled(true);
+        setRequestedOrientation(originalOrientation);
+
+        if (customCallback != null) {
+            customCallback.onCustomViewHidden();       // 必须回调，否则 WebView 会卡在全屏状态
+            customCallback = null;
+        }
     }
 
     /**
@@ -420,7 +432,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onBackPressed() {
         if (customView != null) {
-            onHideCustomView();         // 看着视频按返回，先退出全屏
+            exitFullscreen();            // 看着视频按返回，先退出全屏
             return;
         }
         if (web != null && web.canGoBack()) {
@@ -440,7 +452,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         // 切到后台时先退出全屏，免得声音在后台一直响
-        if (customView != null) onHideCustomView();
+        if (customView != null) exitFullscreen();
         super.onPause();
         if (web != null) web.onPause();
     }
@@ -453,7 +465,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
-        if (customView != null) onHideCustomView();
+        if (customView != null) exitFullscreen();
         if (web != null) {
             ViewGroup parent = (ViewGroup) web.getParent();
             if (parent != null) parent.removeView(web);
