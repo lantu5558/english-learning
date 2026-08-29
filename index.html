@@ -1306,6 +1306,11 @@
           `}
         </div>
         <div class="section">
+          <h3>📱 本机存储</h3>
+          <p class="text-mute" style="font-size:12px;margin-bottom:8px">看视频、看图片会在本机留下临时缓存。平板变卡或空间不足时清理一下就好，<b>任务、打卡、积分、凭证都不会丢</b>。</p>
+          <button class="btn-secondary" onclick="clearDeviceCache()">清理本设备缓存</button>
+        </div>
+        <div class="section">
           <h3>数据</h3>
           <button class="btn-secondary" onclick="exportData()">导出数据 (JSON)</button>
           <button class="btn-secondary mt-8" onclick="resetData()">重置全部数据</button>
@@ -1317,6 +1322,28 @@
       </div>
       ${momTabBar('settings')}
     `;
+  }
+
+  // 清理本设备缓存：只清 Cache Storage（页面/图标/图片/视频缓存），
+  // 绝不碰 localStorage 里的业务数据（任务、打卡、积分、凭证、词库都在那儿）。
+  async function clearDeviceCache() {
+    if (!window.caches) { toast('这个浏览器不支持缓存管理'); return; }
+    let keys = [];
+    try { keys = await caches.keys(); } catch (e) { keys = []; }
+    if (!keys.length) { toast('本机没有离线缓存'); return; }
+    let usage = 0;
+    try {
+      if (navigator.storage && navigator.storage.estimate) {
+        const est = await navigator.storage.estimate();
+        if (est && est.usage) usage = est.usage;
+      }
+    } catch (e) { usage = 0; }
+    const size = usage ? (usage / 1048576).toFixed(1) + ' MB' : '未知大小';
+    if (!confirm('确定清理本设备的离线缓存吗？\n\n当前占用约 ' + size +
+      '\n\n只删临时文件（页面、图标、图片、视频缓存），\n任务、打卡、积分、凭证、词库都不会丢。\n\n清理后页面会自动刷新。')) return;
+    await Promise.all(keys.map(k => caches.delete(k).catch(() => {})));
+    toast('缓存已清理，释放约 ' + size);
+    setTimeout(() => { try { location.reload(); } catch (e) {} }, 900);
   }
 
   // ========== 孩子端 - 选娃 ==========
