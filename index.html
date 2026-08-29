@@ -3077,7 +3077,12 @@
             ${vidRes.map(r => `<option value="${r.id}">📺 ${esc(r.title)}${r.episodes&&r.episodes.length>=2?`（${r.episodes.length}集）`:''}</option>`).join('')}
           </select>
           <div id="t-vid-ep-area" style="display:none;margin-top:8px">
-            <select id="t-vid-ep"><option value="-1">整部（孩子自己选集）</option></select>
+            <select id="t-vid-ep" onchange="epAutoPreview()"><option value="-1">整部（孩子自己选集）</option></select>
+            <label id="t-ep-auto-row" style="display:none;align-items:center;gap:8px;margin-top:8px;font-size:13px;color:var(--gray-700);cursor:pointer">
+              <input type="checkbox" id="t-ep-auto" checked onchange="epAutoPreview()" style="width:16px;height:16px;flex:none" />
+              <span>连续多天时自动排下一集（第1天第1集、第2天第2集…）</span>
+            </label>
+            <div id="t-ep-preview" class="wq-hint" style="text-align:left;margin-top:6px;color:var(--green-600)"></div>
           </div>
           <input id="t-vid-url" placeholder="或直接粘贴视频链接" style="margin-top:8px" oninput="onTaskVidChange()" />
           <div id="t-vid-mode" class="wq-hint" style="text-align:left;margin-top:6px"></div>
@@ -3120,7 +3125,7 @@
         </div>
         <div class="field">
           <label>📅 重复天数</label>
-          <select id="t-repeat">
+          <select id="t-repeat" onchange="epAutoPreview()">
             <option value="1">只今天（1 天）</option>
             <option value="2">连续 2 天</option>
             <option value="3">连续 3 天</option>
@@ -3180,7 +3185,18 @@
       if (sel) sel.innerHTML = '<option value="-1">整部（孩子自己选集）</option>' +
         r.episodes.map((ep, i) => `<option value="${i}">第${i + 1}集 · ${esc(ep.title)}</option>`).join('');
       if (epArea) epArea.style.display = 'block';
-    } else if (epArea) epArea.style.display = 'none';
+      const row = document.getElementById('t-ep-auto-row');
+      if (row) row.style.display = 'flex';
+      epAutoPreview();
+    } else {
+      const sel0 = document.getElementById('t-vid-ep');
+      if (sel0) { sel0.innerHTML = '<option value="-1">整部（孩子自己选集）</option>'; sel0.value = '-1'; }
+      if (epArea) epArea.style.display = 'none';
+      const row = document.getElementById('t-ep-auto-row');
+      if (row) row.style.display = 'none';
+      const pv0 = document.getElementById('t-ep-preview');
+      if (pv0) pv0.textContent = '';
+    }
     if (!u) { box.textContent = ''; return; }
     if (isDirectVideo(u)) {
       box.innerHTML = '🔒 <b>严格模式</b>：不能拖进度条、最高 1.5 倍速、看到最后才算完成';
@@ -3191,6 +3207,33 @@
     }
   }
   function onTaskPdfChange() {}
+
+  // 标题里已经写了集数就不重复追加
+  function epTitle(base, n) {
+    return /第\s*\d+\s*集/.test(base) ? base : base + ' 第' + n + '集';
+  }
+  // 连续多天时，预览每天分别排到哪一集
+  function epAutoPreview() {
+    const pv = document.getElementById('t-ep-preview');
+    if (!pv) return;
+    const row = document.getElementById('t-ep-auto-row');
+    const box = document.getElementById('t-ep-auto');
+    const on = row && row.style.display !== 'none' && box && box.checked;
+    if (!on) { pv.textContent = ''; return null; }
+    const id = (document.getElementById('t-vid') || {}).value || '';
+    const r = id ? DATA.resources.find(x => x.id === id) : null;
+    const total = (r && r.episodes) ? r.episodes.length : 0;
+    const repeat = parseInt((document.getElementById('t-repeat') || {}).value) || 1;
+    let start = parseInt((document.getElementById('t-vid-ep') || {}).value);
+    if (isNaN(start) || start < 0) start = 0;
+    if (repeat <= 1 || total < 2) { pv.textContent = ''; return null; }
+    const days = [];
+    for (let i = 0; i < repeat; i++) days.push(((start + i) % total) + 1);
+    const wrap = (start + repeat) > total;
+    pv.innerHTML = '📅 连续 ' + repeat + ' 天：' + days.map(n => '第' + n + '集').join(' → ') +
+      (wrap ? '<br><span style="color:var(--amber-600)">这组合计 ' + total + ' 集，第 ' + (total - start + 1) + ' 天起从第 1 集重新开始</span>' : '');
+    return days;
+  }
 
   // 选了资源后，若该资源是合集，显示"选哪一集"下拉；若是 B站单链接，显示"第几集"输入
   function onTaskResChange() {
@@ -3231,28 +3274,48 @@
       resId = (document.getElementById('t-vid') || {}).value || '';
       resUrl = ((document.getElementById('t-vid-url') || {}).value || '').trim();
       const epSel = document.getElementById('t-vid-ep');
-      epIndex = (epSel && epSel.value !== '-1') ? parseInt(epSel.value) : -1;
+      const epv = epSel ? parseInt(epSel.value) : NaN;
+      epIndex = isNaN(epv) ? -1 : epv;   // 空下拉会得到 NaN，必须兜成 -1 再存
       if (!resId && !resUrl) { toast('给看视频任务挑一个视频'); return; }
     } else {
       proof = document.getElementById('t-proof').value || '';
       resId = document.getElementById('t-res').value || '';
       resUrl = document.getElementById('t-res-url').value.trim();
-      epIndex = (document.getElementById('t-ep') && document.getElementById('t-ep').value !== '-1') ? parseInt(document.getElementById('t-ep').value) : -1;
+      const epSel2 = document.getElementById('t-ep');
+      const epv2 = epSel2 ? parseInt(epSel2.value) : NaN;
+      epIndex = isNaN(epv2) ? -1 : epv2;
       epNum = parseInt((document.getElementById('t-epnum') || {}).value) || 0;
       if (resId && resUrl) { toast('资料二选一：选了资源库就不用再贴链接'); return; }
     }
 
+    // 看视频任务 + 连续多天：每天自动往后排一集（这组合集排完就从头再来）
+    let autoEp = false, epTotal = 0, startEp = 0;
+    if (kind === 'video' && repeat > 1) {
+      const er = resId ? DATA.resources.find(x => x.id === resId) : null;
+      epTotal = (er && er.episodes) ? er.episodes.length : 0;
+      const box = document.getElementById('t-ep-auto');
+      autoEp = !!(box && box.checked) && epTotal >= 2;
+      startEp = epIndex >= 0 ? epIndex : 0;
+    }
     const groupId = 'g' + Date.now();
+    const epDays = [];
     for (let i = 0; i < repeat; i++) {
-      DATA.tasks.push({ id: 't' + Date.now() + '-' + i, groupId, childId, date: addDays(TODAY, i), title, points,
-        done: false, kind, resId, resUrl, subject, proof, proofData: null, remindAt, doneAt: null, epIndex, epNum,
+      const ei = autoEp ? ((startEp + i) % epTotal) : epIndex;
+      if (autoEp) epDays.push(ei + 1);
+      DATA.tasks.push({ id: 't' + Date.now() + '-' + i, groupId, childId, date: addDays(TODAY, i),
+        title: autoEp ? epTitle(title, ei + 1) : title, points,
+        done: false, kind, resId, resUrl, subject, proof, proofData: null, remindAt, doneAt: null, epIndex: ei, epNum,
         videoProgress: 0 });
     }
     saveData(DATA); document.querySelector('.modal-mask').remove(); render();
-    const tip = kind === 'read' ? '朗读任务已布置，孩子边看材料边录音'
-      : kind === 'video' ? '看视频任务已布置，看完自动打卡'
-      : '已布置';
-    toast(repeat > 1 ? (tip + '，连续 ' + repeat + ' 天') : tip);
+    if (autoEp && epDays.length) {
+      toast('已布置 ' + epDays.length + ' 天：' + epDays.map(n => '第' + n + '集').join(' → '));
+    } else {
+      const tip = kind === 'read' ? '朗读任务已布置，孩子边看材料边录音'
+        : kind === 'video' ? '看视频任务已布置，看完自动打卡'
+        : '已布置';
+      toast(repeat > 1 ? (tip + '，连续 ' + repeat + ' 天') : tip);
+    }
   }
   // 取任务挂的资料（资源库引用 或 自定义链接）
   function taskRes(t) {
