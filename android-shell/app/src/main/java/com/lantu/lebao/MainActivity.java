@@ -4,22 +4,27 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.ClipData;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
+import android.webkit.WebChromeClient.CustomViewCallback;
 import android.webkit.WebChromeClient.FileChooserParams;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.FrameLayout;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -67,6 +72,14 @@ public class MainActivity extends AppCompatActivity {
     private ValueCallback<Uri[]> filePathCallback;
     private Uri cameraPhotoUri;
 
+    // ---- 全屏视频相关 ----
+    /** 全屏时 WebView 交出来的那块画面 */
+    private View customView;
+    private CustomViewCallback customCallback;
+    private FrameLayout fullscreenContainer;
+    private int originalOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR;
+    private int originalSystemUiVisibility = 0;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -74,6 +87,7 @@ public class MainActivity extends AppCompatActivity {
 
         swipe = findViewById(R.id.swipe);
         web = findViewById(R.id.web);
+        fullscreenContainer = findViewById(R.id.fullscreen_container);
 
         configWebSettings();
         configClients();
@@ -160,6 +174,56 @@ public class MainActivity extends AppCompatActivity {
             }
 
             /**
+             * 视频全屏的关键。
+             * 网页里（包括 B站这类 iframe 播放器）一点全屏，WebView 就把画面交给这里。
+             * 不重写这个方法，点全屏就是「没反应、还是原来那么大一格」——
+             * 因为没人接管那块画面，WebView 只能默默丢弃这次请求。
+             */
+            @Override
+            public void onShowCustomView(View view, CustomViewCallback callback) {
+                if (customView != null) {
+                    // 已经在全屏了，直接结束这次请求，避免叠加两层
+                    callback.onCustomViewHidden();
+                    return;
+                }
+                if (view == null) return;
+
+                customView = view;
+                customCallback = callback;
+                originalOrientation = getRequestedOrientation();
+                originalSystemUiVisibility = getWindow().getDecorView().getSystemUiVisibility();
+
+                swipe.setEnabled(false);                       // 全屏时关掉下拉刷新，误触会打断视频
+                fullscreenContainer.setVisibility(View.VISIBLE);
+                fullscreenContainer.addView(view, new FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT));
+
+                applyFullscreen(true);
+                // 视频通常是横的，转过去；家长想竖着看也转得回来（传感器跟随）
+                setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+                Toast.makeText(MainActivity.this, "已进入全屏，按返回键退出", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onHideCustomView() {
+                if (customView == null) return;
+
+                fullscreenContainer.removeView(customView);
+                customView = null;
+                fullscreenContainer.setVisibility(View.GONE);
+
+                applyFullscreen(false);
+                swipe.setEnabled(true);
+                setRequestedOrientation(originalOrientation);
+
+                if (customCallback != null) {
+                    customCallback.onCustomViewHidden();       // 必须回调，否则 WebView 会卡在全屏状态
+                    customCallback = null;
+                }
+            }
+
+            /**
              * 网页里的 <input type="file"> 走这里：
              * 拍照打卡、作业上传图片都靠它。不实现的话点了没反应。
              */
@@ -181,6 +245,28 @@ public class MainActivity extends AppCompatActivity {
                 swipe.setRefreshing(newProgress < 100);
             }
         });
+    }
+
+    /**
+     * 全屏时：隐藏状态栏和导航栏（沉浸式），并让屏幕一直亮着。
+     * 看视频看到一半熄屏、或者误触到导航栏退出去，对孩子来说很烦。
+     */
+    private void applyFullscreen(boolean on) {
+        View decor = getWindow().getDecorView();
+        if (on) {
+            int flags = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
+            decor.setSystemUiVisibility(flags);
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            if (getSupportActionBar() != null) getSupportActionBar().hide();
+        } else {
+            decor.setSystemUiVisibility(originalSystemUiVisibility);
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }
     }
 
     // ---------- 权限 ----------
@@ -330,9 +416,13 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // ---------- 返回键：先回退网页，退不动了才退出 APP ----------
+    // ---------- 返回键：全屏先退出，再网页回退，退不动了才退出 APP ----------
     @Override
     public void onBackPressed() {
+        if (customView != null) {
+            onHideCustomView();         // 看着视频按返回，先退出全屏
+            return;
+        }
         if (web != null && web.canGoBack()) {
             web.goBack();
         } else {
@@ -349,6 +439,8 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onPause() {
+        // 切到后台时先退出全屏，免得声音在后台一直响
+        if (customView != null) onHideCustomView();
         super.onPause();
         if (web != null) web.onPause();
     }
@@ -361,6 +453,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        if (customView != null) onHideCustomView();
         if (web != null) {
             ViewGroup parent = (ViewGroup) web.getParent();
             if (parent != null) parent.removeView(web);
