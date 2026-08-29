@@ -31,3 +31,11 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
 }
+
+// kotlin-stdlib-jdk7 / jdk8 从 1.8 起已经合并进 kotlin-stdlib，
+// 但旧的 androidx 依赖还会把 1.6.21 拉进来，导致重复类、编译直接失败。
+// 这里统一排除，只保留 kotlin-stdlib 本体。
+configurations.all {
+    exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk7'
+    exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk8'
+}
