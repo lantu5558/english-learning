@@ -35,16 +35,31 @@ jobs:
         run: |
           SRC=icon-source.png
           if [ ! -f "$SRC" ]; then echo "!! 缺少 $SRC"; exit 1; fi
+          # 注意：Ubuntu 24.04 的 ImageMagick 7 只有 magick，没有 convert，
+          # 两个都找一遍；都没有就临时装，还不行才退回直接复制原图（图标仍可用）。
+          RM=""
+          if command -v magick > /dev/null 2>&1; then
+            RM="magick"
+          elif command -v convert > /dev/null 2>&1; then
+            RM="convert"
+          else
+            sudo apt-get update -qq > /dev/null 2>&1 || true
+            sudo apt-get install -y -qq imagemagick > /dev/null 2>&1 || true
+            if command -v magick > /dev/null 2>&1; then RM="magick"
+            elif command -v convert > /dev/null 2>&1; then RM="convert"; fi
+          fi
+          echo "缩放工具: ${RM:-无（用原图兜底）}"
           for pair in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
             name="${pair%%:*}"; size="${pair##*:}"
             mkdir -p "app/src/main/res/mipmap-$name"
-            if command -v convert > /dev/null 2>&1; then
-              convert "$SRC" -resize "${size}x${size}" "app/src/main/res/mipmap-$name/ic_launcher.png"
+            dst="app/src/main/res/mipmap-$name/ic_launcher.png"
+            if [ -n "$RM" ]; then
+              "$RM" "$SRC" -resize "${size}x${size}" "$dst" || cp "$SRC" "$dst"
             else
-              cp "$SRC" "app/src/main/res/mipmap-$name/ic_launcher.png"
+              cp "$SRC" "$dst"
             fi
           done
-          ls -1 app/src/main/res/mipmap-*/ic_launcher.png
+          ls -l app/src/main/res/mipmap-*/ic_launcher.png
 
       - name: 安装 Gradle 8.9
         run: |
