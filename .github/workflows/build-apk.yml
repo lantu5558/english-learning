@@ -1,0 +1,69 @@
+name: Build APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'android-shell/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android-shell
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: 准备 Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --version || true
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1 || true
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            "platforms;android-34" "build-tools;34.0.0" "platform-tools" 2>&1 | tail -8 || true
+
+      - name: 生成 APP 图标
+        run: |
+          SRC=icon-source.png
+          if [ ! -f "$SRC" ]; then echo "!! 缺少 $SRC"; exit 1; fi
+          for pair in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+            name="${pair%%:*}"; size="${pair##*:}"
+            mkdir -p "app/src/main/res/mipmap-$name"
+            if command -v convert > /dev/null 2>&1; then
+              convert "$SRC" -resize "${size}x${size}" "app/src/main/res/mipmap-$name/ic_launcher.png"
+            else
+              cp "$SRC" "app/src/main/res/mipmap-$name/ic_launcher.png"
+            fi
+          done
+          ls -1 app/src/main/res/mipmap-*/ic_launcher.png
+
+      - name: 安装 Gradle 8.9
+        run: |
+          curl -sL -o /tmp/gradle.zip https://services.gradle.org/distributions/gradle-8.9-bin.zip
+          unzip -q /tmp/gradle.zip -d /opt/
+          chmod +x /opt/gradle-8.9/bin/gradle
+          echo "/opt/gradle-8.9/bin" >> "$GITHUB_PATH"
+
+      - name: 编译 Debug APK
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: 定位 APK
+        run: |
+          find app/build/outputs -name "*.apk" -exec ls -lh {} \;
+
+      - name: 上传 APK 产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: lebao-learning-apk
+          path: android-shell/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
