@@ -4986,17 +4986,24 @@
       pdfLoadText('正在加载阅读器…');
       return loadPdfjs().then(function (lib) {
         pdfLoadText('正在打开文档…');
+        // cMap 跟着当前真正用上的那个源走。写死 CDN 的话，国内网络一卡就把首屏拖住。
+        // 注：只有用到旧式 CJK 预定义编码的 PDF 才会去取 cmap，取不到也只是一句警告。
+        var cmapBase = (PDFJS_ACTIVE_BASE || PDFJS_BASES[0]).replace(/build\/\s*$/, 'cmaps/');
         var task = lib.getDocument({
           url: url,
-          cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@' + PDFJS_VERSION + '/cmaps/',
+          cMapUrl: cmapBase,
           cMapPacked: true,
-          // 大文件（几十兆的课本）靠 Range 分段取，别一次性全下下来
-          disableAutoFetch: false
+          // 大文件（几十兆的课本）必须开按需加载：只取当前要看的那一页附近的数据。
+          // 设成 false 的话 pdf.js 会在后台把整个文件默默拖完，流量和等待都翻倍。
+          disableAutoFetch: true,
+          // 默认 64KB 一段，对大文件太碎；放大到 256KB 少跑几趟。
+          rangeChunkSize: 262144
         });
         task.onProgress = function (d) {
           if (d && d.total) {
             pdfSetProgress(d.loaded / d.total * 100);
-            pdfLoadText('正在下载文档… ' + Math.round(d.loaded / d.total * 100) + '%');
+            var mb = function (n) { return (n / 1048576).toFixed(1) + 'MB'; };
+            pdfLoadText('边看边加载… ' + mb(d.loaded) + ' / ' + mb(d.total) + '（不用等全部下完）');
           }
         };
         return task.promise;
