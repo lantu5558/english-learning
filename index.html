@@ -245,6 +245,13 @@
     .task.done .name { text-decoration: line-through; color: var(--gray-600); }
     .task .pts { font-size: 12px; padding: 4px 8px; border-radius: 6px; background: var(--amber-50); color: var(--amber-600); font-weight: 500; }
     .task.done .pts { background: var(--green-50); color: var(--green-600); }
+    /* 妈妈端任务操作按钮（孩子端不给，孩子不能自己删任务） */
+    .task-ops { display: flex; gap: 6px; flex: none; }
+    .task-ops .icon-btn { width: 30px; height: 30px; border-radius: 8px; background: var(--gray-100); }
+    .task-ops .icon-btn svg { width: 15px; height: 15px; }
+    .task-ops .icon-btn.danger { background: #FFEBEE; color: #C62828; }
+    .fut-day { font-size: 12px; font-weight: 600; color: var(--gray-600); margin: 12px 0 2px; }
+    .del-warn { font-size: 13px; color: var(--gray-700); line-height: 1.7; }
 
     /* ===== 学科色块 ===== */
     .subject-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
@@ -462,6 +469,7 @@
   // ========== 数据层 (localStorage, 后续接 KV) ==========
   const LS_KEY = 'lebao-data-v1';
   const DEFAULT_DATA = {
+    tomb: {},
     momPassword: '8888',
     children: [
       { id: 'c1', name: '姐姐', avatar: '👧', pin: '1111', points: 128, streak: 5 },
@@ -601,10 +609,40 @@
   // 坑（重要）：原来是「谁后写谁赢」的整包覆盖 —— 妈妈刚加的词库，只要孩子端在
   // 这 2.8 秒里打了一次卡，整包就被冲掉。改成按 id 取并集，两边的新增都能活下来。
   const MERGE_KEYS = ['resources', 'wordSets', 'wordTasks', 'dictations', 'homeworks', 'tasks', 'rewards', 'pointsHistory', 'children'];
+  // 墓碑：删掉的东西记一笔，别的设备推回来时不许复活
+  // （合并规则是「本地新增一律保留」，只删数组会被另一台设备的旧缓存救回来）
+  const TOMB_KEYS = ['tasks', 'homeworks'];
+  const TOMB_TTL = 14 * 86400000;
+  function tombAdd(kind, id) {
+    if (!id) return;
+    if (!DATA.tomb) DATA.tomb = {};
+    if (!Array.isArray(DATA.tomb[kind])) DATA.tomb[kind] = [];
+    DATA.tomb[kind] = DATA.tomb[kind].filter(x => x && x.id !== id);
+    DATA.tomb[kind].push({ id: id, t: Date.now() });
+  }
+  function tombGc(d) {
+    const o = (d && d.tomb) || {};
+    const now = Date.now();
+    Object.keys(o).forEach(k => {
+      o[k] = (o[k] || []).filter(x => x && (now - (x.t || 0)) < TOMB_TTL);
+    });
+  }
   function mergeData(base, incoming, localWins) {
     let out;
     try { out = JSON.parse(JSON.stringify(base || {})); } catch (e) { out = {}; }
     if (!incoming || typeof incoming !== 'object') return out;
+    // 墓碑取两边并集：任何一台设备删掉的，都不许再出现
+    const tombA = (base && base.tomb) || {};
+    const tombB = incoming.tomb || {};
+    const tomb = {};
+    for (let i = 0; i < TOMB_KEYS.length; i++) {
+      const k = TOMB_KEYS[i];
+      const m = [];
+      (tombA[k] || []).forEach(x => { if (x && x.id && !m.some(y => y.id === x.id)) m.push(x); });
+      (tombB[k] || []).forEach(x => { if (x && x.id && !m.some(y => y.id === x.id)) m.push(x); });
+      if (m.length) tomb[k] = m;
+    }
+    out.tomb = tomb;
     // 标量设置项（妈妈密码等）以远端为准
     for (const k in incoming) {
       if (!Object.prototype.hasOwnProperty.call(incoming, k)) continue;
@@ -637,6 +675,12 @@
       }
       out[key] = merged;
     }
+    // 墓碑过滤：删掉的条目即使被别的设备推回来也不收
+    for (let i = 0; i < TOMB_KEYS.length; i++) {
+      const k = TOMB_KEYS[i];
+      if (!Array.isArray(out[k]) || !tomb[k]) continue;
+      out[k] = out[k].filter(x => !(x && tomb[k].some(y => y.id === x.id)));
+    }
     return out;
   }
 
@@ -645,6 +689,8 @@
     if (!d.wordSets) d.wordSets = JSON.parse(JSON.stringify(DEFAULT_DATA.wordSets));
     if (!d.wordTasks) d.wordTasks = [];
     if (!d.dictations) d.dictations = [];
+    if (!d.tomb) d.tomb = {};
+    tombGc(d);
     (d.resources || []).forEach(r => {
       // 兜底自愈：压缩格式若没被解开，这里重建分集
       if ((!r.episodes || !r.episodes.length) && Array.isArray(r._et) && typeof r._eb === 'string') {
@@ -1085,9 +1131,12 @@
                   <div class="meta">${k.avatar} ${esc(k.name)}${t.groupId&&DATA.tasks.filter(x=>x.groupId===t.groupId).length>1?` · 📅 连排${DATA.tasks.filter(x=>x.groupId===t.groupId).length}天`:''}${t.remindAt?` · ⏰ ${t.remindAt}`:''}${t.done&&t.doneAt?` · ✅ ${fmtClock(t.doneAt)} 完成`:''}${t.proof?` · <span class="proof-badge" onclick="viewTaskProof(event,'${t.id}')">${t.proof==='photo'?'📷':'🎙'}${t.proofData?' 凭证✓':' 待交'}</span>`:''}${res?` · 📎 <span style="color:var(--pink-600)" onclick="openTaskRes(event,'${t.id}')">${esc(res.title)}</span>`:''}</div>
                 </div>
                 <div class="pts">+${t.points}</div>
+                ${momTaskOps(t)}
               </div>`;
           }).join('') : '<div class="empty"><div class="emoji">📝</div>还没布置任务</div>'}
         </div>
+
+        ${momFutureTasks()}
 
         ${hwSection(true)}
 
@@ -2300,6 +2349,7 @@
   function delHomework(id) {
     if (!confirm('删除这条作业？')) return;
     DATA.homeworks = (DATA.homeworks || []).filter(h => h.id !== id);
+    tombAdd('homeworks', id);
     saveData(DATA); render();
   }
   function viewHwImg(hwId, i) {
@@ -3023,8 +3073,11 @@
 
   // ========== 模态：添加任务 ==========
   let TASK_KIND = 'normal';   // normal 普通 / read 朗读 / video 看视频
-  function openTaskModal() {
-    TASK_KIND = 'normal';
+  // 传 taskId = 编辑已有任务；不传 = 布置新任务
+  function openTaskModal(taskId) {
+    const et = taskId ? DATA.tasks.find(x => x.id === taskId) : null;
+    if (taskId && !et) { toast('这个任务已经不在了'); render(); return; }
+    TASK_KIND = et ? (et.kind || 'normal') : 'normal';
     const pdfRes = DATA.resources.filter(r => r.type === 'pdf' || r.type === 'link');
     const vidRes = DATA.resources.filter(r => r.type === 'video');
     const modal = document.createElement('div');
@@ -3033,7 +3086,7 @@
     modal.innerHTML = `
       <div class="modal">
         <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
-        <h3>布置新任务</h3>
+        <h3>${et ? '编辑任务' : '布置新任务'}${et ? `<button class="text-pink" style="font-size:12px;float:right" onclick="askDelTask('${et.id}')">取消此任务</button>` : ''}</h3>
         <div class="field">
           <label>任务类型</label>
           <div class="kind-row">
@@ -3123,7 +3176,7 @@
           <label>积分</label>
           <input id="t-points" type="number" value="3" min="1" max="20" />
         </div>
-        <div class="field">
+        <div class="field" id="f-repeat">
           <label>📅 重复天数</label>
           <select id="t-repeat" onchange="epAutoPreview()">
             <option value="1">只今天（1 天）</option>
@@ -3136,20 +3189,35 @@
           </select>
           <p class="wq-hint" style="text-align:left;margin-top:6px">选「连续 N 天」会一次生成未来 N 天的打卡任务，孩子每天只看到当天的，你一周布置一次即可</p>
         </div>
+        <div class="field" id="f-sync" style="display:none">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--gray-700);cursor:pointer">
+            <input type="checkbox" id="t-sync-all" checked style="width:16px;height:16px;flex:none" />
+            <span>连排任务：同时改掉这整批</span>
+          </label>
+          <p class="wq-hint" style="text-align:left;margin-top:6px">只同步标题 / 科目 / 积分 / 提醒 / 资料，各天排好的集数保持不变</p>
+        </div>
         <div class="btn-row">
           <button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">取消</button>
-          <button class="btn-primary" onclick="addTask()">添加</button>
+          <button class="btn-primary" onclick="${et ? `saveTaskEdit('${et.id}')` : 'addTask()'}">${et ? '保存修改' : '添加'}</button>
         </div>
       </div>
     `;
     document.getElementById('modal-root').appendChild(modal);
+    if (et) {
+      const rf = document.getElementById('f-repeat');
+      if (rf) rf.style.display = 'none';
+      const sf = document.getElementById('f-sync');
+      const sibs = et.groupId ? DATA.tasks.filter(x => x.groupId === et.groupId && x.id !== et.id) : [];
+      if (sf && sibs.length) sf.style.display = 'block';
+      fillTaskForm(et);
+    }
   }
   const TASK_KIND_TIP = {
     normal: '勾选 / 拍照打卡，可挂一份资料',
     read:   '录音打卡，孩子边看材料边朗读',
     video:  '看完视频自动打卡，防快进',
   };
-  function setTaskKind(k) {
+  function setTaskKind(k, silent) {
     TASK_KIND = k;
     ['normal', 'read', 'video'].forEach(x => {
       const el = document.getElementById('kp-' + x);
@@ -3162,9 +3230,11 @@
     show('f-res', k === 'normal');
     const t = document.getElementById('t-title');
     const ph = { normal: '例：口算 20 题', read: '例：英语跟读 10 分钟', video: '例：看《书本里的旅行》第3集' };
-    if (t && !t.value) t.placeholder = ph[k] || '';
-    if (k === 'video') onTaskVidChange();
-    toast(TASK_KIND_TIP[k] || '');
+    if (!silent) {
+      if (t && !t.value) t.placeholder = ph[k] || '';
+      if (k === 'video') onTaskVidChange();
+      toast(TASK_KIND_TIP[k] || '');
+    }
   }
   function proofSuggest() {
     const s = document.getElementById('t-subject').value;
@@ -3263,30 +3333,9 @@
     const repeat = parseInt((document.getElementById('t-repeat') || {}).value) || 1;
     if (!title) { toast('写个标题'); return; }
 
-    let proof = '', resId = '', resUrl = '', epIndex = -1, epNum = 0;
-    if (kind === 'read') {
-      proof = 'audio';   // 朗读任务固定走录音打卡
-      resId = (document.getElementById('t-pdf') || {}).value || '';
-      resUrl = ((document.getElementById('t-pdf-url') || {}).value || '').trim();
-      if (resId && resUrl) { toast('材料二选一：选了资源库就不用再贴链接'); return; }
-    } else if (kind === 'video') {
-      proof = '';        // 看视频任务不设凭证，看完自动打卡
-      resId = (document.getElementById('t-vid') || {}).value || '';
-      resUrl = ((document.getElementById('t-vid-url') || {}).value || '').trim();
-      const epSel = document.getElementById('t-vid-ep');
-      const epv = epSel ? parseInt(epSel.value) : NaN;
-      epIndex = isNaN(epv) ? -1 : epv;   // 空下拉会得到 NaN，必须兜成 -1 再存
-      if (!resId && !resUrl) { toast('给看视频任务挑一个视频'); return; }
-    } else {
-      proof = document.getElementById('t-proof').value || '';
-      resId = document.getElementById('t-res').value || '';
-      resUrl = document.getElementById('t-res-url').value.trim();
-      const epSel2 = document.getElementById('t-ep');
-      const epv2 = epSel2 ? parseInt(epSel2.value) : NaN;
-      epIndex = isNaN(epv2) ? -1 : epv2;
-      epNum = parseInt((document.getElementById('t-epnum') || {}).value) || 0;
-      if (resId && resUrl) { toast('资料二选一：选了资源库就不用再贴链接'); return; }
-    }
+    const f = readTaskForm(kind);
+    if (f.err) { toast(f.err); return; }
+    let proof = f.proof, resId = f.resId, resUrl = f.resUrl, epIndex = f.epIndex, epNum = f.epNum;
 
     // 看视频任务 + 连续多天：每天自动往后排一集（这组合集排完就从头再来）
     let autoEp = false, epTotal = 0, startEp = 0;
@@ -3316,6 +3365,193 @@
         : '已布置';
       toast(repeat > 1 ? (tip + '，连续 ' + repeat + ' 天') : tip);
     }
+  }
+  // 读弹窗表单（新增和编辑共用）
+  function readTaskForm(kind) {
+    let proof = '', resId = '', resUrl = '', epIndex = -1, epNum = 0;
+    if (kind === 'read') {
+      proof = 'audio';   // 朗读任务固定走录音打卡
+      resId = (document.getElementById('t-pdf') || {}).value || '';
+      resUrl = ((document.getElementById('t-pdf-url') || {}).value || '').trim();
+      if (resId && resUrl) return { err: '材料二选一：选了资源库就不用再贴链接' };
+    } else if (kind === 'video') {
+      proof = '';        // 看视频任务不设凭证，看完自动打卡
+      resId = (document.getElementById('t-vid') || {}).value || '';
+      resUrl = ((document.getElementById('t-vid-url') || {}).value || '').trim();
+      const epSel = document.getElementById('t-vid-ep');
+      const epv = epSel ? parseInt(epSel.value) : NaN;
+      epIndex = isNaN(epv) ? -1 : epv;   // 空下拉会得到 NaN，必须兜成 -1 再存
+      if (!resId && !resUrl) return { err: '给看视频任务挑一个视频' };
+    } else {
+      proof = document.getElementById('t-proof').value || '';
+      resId = document.getElementById('t-res').value || '';
+      resUrl = document.getElementById('t-res-url').value.trim();
+      const epSel2 = document.getElementById('t-ep');
+      const epv2 = epSel2 ? parseInt(epSel2.value) : NaN;
+      epIndex = isNaN(epv2) ? -1 : epv2;
+      epNum = parseInt((document.getElementById('t-epnum') || {}).value) || 0;
+      if (resId && resUrl) return { err: '资料二选一：选了资源库就不用再贴链接' };
+    }
+    return { proof: proof, resId: resId, resUrl: resUrl, epIndex: epIndex, epNum: epNum, err: '' };
+  }
+  // 下拉里有没有这个值（老 WebView 不支持展开 HTMLOptionsCollection）
+  function selSet(id, v) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    let has = false;
+    for (let i = 0; i < el.options.length; i++) { if (el.options[i].value === v) { has = true; break; } }
+    if (has) el.value = v;
+  }
+  function fillTaskForm(t) {
+    const set = (id, v) => { const e = document.getElementById(id); if (e) e.value = (v == null ? '' : v); };
+    set('t-child', t.childId);
+    set('t-title', t.title);
+    set('t-subject', t.subject || '');
+    set('t-remind', t.remindAt || '');
+    set('t-points', t.points || 3);
+    set('t-repeat', '1');           // 编辑时不再生成新天数，顺手清掉排集预览
+    const kind = t.kind || 'normal';
+    setTaskKind(kind, true);
+    if (kind === 'read') {
+      set('t-pdf', t.resId || ''); set('t-pdf-url', t.resUrl || '');
+    } else if (kind === 'video') {
+      set('t-vid', t.resId || ''); set('t-vid-url', t.resUrl || '');
+      onTaskVidChange();
+      selSet('t-vid-ep', (typeof t.epIndex === 'number' && t.epIndex >= 0) ? String(t.epIndex) : '-1');
+      epAutoPreview();
+    } else {
+      set('t-proof', t.proof || ''); set('t-res', t.resId || ''); set('t-res-url', t.resUrl || '');
+      onTaskResChange();
+      selSet('t-ep', (typeof t.epIndex === 'number' && t.epIndex >= 0) ? String(t.epIndex) : '-1');
+      set('t-epnum', t.epNum || '');
+    }
+  }
+  function saveTaskEdit(id) {
+    const t = DATA.tasks.find(x => x.id === id);
+    if (!t) { toast('这个任务已经不在了'); closeAllModals(); render(); return; }
+    const kind = TASK_KIND || 'normal';
+    const childId = document.getElementById('t-child').value;
+    const title = document.getElementById('t-title').value.trim();
+    const points = parseInt(document.getElementById('t-points').value) || 3;
+    const subject = document.getElementById('t-subject').value || '';
+    const remindAt = document.getElementById('t-remind').value || '';
+    if (!title) { toast('写个标题'); return; }
+    const f = readTaskForm(kind);
+    if (f.err) { toast(f.err); return; }
+    const box = document.getElementById('t-sync-all');
+    const syncAll = !!(box && box.checked) && !!t.groupId;
+    const targets = syncAll ? DATA.tasks.filter(x => x.groupId === t.groupId) : [t];
+    targets.forEach(x => {
+      x.childId = childId; x.points = points; x.subject = subject; x.remindAt = remindAt;
+      x.kind = kind; x.proof = f.proof; x.resId = f.resId; x.resUrl = f.resUrl; x.epNum = f.epNum;
+      if (!syncAll) x.epIndex = f.epIndex;   // 整批同步时保留各天排好的集数
+      const epN = (typeof x.epIndex === 'number' && x.epIndex >= 0) ? x.epIndex + 1 : 0;
+      x.title = epN ? epTitle(title, epN) : title;
+    });
+    saveData(DATA); closeAllModals(); render();
+    toast(syncAll && targets.length > 1 ? ('已修改这整批 ' + targets.length + ' 天的任务') : '已保存');
+  }
+  // 删任务：把已发的星星收回来，并记墓碑防止别的设备推回来复活
+  function delTaskById(id) {
+    const t = DATA.tasks.find(x => x.id === id);
+    if (!t) return 0;
+    let back = 0;
+    if (t.done) {
+      back = t.points || 0;
+      const k = DATA.children.find(c => c.id === t.childId);
+      if (k) {
+        k.points = Math.max(0, (k.points || 0) - back);
+        const d = t.date || TODAY;
+        const i = DATA.pointsHistory.findIndex(h => h.childId === k.id && h.title === t.title && h.date === d);
+        if (i >= 0) DATA.pointsHistory.splice(i, 1);
+      }
+    }
+    DATA.tasks = DATA.tasks.filter(x => x.id !== id);
+    tombAdd('tasks', id);
+    return back;
+  }
+  function closeAllModals() {
+    const list = document.querySelectorAll('.modal-mask');
+    for (let i = 0; i < list.length; i++) list[i].remove();
+  }
+  // 取消任务：布置错了可以只删今天、也可以把整批连排一起撤掉
+  function askDelTask(id) {
+    const t = DATA.tasks.find(x => x.id === id);
+    if (!t) return;
+    const sibs = t.groupId ? DATA.tasks.filter(x => x.groupId === t.groupId) : [];
+    const after = sibs.filter(x => x.date >= t.date).sort((a, b) => a.date < b.date ? -1 : (a.date > b.date ? 1 : 0));
+    const q = (arr) => arr.map(x => "'" + x + "'").join(',');
+    const modal = document.createElement('div');
+    modal.className = 'modal-mask';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+      <div class="modal">
+        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+        <h3>取消任务</h3>
+        <p class="del-warn">「${esc(t.title)}」${t.done ? '<br><span style="color:#C62828">孩子已经打卡拿到 ' + (t.points || 0) + ' ★，取消后这颗星会收回来</span>' : ''}</p>
+        <div class="btn-row" style="flex-direction:column">
+          <button class="btn-secondary" onclick="doDelTask([${q([t.id])}])">只取消这一条</button>
+          ${after.length > 1 ? `<button class="btn-secondary" onclick="doDelTask([${q(after.map(x => x.id))}])">取消今天起这整批（${after.length} 天）</button>` : ''}
+          ${sibs.length > after.length ? `<button class="btn-secondary" onclick="doDelTask([${q(sibs.map(x => x.id))}])">把这批全部删掉（${sibs.length} 条）</button>` : ''}
+          <button class="btn-primary" onclick="this.closest('.modal-mask').remove()">不删了</button>
+        </div>
+      </div>`;
+    document.getElementById('modal-root').appendChild(modal);
+  }
+  function doDelTask(ids) {
+    let back = 0;
+    (ids || []).forEach(id => { back += delTaskById(id); });
+    saveData(DATA); closeAllModals(); render();
+    toast(back > 0 ? ('已取消，收回 ' + back + ' ★') : '已取消任务');
+  }
+  // 妈妈端任务卡片右侧的编辑 / 删除（孩子端不渲染，孩子不能自己删任务）
+  function momTaskOps(t) {
+    return `<div class="task-ops">
+      <button class="icon-btn" title="编辑" onclick="event.stopPropagation();openTaskModal('${t.id}')">${ICN.edit}</button>
+      <button class="icon-btn danger" title="取消任务" onclick="event.stopPropagation();askDelTask('${t.id}')">${ICN.trash}</button>
+    </div>`;
+  }
+  let MOM_FUT_ALL = false;
+  function momFutToggle() { MOM_FUT_ALL = !MOM_FUT_ALL; render(); }
+  function futDayLabel(d) {
+    const a = new Date(d + 'T00:00:00'), b = new Date(TODAY + 'T00:00:00');
+    const diff = Math.round((a - b) / 86400000);
+    const wd = '日一二三四五六'[a.getDay()];
+    if (diff === 1) return '明天 · 周' + wd;
+    if (diff === 2) return '后天 · 周' + wd;
+    return d.slice(5) + ' · 周' + wd + '（' + diff + ' 天后）';
+  }
+  // 之后几天的任务也要能改 —— 布置错了常常是明天那几条错了
+  function momFutureTasks() {
+    const fut = (DATA.tasks || []).filter(t => t.date > TODAY).sort((a, b) => a.date < b.date ? -1 : (a.date > b.date ? 1 : 0));
+    if (!fut.length) return '';
+    const shown = MOM_FUT_ALL ? fut : fut.slice(0, 6);
+    const byDay = {};
+    shown.forEach(t => { (byDay[t.date] = byDay[t.date] || []).push(t); });
+    const days = Object.keys(byDay).sort();
+    return `
+      <div class="section">
+        <h3>📅 之后的安排 <span class="badge">${fut.length} 条</span>
+          ${fut.length > 6 ? `<button class="text-pink" style="font-size:12px" onclick="momFutToggle()">${MOM_FUT_ALL ? '收起' : '展开全部'}</button>` : ''}
+        </h3>
+        ${days.map(d => `
+          <div class="fut-day">${futDayLabel(d)}</div>
+          ${byDay[d].map(t => {
+            const k = DATA.children.find(c => c.id === t.childId);
+            const res = taskRes(t);
+            return `<div class="task ${t.done ? 'done' : ''}">
+              <div class="checkbox" onclick="toggleTask('${t.id}')">${t.done ? ICN.check : ''}</div>
+              <div class="title">
+                <div class="name">${esc(t.title)}</div>
+                <div class="meta">${k ? k.avatar + ' ' + esc(k.name) : ''}${res ? ' · 📎 ' + esc(res.title) : ''}</div>
+              </div>
+              <div class="pts">+${t.points}</div>
+              ${momTaskOps(t)}
+            </div>`;
+          }).join('')}
+        `).join('')}
+        ${(fut.length > 6 && !MOM_FUT_ALL) ? '<p class="wq-hint" style="margin-top:8px">只显示最近 6 条，点上面「展开全部」看剩下的</p>' : ''}
+      </div>`;
   }
   // 取任务挂的资料（资源库引用 或 自定义链接）
   function taskRes(t) {
