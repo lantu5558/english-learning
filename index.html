@@ -5259,7 +5259,8 @@
           pdfSetProgress(d.loaded / d.total * 100);
           pdfLoadText(useRange
             ? '边看边加载… ' + mb(d.loaded) + ' / ' + mb(d.total) + '（不用等全部下完）'
-            : '正在整本下载… ' + mb(d.loaded) + ' / ' + mb(d.total));
+            : '正在整本下载… ' + mb(d.loaded) + ' / ' + mb(d.total) +
+              (d.total > 40 * 1048576 ? '（文件偏大，压到 15MB 以内会快很多）' : ''));
         } else if (d.loaded) {
           pdfLoadText('正在整本下载… 已取 ' + mb(d.loaded));
         }
