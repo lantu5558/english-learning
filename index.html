@@ -397,6 +397,50 @@
     .modal.lv-fs .lv-fs-bar button { flex: 1; }
     .video-modal .video-meta { font-size: 12px; color: var(--gray-600); margin-top: 10px; text-align: center; }
 
+    /* ---- 影院模式（B站弹窗也用同一套）----
+       B站播放器在跨域 iframe 里点全屏，走的是它自己的「网页全屏」，
+       只会在 iframe 自己的视口里铺满，永远不会变大。
+       所以由外层把容器直接拉到整屏，它跟着变大，这才是真能变大的办法。 */
+    .bili-fs-bar { display: none; }
+    .modal.lv-fs .bili-fs-bar { display: flex; gap: 10px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); background: #111; }
+    .modal.lv-fs .bili-fs-bar button { flex: 1; }
+    .modal.lv-fs .bili-more { position: absolute; top: 10px; right: 56px; z-index: 6; float: none; margin: 0; background: rgba(0,0,0,0.45); }
+    /* 全屏时备用播放方式改成浮层，不占高度、不挤压视频 */
+    .modal.lv-fs .bili-fallback { position: absolute; top: 58px; left: 12px; right: 12px; z-index: 7; max-height: 68vh; overflow-y: auto; margin-top: 0; }
+
+    /* ===== PDF 阅读器（PDF.js 画到 canvas）=====
+       Android WebView 没有 Chrome 那套 PDF 插件，<iframe src="xx.pdf"> 在 APP 壳
+       和学习机里永远是空白、或者直接变成下载。所以统一用 PDF.js 逐页画到 canvas，
+       壳 / 学习机 / 手机浏览器表现一致，也不跳出平台（家长控制不会漏）。
+       前提：PDF 所在服务器必须开 CORS，否则 pdf.js 的 fetch 连数据都拿不到。 */
+    .pdf-stage { position: relative; width: 100%; height: 58vh; min-height: 300px; background: #525659; border-radius: 10px; overflow: auto; -webkit-overflow-scrolling: touch; }
+    .pdf-stage-inner { display: flex; justify-content: center; padding: 10px; min-width: 100%; min-height: 100%; }
+    .pdf-canvas { display: block; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.28); max-width: none; }
+    .pdf-bar { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    .pdf-bar .pdf-btn { min-width: 46px; height: 38px; padding: 0 12px; border-radius: 9px; border: 1px solid var(--border-soft); background: #fff; color: var(--gray-800); font-size: 14px; font-weight: 600; cursor: pointer; }
+    .pdf-bar .pdf-btn:active { background: var(--gray-100); }
+    .pdf-page { font-size: 13px; color: var(--gray-600); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .pdf-page input { width: 56px; text-align: center; padding: 6px 4px; border: 1px solid var(--border-soft); border-radius: 8px; font-size: 13px; }
+    .pdf-tip { font-size: 12px; color: var(--gray-600); margin-top: 8px; text-align: center; line-height: 1.7; }
+    .pdf-err { margin: 10px 0 0; padding: 12px 14px; background: #fff4e6; border: 1px solid #ffd9a8; border-radius: 10px; font-size: 12.5px; color: #8a5a00; line-height: 1.9; text-align: left; }
+    .pdf-err b { color: #7a4a00; }
+    .pdf-err code { background: #fff; padding: 1px 5px; border-radius: 4px; font-size: 12px; word-break: break-all; }
+    .pdf-err ol { margin: 6px 0 0; padding-left: 18px; }
+    .pdf-err li { margin: 2px 0; }
+    .pdf-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; height: 100%; min-height: 260px; padding: 28px 16px; color: #e8e8e8; font-size: 13px; text-align: center; }
+    .pdf-spin { width: 30px; height: 30px; border: 3px solid rgba(255,255,255,.25); border-top-color: var(--pink-400); border-radius: 50%; animation: pdfspin .8s linear infinite; }
+    @keyframes pdfspin { to { transform: rotate(360deg); } }
+    .pdf-prog { width: 190px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.22); overflow: hidden; }
+    .pdf-prog > i { display: block; height: 100%; width: 0; background: var(--pink-400); transition: width .2s; }
+    /* PDF 全屏：只铺满，不通知 APP 壳 —— 壳会强制横屏，而课本竖着看才舒服 */
+    .modal.lv-fs .pdf-stage { flex: 1 1 auto; height: auto; border-radius: 0; }
+    .modal.lv-fs .pdf-bar { margin: 0; padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); background: #111; }
+    .modal.lv-fs .pdf-bar .pdf-btn { background: #222; color: #fff; border-color: #3a3a3a; }
+    .modal.lv-fs .pdf-bar .pdf-btn:active { background: #333; }
+    .modal.lv-fs .pdf-page { color: #ccc; }
+    .modal.lv-fs .pdf-page input { background: #222; color: #fff; border-color: #3a3a3a; }
+    .modal.lv-fs .pdf-tip, .modal.lv-fs .pdf-err { display: none; }
+
     /* ===== B站外跳播放卡（平板 / 学习机 / 手机默认走这条） ===== */
     .bili-card { background: linear-gradient(180deg,#ffffff 0%,var(--pink-50) 100%); border:1px solid var(--pink-200); border-radius:14px; padding:22px 16px 16px; text-align:center; }
     .bc-logo { width:66px;height:66px;margin:0 auto 12px;border-radius:50%;background:var(--pink-400);color:#fff;font-size:28px;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(255,107,157,.32); }
@@ -3901,7 +3945,7 @@
     mask.id = 'lv-mask';
     mask.innerHTML = `
       <div class="modal">
-        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+        <button class="icon-btn close" onclick="closeVideoModal(this)">✕</button>
         <h3 style="padding-right:34px">${esc(title)}</h3>
         ${iframe}
         <p class="wq-hint" style="margin-top:10px">这个视频在别的网站上，我们管不了它的播放器，所以没法自动判断有没有看完${subUrl ? '，也没法把字幕挂上去（视频存到自己的空间才能带字幕）' : ''}</p>
@@ -3915,38 +3959,76 @@
         </div>
       </div>`;
     document.getElementById('modal-root').appendChild(mask);
+    videoFsSet(mask, true);
   }
 
   /**
-   * 宽松模式的全屏开关。
-   * 双保险：先试系统全屏（APP 壳里已实现接管，能用就是真横屏全屏），
-   * 再叠加 CSS 铺满——后者在没有系统全屏的环境（华为自带浏览器等）也能放大。
-   * 两边都失败也不影响，视频照常播。
+   * 影院模式开关 —— B站弹窗和任务宽松播放器共用同一套。
+   *
+   * 为什么不能指望 B站播放器自己的全屏按钮：
+   * 它跑在跨域 iframe 里，一旦发现自己是被嵌着的，全屏按钮就走它内部的
+   * 「网页全屏」，只会在 iframe 那块视口里铺满 —— 外层弹窗多大，它最大就多大。
+   * 所以必须由外层把容器拉到整屏，iframe 跟着变大，这才真的会变大。
+   *
+   * 三档降级，能拿到哪档用哪档：
+   *   ① APP 壳的 LebaoApp.setFullscreen() → 真横屏 + 隐藏状态栏 + 常亮（最好）
+   *   ② 系统 requestFullscreen()          → 浏览器里的原生全屏
+   *   ③ 纯 CSS 铺满                       → 任何环境都生效，至少是整屏
+   * 每档失败都静默往下走，绝不影响播放。
    */
+  function videoFsSet(mask, on) {
+    if (!mask) return;
+    const m = mask.querySelector('.modal');
+    if (!m) return;
+    m.classList.toggle('lv-fs', !!on);
+
+    // ① 通知 APP 壳：真横屏 + 沉浸式 + 常亮
+    try {
+      if (window.LebaoApp && typeof window.LebaoApp.setFullscreen === 'function') {
+        window.LebaoApp.setFullscreen(!!on);
+      }
+    } catch (e) { /* 浏览器里没有这个对象，正常 */ }
+
+    // ② 系统全屏
+    const de = document.documentElement;
+    try {
+      if (on) {
+        if (de.requestFullscreen) { const p = de.requestFullscreen(); if (p && p.catch) p.catch(function () {}); }
+        else if (de.webkitRequestFullscreen) de.webkitRequestFullscreen();
+      } else if (document.fullscreenElement || document.webkitFullscreenElement) {
+        if (document.exitFullscreen) { const p = document.exitFullscreen(); if (p && p.catch) p.catch(function () {}); }
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      }
+    } catch (e) { /* 系统全屏用不了就纯 CSS，不打断播放 */ }
+
+    // ③ 尽量跟着转成横屏（失败无所谓）
+    try {
+      if (on) { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(function () {}); }
+      else if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
+    } catch (e) {}
+    if (!on) { try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {} }
+  }
   function lvToggleFs() {
     const mask = document.getElementById('lv-mask');
     if (!mask) return;
     const m = mask.querySelector('.modal');
-    if (!m) return;
-    const on = !m.classList.contains('lv-fs');
-    m.classList.toggle('lv-fs', on);
-    const de = document.documentElement;
-    try {
-      if (on) {
-        if (de.requestFullscreen) { const p = de.requestFullscreen(); if (p && p.catch) p.catch(() => {}); }
-        else if (de.webkitRequestFullscreen) de.webkitRequestFullscreen();
-      } else if (document.fullscreenElement || document.webkitFullscreenElement) {
-        if (document.exitFullscreen) { const p = document.exitFullscreen(); if (p && p.catch) p.catch(() => {}); }
-        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-      }
-    } catch (e) { /* 系统全屏用不了就纯 CSS，不打断播放 */ }
-    // 尽量跟着转成横屏，失败无所谓
-    try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {}); } catch (e) {}
-    if (!on) { try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {} }
+    videoFsSet(mask, !(m && m.classList.contains('lv-fs')));
+  }
+  function biliToggleFs() {
+    const mask = document.querySelector('.modal-mask.video-mask');
+    if (!mask) return;
+    const m = mask.querySelector('.modal');
+    videoFsSet(mask, !(m && m.classList.contains('lv-fs')));
+  }
+  /** 关任何视频弹窗都走这里：先退出全屏（不然壳会一直横屏 + 常亮），再移除。 */
+  function closeVideoModal(el) {
+    const mask = el && el.closest ? el.closest('.modal-mask') : null;
+    if (mask) { try { videoFsSet(mask, false); } catch (e) {} mask.remove(); }
+    else if (el && el.remove) el.remove();
   }
   function lvDone(taskId) {
     const t = DATA.tasks.find(x => x.id === taskId);
-    if (!t || t.done) { const m = document.getElementById('lv-mask'); if (m) m.remove(); return; }
+    if (!t || t.done) { const m = document.getElementById('lv-mask'); if (m) closeVideoModal(m); return; }
     t.done = true; t.doneAt = Date.now();
     t.videoProgress = 100;
     t.proofData = { type: 'video', data: null, at: Date.now() };
@@ -3957,7 +4039,7 @@
     }
     saveData(DATA);
     const m = document.getElementById('lv-mask');
-    if (m) m.remove();
+    if (m) closeVideoModal(m);
     toast(`打卡完成 +${t.points} 分 🎉`);
     render();
   }
@@ -4576,10 +4658,17 @@
     if (!url) return false;
     return /\.(mp3|wav|m4a|aac|ogg|flac|opus)([?#].*)?$/i.test(url);
   }
-  // 是否直接 PDF 文件链接（阿里云 OSS 等直链）
+  // 是否直接 PDF 文件链接（阿里云 OSS / 腾讯云 COS 等直链）
   function isDirectPdf(url) {
     if (!url) return false;
-    return /\.(pdf)([?#].*)?$/i.test(url);
+    if (/\.(pdf)([?#].*)?$/i.test(url)) return true;
+    // 带签名或强制类型参数时，.pdf 就不在末尾了（OSS 的 response-content-type）
+    if (/[?&]response-content-type=application(%2F|\/)pdf/i.test(url)) return true;
+    try {
+      // 中文文件名常被编码成 %E4%B8%AD.pdf，解码后再认一次
+      if (/\.pdf$/i.test(decodeURIComponent(new URL(url).pathname || ''))) return true;
+    } catch (e) {}
+    return false;
   }
 
   // ===== B站播放：内嵌 / 外跳 双通道 =====
@@ -4631,11 +4720,11 @@
     const src = u.desktop;
     const modal = document.createElement('div');
     modal.className = 'modal-mask video-mask';
-    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.onclick = (e) => { if (e.target === modal) closeVideoModal(modal); };
     modal.innerHTML = `
       <div class="modal video-modal">
-        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
-        <button class="icon-btn" title="更多播放方式" style="float:right;margin-top:-8px;margin-right:6px;font-size:15px" onclick="biliToggleMenu(this)">↗</button>
+        <button class="icon-btn close" onclick="closeVideoModal(this)">✕</button>
+        <button class="icon-btn bili-more" title="更多播放方式" style="float:right;margin-top:-8px;margin-right:6px;font-size:15px" onclick="biliToggleMenu(this)">↗</button>
         <h3>${esc(title)}</h3>
         <div class="video-wrap"><iframe class="bili-frame" src="${escA(src)}" scrolling="no" frameborder="no" allowfullscreen="true" referrerpolicy="unsafe-url" allow="autoplay; fullscreen; encrypted-media; picture-in-picture"></iframe></div>
         <div class="bili-fallback" style="display:none;margin-top:10px;padding:12px;background:#fff4e6;border:1px solid #ffd9a8;border-radius:10px;font-size:13px;line-height:1.9">
@@ -4649,9 +4738,16 @@
             <button type="button" class="bili-swap" data-src="${escA(u.mobile)}" style="padding:5px 10px;border:1px solid #ffb37a;background:#fff;border-radius:8px;cursor:pointer;color:#8a5a00">移动版</button>
           </div>
         </div>
+        <div class="bili-fs-bar">
+          <button class="btn-secondary" onclick="biliToggleFs()">⤢ 退出全屏</button>
+          <button class="btn-secondary" onclick="biliToggleMenu(this)">↗ 播放不了？</button>
+        </div>
       </div>
     `;
     document.getElementById('modal-root').appendChild(modal);
+    // 打开就是影院模式：B站播放器的全屏按钮在跨域 iframe 里只能撑满它自己那块视口，
+    // 所以由外层直接把容器拉到整屏，它才会真的变大。
+    videoFsSet(modal, true);
     // 手动切换播放器版本
     const frame = modal.querySelector('.bili-frame');
     modal.querySelectorAll('.bili-swap').forEach(function (btn) {
@@ -4665,7 +4761,7 @@
     const b = { kind: k[0] || 'bvid', id: k[1] || '', p: k[2] || null };
     const title = btn.getAttribute('data-t') || '';
     biliSetPref('outside');
-    const m = document.querySelector('.modal-mask.video-mask'); if (m) m.remove();
+    const m = document.querySelector('.modal-mask.video-mask'); if (m) closeVideoModal(m);
     openBiliCard(title, b);
     if (typeof toast === 'function') toast('已记住：这台设备以后直接打开 B站');
   }
@@ -4678,7 +4774,7 @@
   }
   function biliAlwaysOutside() {
     biliSetPref('outside');
-    const m = document.querySelector('.modal-mask.video-mask'); if (m) m.remove();
+    const m = document.querySelector('.modal-mask.video-mask'); if (m) closeVideoModal(m);
     if (typeof toast === 'function') toast('已记住：以后 B站视频直接打开 B站观看');
   }
 
@@ -4718,7 +4814,7 @@
     const k = (btn.getAttribute('data-b') || '').split('|');
     const b = { kind: k[0] || 'bvid', id: k[1] || '', p: k[2] || null };
     biliSetPref('embed');
-    const m = document.querySelector('.modal-mask.video-mask'); if (m) m.remove();
+    const m = document.querySelector('.modal-mask.video-mask'); if (m) closeVideoModal(m);
     openBiliPlayer(btn.getAttribute('data-t') || '', b);
     if (typeof toast === 'function') toast('已改回：这台设备以后在平台内播放');
   }
@@ -4768,26 +4864,277 @@
     document.getElementById('modal-root').appendChild(modal);
   }
 
-  // 内嵌 PDF 预览（阿里云 OSS 等直链；部分安卓内核不支持内嵌渲染，提供浏览器打开兜底）
+  /**
+   * ===== PDF 阅读器（PDF.js 逐页画到 canvas）=====
+   *
+   * 为什么不用 iframe：<iframe src="xx.pdf"> 靠的是 Chrome 自带的 PDF 插件，
+   * 而 Android WebView 里根本没有这个插件 —— 在咱们的 APP 壳、学而思学习机上
+   * 表现就是一片空白，或者干脆变成「开始下载」。
+   * 所以改成 PDF.js 把每一页渲染到 canvas：壳、学习机、手机浏览器全都一样，
+   * 而且不跳出平台，家长控制不会漏。
+   *
+   * 唯一的硬前提：PDF 服务器必须开 CORS（跨域）。
+   * 阿里云 OSS 默认不开，pdf.js 的 fetch 会直接被浏览器拦掉，
+   * 这时下面会弹出一段说人话的排查指引，而不是让人对着转圈发呆。
+   */
+  var PDFJS_VERSION = '3.11.174';
+  // pdf.js 加载源，按顺序自动降级，哪个能用用哪个：
+  //   ① 自家 OSS（深圳节点，家里网访问最快）—— 把 pdfjs/ 两个文件传上去就生效，不用改代码
+  //   ② 本站同域 pdfjs/ 目录 —— 随网页一起部署，最稳
+  //   ③ 公共 CDN —— 最后兜底
+  var PDFJS_BASES = [
+    'https://lantu5558.oss-cn-shenzhen.aliyuncs.com/pdfjs/',
+    'pdfjs/',
+    'https://cdn.jsdelivr.net/npm/pdfjs-dist@' + PDFJS_VERSION + '/build/',
+    'https://unpkg.com/pdfjs-dist@' + PDFJS_VERSION + '/build/'
+  ];
+  var PDFJS_ACTIVE_BASE = '';
+  var _pdfjsPromise = null;
+
+  function loadScript(src) {
+    return new Promise(function (res, rej) {
+      var s = document.createElement('script');
+      s.src = src;
+      s.async = true;
+      s.onload = function () { res(); };
+      s.onerror = function () { rej(new Error('script-load-failed')); };
+      document.head.appendChild(s);
+    });
+  }
+  // 懒加载：只有真要看 PDF 的时候才去下 pdf.js（主程序 + worker 约 1.4MB），
+  // 平时不打搅页面打开速度。加载一次就缓存在内存里。
+  function loadPdfjs() {
+    if (_pdfjsPromise) return _pdfjsPromise;
+    _pdfjsPromise = (function tryBase(i) {
+      if (i >= PDFJS_BASES.length) return Promise.reject(new Error('pdfjs-all-sources-failed'));
+      var base = PDFJS_BASES[i];
+      return loadScript(base + 'pdf.min.js').then(function () {
+        var lib = window.pdfjsLib;
+        if (!lib || !lib.getDocument) throw new Error('pdfjs-invalid');
+        lib.GlobalWorkerOptions.workerSrc = base + 'pdf.worker.min.js';
+        PDFJS_ACTIVE_BASE = base;
+        return lib;
+      }).catch(function () { return tryBase(i + 1); });
+    })(0);
+    _pdfjsPromise.catch(function () { _pdfjsPromise = null; }); // 失败后允许下次重试
+    return _pdfjsPromise;
+  }
+  /** 读之前先探一次：跨域没开时 HEAD 会直接抛错，这正是 pdf.js 待会儿的遭遇。
+   *  提前判出来，就能给出「去 OSS 控制台点哪里」这种能照着做的指引。 */
+  function pdfPreflight(url) {
+    if (typeof fetch !== 'function') return Promise.resolve({ ok: true, attachment: false });
+    return fetch(url, { method: 'HEAD' }).then(function (r) {
+      var cd = (r.headers && r.headers.get ? r.headers.get('content-disposition') : '') || '';
+      return { ok: true, status: r.status, attachment: /attachment/i.test(cd) };
+    }).catch(function (e) {
+      return { ok: false, detail: String((e && e.message) || e) };
+    });
+  }
+
+  var PDF = null; // { doc, num, total, scale, rendering, pending }
+
   function openPdfViewer(title, url) {
-    const modal = document.createElement('div');
-    modal.className = 'modal-mask video-mask';
-    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    var modal = document.createElement('div');
+    modal.className = 'modal-mask video-mask pdf-mask';
+    modal.onclick = function (e) { if (e.target === modal) closeVideoModal(modal); };
     modal.innerHTML = `
       <div class="modal video-modal">
-        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+        <button class="icon-btn close" onclick="closeVideoModal(this)">✕</button>
+        <button class="icon-btn" style="float:right;margin-top:-8px;margin-right:6px;font-size:15px" title="全屏阅读" onclick="pdfFsToggle(this)">⛶</button>
         <h3>${esc(title)}</h3>
-        <div class="video-wrap" style="padding-top:125%;background:#f5f5f5">
-          <iframe src="${esc(url)}" style="background:#fff"></iframe>
+        <div class="pdf-stage" id="pdf-stage">
+          <div class="pdf-loading">
+            <div class="pdf-spin"></div>
+            <div id="pdf-loadtext">正在准备阅读器…</div>
+            <div class="pdf-prog"><i id="pdf-progbar"></i></div>
+          </div>
         </div>
-        <div class="video-meta">PDF · 若上方显示空白，点下方按钮用浏览器打开阅读</div>
+        <div class="pdf-bar">
+          <button class="pdf-btn" onclick="pdfGo(-1)">‹ 上一页</button>
+          <span class="pdf-page"><input id="pdf-num" type="number" min="1" value="1" onchange="pdfJump(this.value)" oninput="pdfJump(this.value)" /> / <span id="pdf-total">?</span></span>
+          <button class="pdf-btn" onclick="pdfGo(1)">下一页 ›</button>
+          <button class="pdf-btn" onclick="pdfZoom(-0.25)">－</button>
+          <button class="pdf-btn" onclick="pdfZoom(0.25)">＋</button>
+        </div>
+        <div class="pdf-tip" id="pdf-tip"></div>
         <div class="btn-row" style="margin-top:10px">
-          <button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">关闭</button>
-          <button class="btn-primary" onclick="window.open('${escA(url)}','_blank')">📖 用浏览器打开</button>
+          <button class="btn-secondary" onclick="closeVideoModal(this)">关闭</button>
+          <button class="btn-primary" onclick="window.open('${escA(url)}','_blank')">⬇️ 下载 / 其他应用打开</button>
         </div>
-      </div>
-    `;
+      </div>`;
     document.getElementById('modal-root').appendChild(modal);
+    pdfStart(url);
+  }
+
+  function pdfSetProgress(pct) {
+    var bar = document.getElementById('pdf-progbar');
+    if (bar) bar.style.width = Math.max(0, Math.min(100, Math.round(pct))) + '%';
+  }
+  function pdfLoadText(t) {
+    var el = document.getElementById('pdf-loadtext');
+    if (el) el.textContent = t;
+  }
+  function pdfStart(url) {
+    PDF = null;
+    var stage = document.getElementById('pdf-stage');
+    if (!stage) return;
+    pdfPreflight(url).then(function (pf) {
+      var stage2 = document.getElementById('pdf-stage');
+      if (!stage2) return; // 已经关掉了
+      if (!pf.ok) { pdfFail('cors', url, pf.detail || '', !!pf.attachment); return; }
+      if (pf.status && pf.status >= 400) { pdfFail('http', url, 'HTTP ' + pf.status, !!pf.attachment); return; }
+      pdfLoadText('正在加载阅读器…');
+      return loadPdfjs().then(function (lib) {
+        pdfLoadText('正在打开文档…');
+        var task = lib.getDocument({
+          url: url,
+          cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@' + PDFJS_VERSION + '/cmaps/',
+          cMapPacked: true,
+          // 大文件（几十兆的课本）靠 Range 分段取，别一次性全下下来
+          disableAutoFetch: false
+        });
+        task.onProgress = function (d) {
+          if (d && d.total) {
+            pdfSetProgress(d.loaded / d.total * 100);
+            pdfLoadText('正在下载文档… ' + Math.round(d.loaded / d.total * 100) + '%');
+          }
+        };
+        return task.promise;
+      }).then(function (doc) {
+        var s = document.getElementById('pdf-stage');
+        if (!s) return;
+        PDF = { doc: doc, num: 1, total: doc.numPages, scale: 1, rendering: false, pending: null };
+        var t = document.getElementById('pdf-total');
+        if (t) t.textContent = doc.numPages;
+        s.innerHTML = '<div class="pdf-stage-inner"><canvas id="pdf-canvas" class="pdf-canvas"></canvas></div>';
+        pdfRender();
+      }).catch(function (e) {
+        pdfFail('load', url, (e && e.message) || String(e), !!pf.attachment);
+      });
+    });
+  }
+  /** 打不开时给一段能照着做的指引，而不是一句「加载失败」。 */
+  function pdfFail(kind, url, detail, attachment) {
+    var stage = document.getElementById('pdf-stage');
+    if (!stage) return;
+    var host = '';
+    try { host = new URL(url).hostname; } catch (e) { host = ''; }
+    var html = '';
+    if (kind === 'cors') {
+      html = `<div class="pdf-err">
+        <b>读不到这份 PDF —— 服务器没开跨域（CORS）。</b><br>
+        浏览器不许网页去别的域名取数据，除非对方明确同意。阿里云 OSS 默认是关的，
+        需要你手动开一次（开完所有资料就都能看了，一劳永逸）：
+        <ol>
+          <li>打开 <b>阿里云 OSS 控制台</b>，进 Bucket <code>${esc(host.split('.')[0] || host)}</code></li>
+          <li>左侧 <b>数据安全 → 跨域设置</b> → 创建规则</li>
+          <li>来源填 <code>https://lantu5558.github.io</code></li>
+          <li>允许 Methods 勾 <b>GET、HEAD</b>；允许 Headers 填 <code>*</code></li>
+          <li>暴露 Headers 填 <code>*</code>；缓存时间 <code>3600</code></li>
+        </ol>
+        保存后等 1 分钟，把 APP 完全关掉重开再试。
+      </div>`;
+    } else if (kind === 'http') {
+      html = `<div class="pdf-err"><b>文件取不回来（${esc(detail)}）。</b><br>链接可能过期、被删了，或者权限不是公开读。</div>`;
+    } else {
+      html = `<div class="pdf-err"><b>文档打开失败。</b><br>
+        ${esc(detail || '')}<br>
+        常见原因：文件太大（几十兆的课本第一次打开要等一会儿）、文件本身损坏，
+        或者上面那个跨域没配好。</div>`;
+    }
+    if (attachment) {
+      html += `<div class="pdf-err">另外：这个文件被设成了<b>强制下载</b>，
+        所以点「下载 / 其他应用打开」会直接存成一个文件，不会在浏览器里显示 —— 这是正常的，不影响在平台里阅读。</div>`;
+    }
+    stage.innerHTML = html;
+    var tip = document.getElementById('pdf-tip');
+    if (tip) tip.textContent = '';
+  }
+  function pdfRender() {
+    if (!PDF) return;
+    var stage = document.getElementById('pdf-stage');
+    if (!stage) return;
+    if (PDF.rendering) { PDF.pending = PDF.num; return; }
+    PDF.rendering = true;
+    PDF.doc.getPage(PDF.num).then(function (page) {
+      var cv = document.getElementById('pdf-canvas');
+      if (!cv) {
+        stage.innerHTML = '<div class="pdf-stage-inner"><canvas id="pdf-canvas" class="pdf-canvas"></canvas></div>';
+        cv = document.getElementById('pdf-canvas');
+      }
+      var cw = stage.clientWidth || 360;
+      var v0 = page.getViewport({ scale: 1 });
+      // 先按容器宽度算出「刚好铺满」的基准，再乘用户的缩放倍数
+      var fit = (cw - 22) / v0.width;
+      var vp = page.getViewport({ scale: fit * PDF.scale });
+      var cap = Math.min(window.devicePixelRatio || 1, 2); // 再高也没意义，只会更卡
+      cv.width = Math.floor(vp.width * cap);
+      cv.height = Math.floor(vp.height * cap);
+      cv.style.width = Math.floor(vp.width) + 'px';
+      cv.style.height = Math.floor(vp.height) + 'px';
+      var ctx = cv.getContext('2d');
+      ctx.setTransform(cap, 0, 0, cap, 0, 0);
+      return page.render({ canvasContext: ctx, viewport: vp }).promise;
+    }).then(function () {
+      if (!PDF) return;
+      PDF.rendering = false;
+      var n = document.getElementById('pdf-num');
+      if (n && document.activeElement !== n) n.value = PDF.num;
+      var tip = document.getElementById('pdf-tip');
+      if (tip) tip.textContent = '第 ' + PDF.num + ' / ' + PDF.total + ' 页 · 缩放 ' + Math.round(PDF.scale * 100) + '% · 在页面上双指可以放大';
+      if (PDF.pending != null && PDF.pending !== PDF.num) { PDF.num = PDF.pending; PDF.pending = null; pdfRender(); }
+      else PDF.pending = null;
+    }).catch(function (e) {
+      PDF.rendering = false;
+      var tip = document.getElementById('pdf-tip');
+      if (tip) tip.textContent = '这一页渲染失败：' + ((e && e.message) || e);
+    });
+  }
+  function pdfGo(d) {
+    if (!PDF) return;
+    var n = PDF.num + d;
+    if (n < 1 || n > PDF.total) return;
+    PDF.num = n;
+    var s = document.getElementById('pdf-stage');
+    if (s) s.scrollTop = 0;
+    pdfRender();
+  }
+  function pdfJump(v) {
+    if (!PDF) return;
+    var n = parseInt(v, 10);
+    if (!n || n < 1) return;               // 输入到一半（比如想跳 12 页，先输了个 1）别打断
+    if (n > PDF.total) n = PDF.total;
+    PDF.num = n;
+    pdfRender();
+  }
+  function pdfZoom(d) {
+    if (!PDF) return;
+    var s = PDF.scale + d;
+    if (s < 0.5) s = 0.5;
+    if (s > 3) s = 3;
+    PDF.scale = s;
+    pdfRender();
+  }
+  /** PDF 全屏：只做 CSS 铺满 + 系统全屏，刻意不通知 APP 壳。
+   *  壳那边 setFullscreen 会把屏幕锁成横屏，而课本竖着看才舒服。 */
+  function pdfFsToggle(el) {
+    var mask = el && el.closest ? el.closest('.modal-mask') : null;
+    if (!mask) return;
+    var m = mask.querySelector('.modal');
+    if (!m) return;
+    var on = !m.classList.contains('lv-fs');
+    m.classList.toggle('lv-fs', on);
+    try {
+      var de = document.documentElement;
+      if (on) {
+        if (de.requestFullscreen) { var p = de.requestFullscreen(); if (p && p.catch) p.catch(function () {}); }
+        else if (de.webkitRequestFullscreen) de.webkitRequestFullscreen();
+      } else if (document.fullscreenElement || document.webkitFullscreenElement) {
+        if (document.exitFullscreen) { var q = document.exitFullscreen(); if (q && q.catch) q.catch(function () {}); }
+        else if (document.webkitExitFullscreen) de.webkitExitFullscreen();
+      }
+    } catch (e) { /* 系统全屏拿不到就纯 CSS，照样铺满 */ }
+    setTimeout(pdfRender, 150); // 尺寸变了要按新宽度重算
   }
 
   // ========== 模态：添加奖励 ==========
