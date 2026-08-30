@@ -5128,6 +5128,28 @@
   var PDF_WARN = '';         // 底部那行非阻断提示（不挡着阅读）
   var PDF_URL = '';          // 当前这份文档的链接，指引里要用
   var PDF_FIX_OPEN = false;  // 「怎么修」那段指引是不是正展开着
+  var PDF_TOKEN = 0;         // 每次打开 +1。异步回调靠它判断「这还是不是同一次打开」
+
+  /**
+   * 把文档占的内存还回去。
+   * 这一步不能省：pdf.js 打开一份几十兆的课本，会把整份文件的字节和解析出来的结构都留在内存里；
+   * 关掉弹窗只是把 DOM 摘掉，doc 还被 PDF 这个变量拽着，worker 那边也不会自己收。
+   * 来回开关几次就是几百兆，学习机这种内存小的设备会直接崩。
+   * canvas 也要把宽高归零，不然画布的后备存储还占着不放。
+   */
+  function pdfDestroy() {
+    PDF_TOKEN++;
+    PDF_FIX_OPEN = false;
+    var cv = document.getElementById('pdf-canvas');
+    if (cv) { try { cv.width = 0; cv.height = 0; } catch (e) {} }
+    if (PDF && PDF.doc) { try { PDF.doc.destroy(); } catch (e) {} }
+    PDF = null;
+  }
+  /** 关闭阅读器：先还内存，再摘弹窗 */
+  function pdfClose(el) {
+    pdfDestroy();
+    closeVideoModal(el);
+  }
 
   /** 打不开 / 想优化时，给一段能照着做的指引，而不是一句「加载失败」。 */
   function pdfGuideHtml(kind, url, detail) {
@@ -5190,10 +5212,10 @@
   function openPdfViewer(title, url) {
     var modal = document.createElement('div');
     modal.className = 'modal-mask video-mask pdf-mask';
-    modal.onclick = function (e) { if (e.target === modal) closeVideoModal(modal); };
+    modal.onclick = function (e) { if (e.target === modal) pdfClose(modal); };
     modal.innerHTML = `
       <div class="modal video-modal">
-        <button class="icon-btn close" onclick="closeVideoModal(this)">✕</button>
+        <button class="icon-btn close" onclick="pdfClose(this)">✕</button>
         <button class="icon-btn" style="float:right;margin-top:-8px;margin-right:6px;font-size:15px" title="全屏阅读" onclick="pdfFsToggle(this)">⛶</button>
         <h3>${esc(title)}</h3>
         <div class="pdf-stage" id="pdf-stage">
@@ -5212,7 +5234,7 @@
         </div>
         <div class="pdf-tip" id="pdf-tip"></div>
         <div class="btn-row" style="margin-top:10px">
-          <button class="btn-secondary" onclick="closeVideoModal(this)">关闭</button>
+          <button class="btn-secondary" onclick="pdfClose(this)">关闭</button>
           <button class="btn-primary" onclick="window.open('${escA(url)}','_blank')">⬇️ 下载 / 其他应用打开</button>
         </div>
       </div>`;
@@ -5269,8 +5291,11 @@
     });
   }
   function pdfStart(url) {
-    PDF = null; PDF_URL = url;
-    PDF_DIAG = null; PDF_ATTACHMENT = false; PDF_WARN = ''; PDF_FIX_OPEN = false;
+    pdfDestroy();              // 开新的一份之前，先把上一份占的内存还回去
+    var token = PDF_TOKEN;     // 记住这次的编号，异步回调靠它判断「还是不是同一次打开」
+    PDF_URL = url;
+    PDF_DIAG = null; PDF_ATTACHMENT = false; PDF_WARN = '';
+    var stale = function () { return PDF_TOKEN !== token; };
     var stage = document.getElementById('pdf-stage');
     if (!stage) return;
     // 探测结果只用来「解释」，不再用来「放行」。
@@ -5279,8 +5304,7 @@
     // 而「暴露 Headers 没填」只是让阅读器不知道能分段、退化成整本下载，并不影响能不能读。
     // 现在一律先真的去读，读不通再解释。
     pdfPreflight(url).then(function (pf) {
-      var s2 = document.getElementById('pdf-stage');
-      if (!s2) return null; // 已经关掉了
+      if (stale()) return null; // 下载还没完，用户已经关掉了
       PDF_DIAG = pf;
       PDF_ATTACHMENT = !!pf.attachment;
       if (!pf.ok) { pdfFail('cors', url, pf.detail || '', !!pf.attachment); return null; }
@@ -5296,12 +5320,16 @@
       });
     }).then(function (doc) {
       if (!doc) return;
-      var s = document.getElementById('pdf-stage');
-      if (!s) return;
+      // 几十兆的课本下到一半，用户等不及关掉了 —— 这份 doc 已经用不上，
+      // 必须就地销毁：只要还被谁拽着引用，浏览器就回收不了那一百多兆。
+      if (stale() || !document.getElementById('pdf-stage')) {
+        try { doc.destroy(); } catch (e) {}
+        return;
+      }
       PDF = { doc: doc, num: 1, total: doc.numPages, scale: 1, rendering: false, pending: null };
       var t = document.getElementById('pdf-total');
       if (t) t.textContent = doc.numPages;
-      s.innerHTML = '<div class="pdf-stage-inner"><canvas id="pdf-canvas" class="pdf-canvas"></canvas></div>';
+      stage.innerHTML = '<div class="pdf-stage-inner"><canvas id="pdf-canvas" class="pdf-canvas"></canvas></div>';
       pdfRender();
       pdfSetWarn(PDF_DIAG);
     }).catch(function (e) {
