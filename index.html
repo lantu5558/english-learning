@@ -364,6 +364,11 @@
     .reward .info { flex: 1; min-width: 0; }
     .reward .info .name { font-size: 14px; font-weight: 500; }
     .reward .info .threshold { font-size: 11px; color: var(--gray-600); margin-top: 2px; }
+    /* 奖励行内按钮：覆盖全局 .btn-primary{width:100%}，改为自适应宽、不换行，避免文字被挤竖排 */
+    .reward .btn-primary {
+      width: auto; flex: 0 0 auto; white-space: nowrap;
+      padding: 6px 14px; font-size: 12px; margin-left: 8px;
+    }
 
     /* ===== 顶部数据卡 ===== */
     .stat-card {
@@ -926,6 +931,8 @@
       if (!r.category) r.category = 'learn';
       if (SUBJECT_MIGRATE[r.subject]) r.subject = SUBJECT_MIGRATE[r.subject];
       if (!SUBJECTS[r.subject]) r.subject = 'suyang';
+      // 给谁看：旧数据没这字段 → 默认「姐弟俩都看」，向后兼容
+      if (r.who !== 'sis' && r.who !== 'bro' && r.who !== 'both') r.who = 'both';
     });
     (d.tasks || []).forEach(t => {
       // 老任务没 kind 字段：按打卡方式推断；挂了视频的算看视频任务
@@ -947,6 +954,10 @@
       if (r.cost == null) r.cost = 100;
     });
     if (!Array.isArray(d.redemptions)) d.redemptions = [];
+    // 历史兑换记录(a)新模型上线前已 redeem：当时已打开看过1次；(b)妈妈许诺类无资源可看=0
+    (d.redemptions || []).forEach(rd => {
+      if (typeof rd.views !== 'number') rd.views = (rd.status === 'pending') ? 0 : 1;
+    });
     if (!Array.isArray(d.wheel) || !d.wheel.length) d.wheel = JSON.parse(JSON.stringify(DEFAULT_DATA.wheel));
     (d.children || []).forEach(c => {
       if (c.points == null) c.points = 0;
@@ -1152,6 +1163,8 @@
     setTimeout(() => t.remove(), 1800);
   }
   function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+  function escAttr(s) { return esc(String(s == null ? '' : s)).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+  function escHtml(s) { return esc(String(s == null ? '' : s)); }
 
   // ========== 图标 ==========
   const ICN = {
@@ -1456,8 +1469,9 @@
               <div class="thumb">${ICN[r.type]||ICN.pdf}</div>
               <div class="info">
                 <div class="name">${esc(r.title)}</div>
-                <div class="meta"><span class="badge-subj" style="background:${'var(--'+s.color+'-50)'};color:var(--${s.color}-600)">${s.emoji} ${s.name}</span>${(r.category||'learn')==='fun'?'<span class="badge-subj" style="background:var(--purple-50);color:var(--purple-600)">🎁 奖励</span>':''}${r.episodes&&r.episodes.length>=2?`<span class="badge-subj" style="background:var(--amber-50);color:var(--amber-600)">▶ 共${r.episodes.length}集</span>`:''}</div>
+                <div class="meta"><span class="badge-subj" style="background:${'var(--'+s.color+'-50)'};color:var(--${s.color}-600)">${s.emoji} ${s.name}</span>${(r.category||'learn')==='fun'?'<span class="badge-subj" style="background:var(--purple-50);color:var(--purple-600)">🎁 奖励</span>':''}${r.episodes&&r.episodes.length>=2?`<span class="badge-subj" style="background:var(--amber-50);color:var(--amber-600)">▶ 共${r.episodes.length}集</span>`:''}${whoTag(r)}</div>
               </div>
+              <button class="icon-btn" onclick="event.stopPropagation();openResourceModal(null,'${r.id}')" title="编辑">${ICN.edit}</button>
               <button class="icon-btn" onclick="delResource('${r.id}')" title="删除">${ICN.trash}</button>
             </div>`;
           }).join('')}
@@ -1699,6 +1713,27 @@
     const id = sessionStorage.getItem('kid-auth');
     return id && DATA.children.find(c => c.id === id);
   }
+  // 孩子在「姐姐/弟弟」侧的归属：名字含姐→sis，含弟→bro，其余按出生序首=姐、后=弟
+  function kidSide(c) {
+    if (!c) return '';
+    const nm = c.name || '';
+    if (/姐/.test(nm)) return 'sis';
+    if (/弟/.test(nm)) return 'bro';
+    const idx = (DATA.children || []).indexOf(c);
+    return idx === 0 ? 'sis' : 'bro';
+  }
+  // 资源是否对某个孩子可见：who=both 或 =该孩子所在侧
+  function resForKid(r, c) {
+    if (!r || !r.who || r.who === 'both') return true;
+    return r.who === kidSide(c);
+  }
+  // 给谁看的标签（妈妈端资源列表用）
+  function whoTag(r) {
+    const w = (r && r.who) || 'both';
+    if (w === 'sis') return `<span class="badge-subj" style="background:var(--pink-50);color:var(--pink-600)">👧 只给姐姐</span>`;
+    if (w === 'bro') return `<span class="badge-subj" style="background:var(--purple-50);color:var(--purple-600)">👦 只给弟弟</span>`;
+    return `<span class="badge-subj" style="background:var(--gray-100);color:var(--gray-600)">👧👦 姐弟俩</span>`;
+  }
   function viewKidTasks() {
     const c = kidCheck();
     if (!c) { location.hash='kid-select'; return ''; }
@@ -1768,8 +1803,8 @@
   function viewKidResources() {
     const c = kidCheck();
     if (!c) { location.hash='kid-select'; return ''; }
-    const learn = DATA.resources.filter(r => (r.category || 'learn') === 'learn');
-    const fun = DATA.resources.filter(r => r.category === 'fun');
+    const learn = DATA.resources.filter(r => (r.category || 'learn') === 'learn' && resForKid(r, c));
+    const fun = DATA.resources.filter(r => r.category === 'fun' && resForKid(r, c));
     const funUnlocked = kidTasksDone(c);
     return `
       <div class="topbar">
@@ -1826,8 +1861,9 @@
   function subjTypeLabel(t) { return t === 'video' ? '🎬 视频' : t === 'audio' ? '🎵 音频' : '📄 文件'; }
   function viewSubject(p) {
     const isMom = p.role === 'mom';
+    const c = isMom ? null : kidCheck();
     const s = SUBJECTS[p.key] || SUBJECT_FALLBACK;
-    const all = DATA.resources.filter(r => r.subject === p.key);
+    const all = DATA.resources.filter(r => r.subject === p.key && (isMom || resForKid(r, c)));
     const list = SUBJ_FILTER === 'all' ? all : all.filter(r => r.type === SUBJ_FILTER);
     const TYPE_TABS = [['all', '全部'], ['video', '🎬 视频'], ['audio', '🎵 音频'], ['pdf', '📄 文件']];
     return `
@@ -1856,8 +1892,9 @@
               <div class="thumb">${ICN[r.type]||ICN.pdf}</div>
               <div class="info">
                 <div class="name">${esc(r.title)}</div>
-                <div class="meta">${r.type==='video'?'🎬 视频':r.type==='pdf'?'📄 PDF':'🎵 音频'}${r.episodes&&r.episodes.length>=2?` · <span style="color:var(--amber-600)">共${r.episodes.length}集</span>`:''}${resSubCount(r)?`<span class="res-sub-tag">CC 字幕</span>`:''}${isMom && resIsNetdisk(r)?`<span class="res-nd-tag" title="网盘链接，平台里打不开，只能跳转">↗ 网盘</span>`:''}</div>
+                <div class="meta">${r.type==='video'?'🎬 视频':r.type==='pdf'?'📄 PDF':'🎵 音频'}${r.episodes&&r.episodes.length>=2?` · <span style="color:var(--amber-600)">共${r.episodes.length}集</span>`:''}${resSubCount(r)?`<span class="res-sub-tag">CC 字幕</span>`:''}${isMom && resIsNetdisk(r)?`<span class="res-nd-tag" title="网盘链接，平台里打不开，只能跳转">↗ 网盘</span>`:''}${isMom?whoTag(r):''}</div>
               </div>
+              ${isMom ? `<button class="icon-btn" onclick="event.stopPropagation();openResourceModal(null,'${r.id}')" title="编辑">${ICN.edit}</button>` : ''}
               ${isMom ? (r.type === 'video' ? `<button class="icon-btn" onclick="event.stopPropagation();openResSubModal('${r.id}')" title="挂字幕" style="font-size:11px;font-weight:600">CC</button>` : '') : ''}
               ${isMom ? `<button class="icon-btn" onclick="event.stopPropagation();delResource('${r.id}')">${ICN.trash}</button>` : ''}
             </div>
@@ -1907,14 +1944,24 @@
         </div>
         <div class="section">
           <h3>我的兑换 <span class="badge">${myRds.length}</span></h3>
-          ${myRds.map(r => `
+          ${myRds.map(r => {
+            const rw = DATA.rewards.find(x => x.id === r.rewardId);
+            const hasUrl = !!(rw && rw.url);
+            const v = r.views || 0;
+            const left = MAX_REWARD_VIEWS - v;
+            const rewatchable = r.cat !== 'promise' && hasUrl && left > 0;
+            return `
             <div class="reward">
               <div class="thumb">${r.emoji}</div>
               <div class="info">
                 <div class="name">${esc(r.rewardTitle)}</div>
-                <div class="threshold">${r.cost} 积分 · ${r.at?fmtClock(r.at):''} · ${r.status==='pending'?'<span style="color:var(--red-600)">待妈妈兑现</span>':'已兑换'}</div>
+                <div class="threshold">${r.cost} 积分 · ${r.at?fmtClock(r.at):''} · ${r.status==='pending'?'<span style="color:var(--red-600)">待妈妈兑现</span>':'已兑换'}${hasUrl?(' · 已看 '+v+'/'+MAX_REWARD_VIEWS):''}</div>
               </div>
-            </div>`).join('') || '<div class="empty">还没有兑换记录</div>'}
+              ${r.status==='pending' ? '' : (rewatchable
+                ? `<button class="btn-primary" style="padding:6px 12px;font-size:12px" onclick="playRedemption('${r.id}')">再观看 ▶ (剩${left})</button>`
+                : (hasUrl ? `<span class="text-mute" style="font-size:12px">已达${MAX_REWARD_VIEWS}次上限</span>` : ''))}
+            </div>`;
+          }).join('') || '<div class="empty">还没有兑换记录</div>'}
         </div>
         <div class="section">
           <h3>勋章 <span class="badge">收集</span></h3>
@@ -4576,55 +4623,79 @@
   }
 
   // ========== 模态：添加资源 ==========
-  function openResourceModal(preselectSubject) {
+  function openResourceModal(preselectSubject, editId) {
     const modal = document.createElement('div');
     modal.className = 'modal-mask';
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     window.__biliEps = null; window.__biliEpsUrl = '';
+    const ed = editId ? DATA.resources.find(x => x.id === editId) : null;
+    window.__editResId = ed ? editId : null;
+    const sel = (v, cur) => (v === cur ? ' selected' : '');
+    // 编辑时预填分集/字幕
+    let epText = '', subText = '', showEp = 'none';
+    if (ed) {
+      if (ed.episodes && ed.episodes.length) {
+        epText = ed.episodes.map(e => ((e.title ? e.title + ' | ' : '') + e.url)).join('\n');
+        if (ed.episodes.length >= 2) showEp = 'block';
+      }
+      if (ed.episodes && ed.episodes.length) {
+        subText = ed.episodes.map(e => (e && e.sub) || '').join('\n');
+      } else if (ed.sub) {
+        subText = ed.sub;
+      }
+    }
     modal.innerHTML = `
       <div class="modal">
         <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
-        <h3>添加资源</h3>
+        <h3>${ed ? '编辑资源' : '添加资源'}</h3>
         <p class="text-mute" style="margin-top:-8px;margin-bottom:12px">支持 B站视频 / 阿里云 OSS 文件直链 / 任意网页链接，直接粘贴即可</p>
         <div class="field">
           <label>类型</label>
-          <select id="r-type"><option value="video">视频</option><option value="pdf">PDF 文件</option><option value="audio">音频</option></select>
+          <select id="r-type"><option value="video"${sel('video', ed&&ed.type)}>视频</option><option value="pdf"${sel('pdf', ed&&ed.type)}>PDF 文件</option><option value="audio"${sel('audio', ed&&ed.type)}>音频</option></select>
         </div>
         <div class="field">
           <label>类别</label>
-          <select id="r-cat"><option value="learn">📚 学习资源（随时能看）</option><option value="fun">🎁 奖励资源（完成打卡才能看）</option></select>
+          <select id="r-cat"><option value="learn"${sel('learn', ed&&(ed.category||'learn'))}>📚 学习资源（随时能看）</option><option value="fun"${sel('fun', ed&&(ed.category||'learn'))}>🎁 奖励资源（完成打卡才能看）</option></select>
+        </div>
+        <div class="field">
+          <label>给谁看</label>
+          <select id="r-who">
+            <option value="both"${sel('both', ed&&(ed.who||'both'))}>👧👦 姐弟俩（都看）</option>
+            <option value="sis"${sel('sis', ed&&(ed.who||'both'))}>👧 只给姐姐</option>
+            <option value="bro"${sel('bro', ed&&(ed.who||'both'))}>👦 只给弟弟</option>
+          </select>
         </div>
         <div class="field">
           <label>学科</label>
-          <select id="r-subject">${Object.entries(SUBJECTS).map(([k,v]) => `<option value="${k}" ${k===preselectSubject?'selected':''}>${v.emoji} ${v.name}</option>`).join('')}</select>
+          <select id="r-subject">${Object.entries(SUBJECTS).map(([k,v]) => `<option value="${k}"${sel(k, (ed&&ed.subject)||preselectSubject)}>${v.emoji} ${v.name}</option>`).join('')}</select>
         </div>
         <div class="field">
           <label>标题</label>
-          <input id="r-title" placeholder="例：小猪佩奇 第27集" />
+          <input id="r-title" placeholder="例：小猪佩奇 第27集" value="${ed?escAttr(ed.title):''}" />
         </div>
         <div class="field">
           <label>链接（B站 / OSS 直链 / 网页均可）</label>
-          <input id="r-url" placeholder="粘贴链接，如 https://www.bilibili.com/video/BV..." oninput="autoDetectType()" />
+          <input id="r-url" placeholder="粘贴链接，如 https://www.bilibili.com/video/BV..." value="${ed?escAttr(ed.url):''}" oninput="autoDetectType()" />
           <div id="bili-eps-status" style="margin-top:8px;font-size:13px;line-height:1.5"></div>
         </div>
         <div class="field">
           <label>字幕链接（可选，.vtt 或 .srt）</label>
-          <textarea id="r-sub" rows="3" placeholder="每行一个字幕链接，单集视频填 1 行&#10;合集按顺序每行对应一集，可留空跳过某一集"></textarea>
+          <textarea id="r-sub" rows="3" placeholder="每行一个字幕链接，单集视频填 1 行&#10;合集按顺序每行对应一集，可留空跳过某一集">${escHtml(subText)}</textarea>
           <p class="text-mute" style="margin-top:6px">视频本身不用动，字幕单独挂在旁边。孩子看的时候可以自己开关。</p>
         </div>
         <div class="field">
           <button type="button" class="btn-secondary" onclick="toggleEpisodes()" style="border:1px dashed var(--pink-300);background:var(--pink-50);color:var(--pink-600)">＋ 这是合集/连续剧，有多集（分集）</button>
         </div>
-        <div id="ep-area" style="display:none">
+        <div id="ep-area" style="display:${showEp}">
           <div class="field">
             <label>分集列表（每行一集）</label>
-            <textarea id="r-eps" rows="6" placeholder="每行一集：标题 | 链接&#10;&#10;例：&#10;第1集 小猪佩奇去游泳 | https://www.bilibili.com/video/BV...?p=1&#10;第2集 小猪佩奇去露营 | https://www.bilibili.com/video/BV...?p=2&#10;第3集 小猪佩奇去野餐 | https://www.bilibili.com/video/BV...?p=3"></textarea>
+            <textarea id="r-eps" rows="6" placeholder="每行一集：标题 | 链接&#10;&#10;例：&#10;第1集 小猪佩奇去游泳 | https://www.bilibili.com/video/BV...?p=1&#10;第2集 小猪佩奇去露营 | https://www.bilibili.com/video/BV...?p=2&#10;第3集 小猪佩奇去野餐 | https://www.bilibili.com/video/BV...?p=3">${escHtml(epText)}</textarea>
             <p class="text-mute" style="margin-top:6px">只贴链接、不写标题也行（每行一个），会自动按「第1集、第2集…」命名。B站合集可复制每集的链接逐行粘贴。</p>
           </div>
         </div>
         <div class="btn-row">
           <button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">取消</button>
-          <button class="btn-primary" onclick="addResource()">添加</button>
+          <button class="btn-primary" onclick="addResource()">${ed ? '保存' : '添加'}</button>
         </div>
       </div>
     `;
@@ -4719,7 +4790,8 @@
     const checkBili = (u) => parseBilibili(u) ? true : false;
     if ((checkBili(url) || eps.some(e => checkBili(e.url))) && type !== 'video') type = 'video';
 
-    const res = { id: 'r'+Date.now(), type, subject, title, url, category: cat };
+    const who = document.getElementById('r-who') ? document.getElementById('r-who').value : 'both';
+    const res = { type, subject, title, url, category: cat, who };
     // B站自动识别的分集（妈妈贴一条链接时已异步拉取）
     if (window.__biliEps && window.__biliEps.length >= 2 && window.__biliEpsUrl === url && eps.length === 0) {
       const base = url.replace(/[?&]p=\d+/, '').replace(/#.*$/, '');
@@ -4744,6 +4816,21 @@
     } else if (subs[0]) {
       res.sub = subs[0];
     }
+    const editId = window.__editResId;
+    if (editId) {
+      const ex = DATA.resources.find(x => x.id === editId);
+      if (ex) {
+        const keepId = ex.id;
+        Object.assign(ex, res);
+        ex.id = keepId; // 保留原 id，避免孩子端已打开的链接失效
+        window.__editResId = null;
+        saveData(DATA); document.querySelector('.modal-mask').remove(); render();
+        toast('已保存');
+        return;
+      }
+      window.__editResId = null;
+    }
+    res.id = 'r' + Date.now();
     DATA.resources.push(res);
     saveData(DATA); document.querySelector('.modal-mask').remove(); render();
     toast(eps.length >= 2 ? '已添加合集（' + eps.length + '集）' : '已添加');
@@ -4778,6 +4865,7 @@
             type,
             subject: SUBJECTS[x.subject] ? x.subject : 'suyang',
             category: x.category === 'fun' ? 'fun' : 'learn',
+            who: 'both',
             url: eps.length ? eps[0].url : base,
             eps
           };
@@ -4801,6 +4889,7 @@
           type,
           subject: SUBJECTS[x.subject] ? x.subject : 'suyang',
           category: x.category === 'fun' ? 'fun' : 'learn',
+          who: 'both',
           url: String(x.url || ''),
           eps: Array.isArray(x.eps) ? x.eps.filter(e => e && e.url).map(e => ({ title: String(e.title || '').slice(0, 60), url: String(e.url) })) : []
         };
@@ -5981,18 +6070,32 @@
     if (!r) return;
     openResourceLink(r.title, 'video', r.url);
   }
-  // 孩子用积分兑换奖励：扣积分 + 记录；视频类直接打开，妈妈许诺类进入待兑现
+  // 视频/音频类奖励：限看 MAX_REWARD_VIEWS 次，每次播放记一次数，不重复扣积分
+  const MAX_REWARD_VIEWS = 5;
+  function playRedemption(rdId) {
+    const c = kidCheck(); if (!c) return;
+    const rd = (DATA.redemptions || []).find(x => x.id === rdId); if (!rd) return;
+    if (rd.childId !== c.id) return; // 只能重看自己的兑换
+    const r = DATA.rewards.find(x => x.id === rd.rewardId);
+    if (!r || !r.url) { toast('这条奖励没有可播放的资源'); return; }
+    if ((rd.views || 0) >= MAX_REWARD_VIEWS) { toast('已达观看上限（' + MAX_REWARD_VIEWS + '次）'); return; }
+    rd.views = (rd.views || 0) + 1;
+    saveData(DATA); render();
+    openResourceLink(r.title, 'video', r.url);
+  }
+  // 孩子用积分兑换奖励：扣积分 + 记录；视频类直接打开(记第1次观看)，妈妈许诺类进入待兑现
   function redeemReward(id) {
     const c = kidCheck(); if (!c) return;
     const r = DATA.rewards.find(x => x.id === id); if (!r) return;
     if (c.points < r.cost) { toast('积分不够，还差 ' + (r.cost - c.points) + ' 分'); return; }
     c.points -= r.cost;
     const isPromise = r.cat === 'promise';
-    DATA.redemptions.unshift({ id: 'rd'+Date.now(), childId: c.id, rewardId: id, rewardTitle: r.title, emoji: r.emoji, cost: r.cost, cat: r.cat, at: Date.now(), status: isPromise ? 'pending' : 'done' });
+    const rd = { id: 'rd'+Date.now(), childId: c.id, rewardId: id, rewardTitle: r.title, emoji: r.emoji, cost: r.cost, cat: r.cat, at: Date.now(), status: isPromise ? 'pending' : 'done', views: 0 };
+    DATA.redemptions.unshift(rd);
     DATA.pointsHistory.unshift({ id: 'h'+Date.now(), childId: c.id, date: TODAY, title: '兑换：'+r.title, points: -r.cost, at: Date.now() });
     saveData(DATA); render();
     if (isPromise) toast('已申请！等妈妈带你去 ' + r.emoji);
-    else openReward(id);
+    else playRedemption(rd.id);
   }
   // 妈妈后台：标记许诺类奖励已兑现
   function markRedemptionDone(id) {
