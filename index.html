@@ -3818,10 +3818,15 @@
           <label>积分</label>
           <input id="t-points" type="number" value="3" min="1" max="20" />
         </div>
+        <div class="field">
+          <label>📆 从哪天开始</label>
+          <input id="t-start" type="date" value="${TODAY}" min="${TODAY}" />
+          <p class="wq-hint" style="text-align:left;margin-top:6px">默认今天。晚上很晚布置时可以改成<b>明天</b>，孩子第二天才开始打卡，不会算成今天没完成</p>
+        </div>
         <div class="field" id="f-repeat">
           <label>📅 重复天数</label>
           <select id="t-repeat" onchange="epAutoPreview()">
-            <option value="1">只今天（1 天）</option>
+            <option value="1">1 天（仅起始这天）</option>
             <option value="2">连续 2 天</option>
             <option value="3">连续 3 天</option>
             <option value="4">连续 4 天</option>
@@ -3973,7 +3978,9 @@
     const subject = document.getElementById('t-subject').value || '';
     const remindAt = document.getElementById('t-remind').value || '';
     const repeat = parseInt((document.getElementById('t-repeat') || {}).value) || 1;
+    const start = (document.getElementById('t-start') || {}).value || TODAY;
     if (!title) { toast('写个标题'); return; }
+    if (start < TODAY) { toast('起始日期不能早于今天'); return; }
 
     const f = readTaskForm(kind);
     if (f.err) { toast(f.err); return; }
@@ -3993,19 +4000,21 @@
     for (let i = 0; i < repeat; i++) {
       const ei = autoEp ? ((startEp + i) % epTotal) : epIndex;
       if (autoEp) epDays.push(ei + 1);
-      DATA.tasks.push({ id: 't' + Date.now() + '-' + i, groupId, childId, date: addDays(TODAY, i),
+      DATA.tasks.push({ id: 't' + Date.now() + '-' + i, groupId, childId, date: addDays(start, i),
         title: autoEp ? epTitle(title, ei + 1) : title, points,
         done: false, kind, resId, resUrl, subject, proof, proofData: null, remindAt, doneAt: null, epIndex: ei, epNum,
         videoProgress: 0 });
     }
     saveData(DATA); document.querySelector('.modal-mask').remove(); render();
+    const fromTip = start !== TODAY ? ('（从 ' + start.slice(5) + ' 起）') : '';
     if (autoEp && epDays.length) {
-      toast('已布置 ' + epDays.length + ' 天：' + epDays.map(n => '第' + n + '集').join(' → '));
+      toast('已布置 ' + epDays.length + ' 天：' + epDays.map(n => '第' + n + '集').join(' → ') + fromTip);
     } else {
       const tip = kind === 'read' ? '朗读任务已布置，孩子边看材料边录音'
         : kind === 'video' ? '看视频任务已布置，看完自动打卡'
         : '已布置';
-      toast(repeat > 1 ? (tip + '，连续 ' + repeat + ' 天') : tip);
+      toast(repeat > 1 ? (tip + '，连续 ' + repeat + ' 天' + fromTip)
+                        : (tip + (start !== TODAY ? '，从 ' + start.slice(5) + ' 开始' : '')));
     }
   }
   // 读弹窗表单（新增和编辑共用）
@@ -4051,6 +4060,11 @@
     set('t-subject', t.subject || '');
     set('t-remind', t.remindAt || '');
     set('t-points', t.points || 3);
+    const se = document.getElementById('t-start');
+    if (se) {
+      se.value = t.date || TODAY;
+      if ((t.date || '') < TODAY) se.removeAttribute('min');   // 历史未完成的任务允许保留原日期
+    }
     set('t-repeat', '1');           // 编辑时不再生成新天数，顺手清掉排集预览
     const kind = t.kind || 'normal';
     setTaskKind(kind, true);
@@ -4077,7 +4091,11 @@
     const points = parseInt(document.getElementById('t-points').value) || 3;
     const subject = document.getElementById('t-subject').value || '';
     const remindAt = document.getElementById('t-remind').value || '';
+    const start = (document.getElementById('t-start') || {}).value || TODAY;
+    const dateChanged = start !== (t.date || '');
     if (!title) { toast('写个标题'); return; }
+    // 保留原日期（可能是历史未完成）可以，主动改日期不能早于今天
+    if (dateChanged && start < TODAY) { toast('起始日期不能早于今天'); return; }
     const f = readTaskForm(kind);
     if (f.err) { toast(f.err); return; }
     const box = document.getElementById('t-sync-all');
@@ -4090,6 +4108,15 @@
       const epN = (typeof x.epIndex === 'number' && x.epIndex >= 0) ? x.epIndex + 1 : 0;
       x.title = epN ? epTitle(title, epN) : title;
     });
+    // 只有真的改了起始日期才动 date：单条直接设；整批按日期顺序从新起始日顺延
+    if (dateChanged) {
+      if (syncAll && targets.length > 1) {
+        targets.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+        targets.forEach((x, i) => { x.date = addDays(start, i); });
+      } else {
+        targets.forEach(x => { x.date = start; });
+      }
+    }
     saveData(DATA); closeAllModals(); render();
     toast(syncAll && targets.length > 1 ? ('已修改这整批 ' + targets.length + ' 天的任务') : '已保存');
   }
