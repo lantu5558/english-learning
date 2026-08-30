@@ -213,11 +213,36 @@
     .game-card .ginfo h4 { margin:0; font-size:15px; }
     .game-card .ginfo p { margin:2px 0 0; font-size:12px; color:var(--gray-600); }
     .game-card .cost { font-size:12px; font-weight:600; color:var(--amber-600); background:var(--amber-50); border-radius:8px; padding:4px 8px; white-space:nowrap; }
+
+    /* ===== 算 24 点 ===== */
+    .m24-nums { display:flex; gap:12px; justify-content:center; margin:14px 0 8px; }
+    .m24-num { width:62px; height:62px; border-radius:16px; background:linear-gradient(135deg,#FFF3E0,#FFE0B2); color:#E65100; font-size:30px; font-weight:800; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(230,81,0,.18); }
+    .m24-timer-wrap { text-align:center; font-size:16px; font-weight:700; color:var(--gray-600); margin-bottom:4px; }
+    .m24-timer-wrap span { color:var(--red-600); font-size:22px; }
+    .m24-status { text-align:center; font-size:14px; color:var(--gray-600); min-height:20px; margin-bottom:10px; }
+    .m24-status b { color:var(--purple-600); }
+    .m24-score { display:flex; align-items:center; justify-content:space-between; font-size:15px; font-weight:700; background:var(--bg-card); border:0.5px solid var(--border-soft); border-radius:var(--radius-lg); padding:10px 16px; margin-bottom:8px; }
+    .m24-score b { color:var(--purple-600); font-size:20px; }
+    .m24-vs { color:var(--gray-400); font-size:13px; font-weight:500; }
+    .m24-buzz { display:flex; gap:10px; margin-bottom:10px; }
+    .m24-side { flex:1; border-radius:16px; padding:22px 8px; text-align:center; cursor:pointer; user-select:none; transition:transform .08s; }
+    .m24-side:active { transform:scale(.97); }
+    .m24-side.left { background:linear-gradient(135deg,#E3F2FD,#90CAF9); color:#0D47A1; }
+    .m24-side.right { background:linear-gradient(135deg,#FCE4EC,#F48FB1); color:#880E4F; }
+    .m24-side.disabled { opacity:.4; pointer-events:none; }
+    .m24-side-name { font-size:13px; font-weight:700; margin-bottom:10px; opacity:.85; }
+    .m24-buzz-btn { font-size:20px; font-weight:800; }
+    .m24-judge { display:flex; flex-direction:column; gap:10px; }
+    .m24-judge-who { text-align:center; font-size:15px; font-weight:700; }
     .wheel-wrap { position:relative; width:250px; height:250px; margin:16px auto 6px; }
     .wheel { width:100%; height:100%; border-radius:50%; border:8px solid #fff; box-shadow:0 4px 16px rgba(0,0,0,.18); transition: transform 3.2s cubic-bezier(.15,.85,.25,1); }
     .wheel-pointer { position:absolute; top:-14px; left:50%; transform:translateX(-50%); font-size:26px; z-index:2; }
     .wheel-label { position:absolute; left:50%; top:50%; font-size:12px; font-weight:600; color:#fff; transform-origin:0 0; white-space:nowrap; text-shadow:0 1px 2px rgba(0,0,0,.3); }
     .wheel-hub { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:52px; height:52px; border-radius:50%; background:#fff; display:flex; align-items:center; justify-content:center; font-size:24px; box-shadow:0 2px 8px rgba(0,0,0,.15); z-index:2; }
+    .wheel-seg-list { display:flex; flex-direction:column; gap:8px; margin:10px 0; max-height:52vh; overflow:auto; }
+    .wheel-seg-edit { display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:#f5f6f8; padding:8px; border-radius:10px; }
+    .wheel-seg-edit label { font-size:12px; color:#666; display:flex; align-items:center; gap:3px; }
+    .wheel-seg-edit .wl-pct { font-weight:700; color:#ec407a; min-width:34px; text-align:right; }
     /* 列数由 JS 按难度内联设置（原来写死 8 列，10×10/12×12 全被挤成长方形）
        格子高度用 padding-top:100% 撑正方形，不用 aspect-ratio —— 学习机的老内核不支持 */
     .mine-grid { display:grid; gap:3px; margin:12px auto; width:100%; }
@@ -528,6 +553,79 @@
       .icon-btn { width: 42px; height: 42px; }
       .icon-btn svg { width: 20px; height: 20px; }
     }
+  /* ============================================================
+     主题系统：按孩子分皮肤（自定义属性随 html[data-theme] 继承）
+     - 姐姐（名字含"姐"） = genshin 原神·提瓦特（破晓金 + 青玻璃）
+     - 弟弟（名字含"弟"） = fc 新版 FC 足球世界（深紫 + 亮黄）
+     妈妈端 / 入口页不挂 data-theme，保持原有浅色。
+     下方只重定义令牌 + 少量写死渐变/纯白的壳层，其余组件自动跟着变。
+     ============================================================ */
+  /* 通用玻璃壳层（仅主题态启用） */
+  html[data-theme] .section,
+  html[data-theme] .topbar,
+  html[data-theme] .tabbar,
+  html[data-theme] .modal,
+  html[data-theme] .role-card,
+  html[data-theme] .pin-key { backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+
+  /* ---- 原神·提瓦特 ---- */
+  html[data-theme="genshin"] {
+    --bg-page: linear-gradient(165deg,#1c2548 0%,#3a3566 36%,#7b5a8c 66%,#d9a86a 100%);
+    --bg-card: rgba(30,35,58,0.78);
+    --border: rgba(232,201,138,0.40);
+    --border-soft: rgba(232,201,138,0.18);
+    --pink-50:#2a2614; --pink-200:#6b5a2a; --pink-400:#f3c969; --pink-600:#ffe6a8;
+    --purple-50:#102b27; --purple-200:#2f6f64; --purple-400:#7fe3d0; --purple-600:#bff3ea;
+    --cyan-50:#0e2c30; --cyan-200:#1f5a63; --cyan-400:#26c6da; --cyan-600:#80deea;
+    --indigo-50:#1a1c33; --indigo-200:#3a3d66; --indigo-400:#7986cb; --indigo-600:#c5cae9;
+    --green-50:#102a17; --green-400:#66bb6a; --green-600:#a5d6a7;
+    --amber-50:#2e2410; --amber-400:#ffc107; --amber-600:#ffe08a;
+    --red-50:#2e1414; --red-400:#ef5350; --red-600:#ff8a80;
+    --orange-50:#2e1f0a; --orange-200:#6b4a18; --orange-400:#ffa726; --orange-600:#ffcc80;
+    --teal-50:#0e2a27; --teal-200:#1f5a52; --teal-400:#26a69a; --teal-600:#80cbc4;
+    --gray-50:#1c2030; --gray-100:#262b3f; --gray-200:#3a4159; --gray-400:#6b7290;
+    --gray-600:#aeb4c8; --gray-800:#d8d2e8; --gray-900:#f4eeff;
+  }
+  html[data-theme="genshin"] body { background:#10142a; }
+  html[data-theme="genshin"] .entry-hero {
+    background: linear-gradient(135deg, rgba(42,47,94,0.92), rgba(108,79,134,0.92));
+    border:1px solid var(--border); border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+  }
+  html[data-theme="genshin"] .fun-hero { background: linear-gradient(135deg,#7fe3d0,#f3c969); }
+  html[data-theme="genshin"] .wq-word-card { background: linear-gradient(135deg,var(--pink-400),var(--purple-400)); }
+  html[data-theme="genshin"] .tabbar { background: rgba(20,24,46,0.92); border-top:1px solid var(--border-soft); }
+  html[data-theme="genshin"] .wheel { border-color: rgba(255,255,255,0.85); }
+  html[data-theme="genshin"] .bili-card { background: var(--bg-card); border-color: var(--border); }
+
+  /* ---- FC 足球世界（紫黄新版） ---- */
+  html[data-theme="fc"] {
+    --bg-page: linear-gradient(160deg,#190a2e 0%,#2a1450 52%,#3a1d6e 100%);
+    --bg-card: rgba(40,22,70,0.74);
+    --border: rgba(255,214,0,0.34);
+    --border-soft: rgba(255,214,0,0.16);
+    --pink-50:#2e2708; --pink-200:#6b5a18; --pink-400:#ffd400; --pink-600:#ffe98a;
+    --purple-50:#1e1240; --purple-200:#4a2f80; --purple-400:#b06bff; --purple-600:#dcbbff;
+    --cyan-50:#0e2c30; --cyan-200:#1f5a63; --cyan-400:#26c6da; --cyan-600:#80deea;
+    --indigo-50:#1a1c33; --indigo-200:#3a3d66; --indigo-400:#7986cb; --indigo-600:#c5cae9;
+    --green-50:#102a17; --green-400:#66bb6a; --green-600:#a5d6a7;
+    --amber-50:#2e2410; --amber-400:#ffc107; --amber-600:#ffe08a;
+    --red-50:#2e1414; --red-400:#ef5350; --red-600:#ff8a80;
+    --orange-50:#2e1f0a; --orange-200:#6b4a18; --orange-400:#ffa726; --orange-600:#ffcc80;
+    --teal-50:#0e2a27; --teal-200:#1f5a52; --teal-400:#26a69a; --teal-600:#80cbc4;
+    --gray-50:#1d1233; --gray-100:#271640; --gray-200:#3a2860; --gray-400:#7a6f95;
+    --gray-600:#b9a8d8; --gray-800:#e6def8; --gray-900:#f3e9ff;
+  }
+  html[data-theme="fc"] body { background:#120726; }
+  html[data-theme="fc"] .entry-hero {
+    background: linear-gradient(135deg, rgba(58,29,110,0.94), rgba(91,45,168,0.94));
+    border:1px solid var(--border); border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+  }
+  html[data-theme="fc"] .fun-hero { background: linear-gradient(135deg,#b06bff,#ffd400); }
+  html[data-theme="fc"] .wq-word-card { background: linear-gradient(135deg,var(--pink-400),var(--purple-400)); }
+  html[data-theme="fc"] .tabbar { background: rgba(25,12,46,0.92); border-top:1px solid var(--border-soft); }
+  html[data-theme="fc"] .wheel { border-color: rgba(255,255,255,0.85); }
+  html[data-theme="fc"] .bili-card { background: var(--bg-card); border-color: var(--border); }
+
   </style>
 </head>
 <body data-page-node-id="3DqP1Xb73JvetEw9f46gVv">
@@ -566,11 +664,24 @@
       { id: 'r10', type: 'video', subject: 'english', title: '🎁 奖励：佩奇和乔治的搞笑片段', url: 'https://share.weiyun.com/xxx', category: 'fun' },
     ],
     rewards: [
-      { id: 'rw1', title: '奖励：小猪佩奇 第27集', emoji: '🐷', threshold: 50, url: 'https://share.weiyun.com/xxx', cat: 'cartoon' },
-      { id: 'rw2', title: '奖励：冰雪奇缘片段', emoji: '❄️', threshold: 100, url: 'https://share.weiyun.com/xxx', cat: 'movie' },
-      { id: 'rw3', title: '奖励：汪汪队立大功', emoji: '🐶', threshold: 150, url: 'https://share.weiyun.com/xxx', cat: 'cartoon' },
-      { id: 'rw4', title: '奖励：海底小纵队', emoji: '🐙', threshold: 200, url: 'https://share.weiyun.com/xxx', cat: 'cartoon' },
-      { id: 'rw5', title: '奖励：超级飞侠', emoji: '✈️', threshold: 300, url: 'https://share.weiyun.com/xxx', cat: 'game' },
+      { id: 'rw1', title: '小猪佩奇 第27集', emoji: '🐷', cost: 50, url: 'https://share.weiyun.com/xxx', cat: 'cartoon' },
+      { id: 'rw2', title: '冰雪奇缘片段', emoji: '❄️', cost: 100, url: 'https://share.weiyun.com/xxx', cat: 'movie' },
+      { id: 'rw3', title: '汪汪队立大功', emoji: '🐶', cost: 150, url: 'https://share.weiyun.com/xxx', cat: 'cartoon' },
+      { id: 'rw4', title: '海底小纵队', emoji: '🐙', cost: 200, url: 'https://share.weiyun.com/xxx', cat: 'cartoon' },
+      { id: 'rw5', title: '超级飞侠', emoji: '✈️', cost: 300, url: 'https://share.weiyun.com/xxx', cat: 'game' },
+      { id: 'rw6', title: '出去吃火锅一次', emoji: '🍲', cost: 200, cat: 'promise' },
+      { id: 'rw7', title: '肯德基一次', emoji: '🍔', cost: 120, cat: 'promise' },
+    ],
+    // 幸运转盘盘面：妈妈可在后台增删扇区、改文字/星星/权重(概率)/关联许诺奖励
+    wheel: [
+      { id: 'ws1', label: '+5★',     pts: 5,  w: 20 },
+      { id: 'ws2', label: '谢谢参与', pts: 0,  w: 12 },
+      { id: 'ws3', label: '+10★',    pts: 10, w: 20 },
+      { id: 'ws4', label: '+15★',    pts: 15, w: 13 },
+      { id: 'ws5', label: '再来一次', pts: 0,  again: true, w: 8 },
+      { id: 'ws6', label: '+25★',    pts: 25, w: 8 },
+      { id: 'ws7', label: '+8★',     pts: 8,  w: 13 },
+      { id: 'ws8', label: '+30★',    pts: 30, w: 5 },
     ],
     pointsHistory: [
       { id: 'h1', childId: 'c1', date: '2026-08-27', title: '读绘本《小猪佩奇》', points: 3 },
@@ -689,13 +800,13 @@
   // ---- 合并式同步 ----
   // 坑（重要）：原来是「谁后写谁赢」的整包覆盖 —— 妈妈刚加的词库，只要孩子端在
   // 这 2.8 秒里打了一次卡，整包就被冲掉。改成按 id 取并集，两边的新增都能活下来。
-  const MERGE_KEYS = ['resources', 'wordSets', 'wordTasks', 'dictations', 'homeworks', 'tasks', 'rewards', 'pointsHistory', 'children'];
+  const MERGE_KEYS = ['resources', 'wordSets', 'wordTasks', 'dictations', 'homeworks', 'tasks', 'rewards', 'redemptions', 'wheel', 'pointsHistory', 'children'];
   // 墓碑：删掉的东西记一笔，别的设备推回来时不许复活
   // （合并规则是「本地新增一律保留」，只删数组会被另一台设备的旧缓存救回来）
   // 坑（2026-08-30）：原来这里只写了 tasks/homeworks，于是资源、奖励、词库这些
   // 删完又活 —— 尤其出厂那 10 条示例资源，任何一台新设备首次打开都自带一份，
   // 一推送就把全家删掉的东西全带回来。凡是用户能删的实体，一律进墓碑。
-  const TOMB_KEYS = ['tasks', 'homeworks', 'resources', 'rewards', 'wordSets', 'wordTasks', 'dictations', 'children'];
+  const TOMB_KEYS = ['tasks', 'homeworks', 'resources', 'rewards', 'wordSets', 'wordTasks', 'dictations', 'children', 'wheel'];
   const TOMB_TTL = 14 * 86400000;
   function tombAdd(kind, id) {
     if (!id) return;
@@ -829,7 +940,27 @@
       if (!('subject' in t)) t.subject = '';
       if (SUBJECT_MIGRATE[t.subject]) t.subject = SUBJECT_MIGRATE[t.subject];
     });
-    (d.rewards || []).forEach(r => { if (!r.cat || !REWARD_CATS[r.cat]) r.cat = 'cartoon'; });
+    (d.rewards || []).forEach(r => {
+      if (!r.cat || !REWARD_CATS[r.cat]) r.cat = 'cartoon';
+      // 旧数据用 threshold（达标门槛），新模型改成 cost（兑换花费）：自动迁移
+      if (r.cost == null && r.threshold != null) r.cost = r.threshold;
+      if (r.cost == null) r.cost = 100;
+    });
+    if (!Array.isArray(d.redemptions)) d.redemptions = [];
+    if (!Array.isArray(d.wheel) || !d.wheel.length) d.wheel = JSON.parse(JSON.stringify(DEFAULT_DATA.wheel));
+    (d.children || []).forEach(c => {
+      if (c.points == null) c.points = 0;
+      if (c.streak == null) c.streak = 0;
+      // 累计获得：花掉积分/玩小游戏都不会让勋章掉。旧数据没有就按当前余额回填
+      if (c.earned == null) c.earned = c.points || 0;
+      // 每个孩子一个主题皮肤：姐姐(名字含"姐")=原神提瓦特，弟弟(含"弟")=FC足球世界，
+      // 其余默认首孩=原神、后孩=FC（妈妈端可在孩子设置里改）
+      if (!c.theme) {
+        const nm = c.name || '';
+        c.theme = /弟/.test(nm) ? 'fc' : /姐/.test(nm) ? 'genshin'
+                 : (d.children.indexOf(c) === 0 ? 'genshin' : 'fc');
+      }
+    });
     if (!Array.isArray(d.safeDomains)) d.safeDomains = JSON.parse(JSON.stringify(DEFAULT_DATA.safeDomains));
     return d;
   }
@@ -1013,6 +1144,7 @@
     cartoon: { name: '动画片', emoji: '🐱', color: 'pink' },
     comic:   { name: '漫画',   emoji: '📚', color: 'amber' },
     listen:  { name: '听说',   emoji: '🎧', color: 'cyan' },
+    promise: { name: '妈妈许诺', emoji: '🤝', color: 'rose' },
   };
   function toast(msg) {
     const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
@@ -1042,9 +1174,22 @@
   };
 
   // ========== 视图渲染 ==========
+  function applyTheme(t) {
+    const de = (typeof document !== 'undefined') && document.documentElement;
+    if (!de || !de.dataset) return;
+    if (t) de.dataset.theme = t;
+    else delete de.dataset.theme;
+  }
   function render() {
     const app = document.getElementById('app');
     const route = location.hash.slice(1).split('?')[0] || 'entry';
+    // 按当前孩子套用主题（姐姐=原神提瓦特 / 弟弟=FC足球世界）；妈妈端与入口页保持浅色
+    let theme = '';
+    if (route.startsWith('kid-')) {
+      const k = kidCheck() || (selectedChildId ? DATA.children.find(x => x.id === selectedChildId) : null);
+      if (k) theme = k.theme || 'genshin';
+    }
+    applyTheme(theme);
     const [, q] = location.hash.split('?');
     const params = Object.fromEntries(new URLSearchParams(q || ''));
 
@@ -1067,6 +1212,7 @@
       'kid-fun':     viewKidFun,
       'kid-mine':    viewKidMine,
       'kid-memory':  viewKidMemory,
+      'kid-math24':  viewKidMath24,
       'subject':     viewSubject,
     };
 
@@ -1260,7 +1406,7 @@
           <h3>积分记录 <span class="badge">今日</span></h3>
           ${DATA.pointsHistory.filter(h => h.date === TODAY).map(h => {
             const k = DATA.children.find(c => c.id === h.childId);
-            return `<div class="task"><div class="title"><div class="name">${k.avatar} ${esc(k.name)} · ${esc(h.title)}${h.at?` · ${fmtClock(h.at)}`:''}</div></div><div class="pts">+${h.points}</div></div>`;
+            return `<div class="task"><div class="title"><div class="name">${k.avatar} ${esc(k.name)} · ${esc(h.title)}${h.at?` · ${fmtClock(h.at)}`:''}</div></div><div class="pts" style="${h.points<0?'color:var(--red-600)':''}">${h.points>0?'+':''}${h.points}</div></div>`;
           }).join('') || '<div class="empty">还没有积分记录</div>'}
         </div>
       </div>
@@ -1326,22 +1472,41 @@
   function viewMomRewards() {
     if (!sessionStorage.getItem('mom-auth')) { location.hash='mom-pin'; return ''; }
     return `
-      <div class="topbar"><h1>🎁 奖励视频库</h1></div>
+      <div class="topbar"><h1>🎁 奖励库</h1></div>
       <div class="page">
         <div class="section">
-          <h3>添加奖励视频 <span class="badge">${DATA.rewards.length} 个</span></h3>
+          <h3>🎡 幸运转盘盘面 <button class="btn-primary" style="padding:6px 12px;font-size:12px;float:right" onclick="openWheelModal()">⚙ 设置盘面/概率</button></h3>
+          <p class="text-mute">转盘每次花 10★。点右上「设置盘面/概率」可改每个扇区的内容和出现概率（权重越大越容易转到），还能把扇区关联一个「妈妈许诺」奖励（转到即申请、等妈妈兑现）。</p>
+        </div>
+        <div class="section">
+          <h3>添加奖励 <span class="badge">${DATA.rewards.length} 个</span></h3>
           <button class="btn-primary" onclick="openRewardModal()">+ 添加新奖励</button>
         </div>
         <div class="section">
-          <h3>当前奖励（按积分门槛排序）</h3>
-          ${DATA.rewards.sort((a,b)=>a.threshold-b.threshold).map(r => {
+          <h3>兑换申请（待妈妈兑现） <span class="badge">${(DATA.redemptions||[]).filter(r=>r.status==='pending').length}</span></h3>
+          ${(DATA.redemptions||[]).filter(r=>r.status==='pending').map(r => {
+            const ch = DATA.children.find(c => c.id === r.childId);
+            return `
+            <div class="reward">
+              <div class="thumb">${r.emoji}</div>
+              <div class="info">
+                <div class="name">${ch?ch.avatar+' ':''}${esc(ch?ch.name:'谁')} 申请：${esc(r.rewardTitle)}</div>
+                <div class="threshold">花费 ${r.cost} 积分 · ${r.at?fmtClock(r.at):''} · 待兑现</div>
+              </div>
+              <button class="btn-primary" style="padding:6px 12px;font-size:12px" onclick="markRedemptionDone('${r.id}')">标记已兑现</button>
+            </div>`;
+          }).join('') || '<div class="empty">还没有兑换申请</div>'}
+        </div>
+        <div class="section">
+          <h3>当前奖励（按兑换花费排序）</h3>
+          ${DATA.rewards.sort((a,b)=>a.cost-b.cost).map(r => {
             const rc = REWARD_CATS[r.cat] || REWARD_CATS.cartoon;
             return `
             <div class="reward">
               <div class="thumb">${r.emoji}</div>
               <div class="info">
                 <div class="name">${esc(r.title)}</div>
-                <div class="threshold">${rc.emoji} ${rc.name} · 需要 <strong>${r.threshold}</strong> 积分</div>
+                <div class="threshold">${rc.emoji} ${rc.name} · 兑换花费 <strong>${r.cost}</strong> 积分${r.cat==='promise'?' · 妈妈许诺':''}</div>
               </div>
               <button class="icon-btn" onclick="delReward('${r.id}')">${ICN.trash}</button>
             </div>
@@ -1349,7 +1514,7 @@
         </div>
         <div class="section">
           <h3>规则说明</h3>
-          <p class="text-mute">孩子积分累计达到门槛后，自动解锁对应奖励视频。积分可通过每日打卡任务获得。妈妈可手动调整孩子的积分。</p>
+          <p class="text-mute">孩子用积分<strong>兑换</strong>奖励：视频类直接打开看；妈妈许诺类（火锅/肯德基等）兑换后进入上方「待妈妈兑现」，妈妈确认已带去即可。积分通过打卡、朗读等获得，妈妈也可手动调整。</p>
         </div>
       </div>
       ${momTabBar('rewards')}
@@ -1706,9 +1871,9 @@
   function viewKidRewards() {
     const c = kidCheck();
     if (!c) { location.hash='kid-select'; return ''; }
-    const unlocked = DATA.rewards.filter(r => c.points >= r.threshold);
-    const sorted = DATA.rewards.slice().sort((a,b)=>a.threshold-b.threshold);
+    const sorted = DATA.rewards.slice().sort((a,b)=>a.cost-b.cost);
     const grouped = Object.entries(REWARD_CATS).map(([k, v]) => ({ k, v, list: sorted.filter(r => (r.cat||'cartoon') === k) })).filter(g => g.list.length);
+    const myRds = (DATA.redemptions||[]).filter(r => r.childId === c.id).slice(0, 12);
     return `
       <div class="topbar">
         <h1>🎁 我的奖励</h1>
@@ -1719,33 +1884,45 @@
       </div>
       <div class="page">
         <div class="stat-card" style="background:linear-gradient(135deg,#FFD54F,#FF8F00)">
-          <div class="label">已解锁</div>
-          <div class="big">${unlocked.length}</div>
-          <div class="meta"><div>积分 <span>${c.points}</span></div><div>连签 <span>${c.streak}</span> 天</div></div>
+          <div class="label">可用积分</div>
+          <div class="big">${c.points}</div>
+          <div class="meta"><div>累计获得 <span>${c.earned||0}</span></div><div>连签 <span>${c.streak}</span> 天</div></div>
         </div>
         <div class="section">
           <h3>奖励宝库 <span class="badge">${DATA.rewards.length} 个</span></h3>
           ${grouped.map(g => `
             <div class="reward-cat-title">${g.v.emoji} ${g.v.name} <span class="rcnt">${g.list.length} 个</span></div>
             ${g.list.map(r => {
-              const got = c.points >= r.threshold;
-              return `<div class="reward ${got?'':'locked'}" onclick="${got?`openReward('${r.id}')`:`''`}">
+              const can = c.points >= r.cost;
+              return `<div class="reward ${can?'':'locked'}">
                 <div class="thumb">${r.emoji}</div>
                 <div class="info">
                   <div class="name">${esc(r.title)}</div>
-                  <div class="threshold">需要 ${r.threshold} 积分 ${got?'· ✓ 已解锁':'· 还差 '+(r.threshold-c.points)+' 分'}</div>
+                  <div class="threshold">兑换花费 ${r.cost} 积分 ${can?'':('· 还差 '+(r.cost-c.points)+' 分')}</div>
                 </div>
+                <button class="btn-primary" style="padding:6px 12px;font-size:12px" ${can?'':'disabled'} onclick="${can?`redeemReward('${r.id}')`:`''`}">${can?('兑换 -'+r.cost):'积分不够'}</button>
               </div>`;
             }).join('')}
           `).join('') || '<div class="empty"><div class="emoji">🎁</div>妈妈还没放奖励</div>'}
         </div>
         <div class="section">
+          <h3>我的兑换 <span class="badge">${myRds.length}</span></h3>
+          ${myRds.map(r => `
+            <div class="reward">
+              <div class="thumb">${r.emoji}</div>
+              <div class="info">
+                <div class="name">${esc(r.rewardTitle)}</div>
+                <div class="threshold">${r.cost} 积分 · ${r.at?fmtClock(r.at):''} · ${r.status==='pending'?'<span style="color:var(--red-600)">待妈妈兑现</span>':'已兑换'}</div>
+              </div>
+            </div>`).join('') || '<div class="empty">还没有兑换记录</div>'}
+        </div>
+        <div class="section">
           <h3>勋章 <span class="badge">收集</span></h3>
           <div class="subject-row">
             <div class="subject-card s-chinese" style="min-height:auto;padding:16px"><div class="emoji">🌟</div><div class="name">连续 7 天</div><div class="count">${c.streak>=7?'已获得':'差 '+(7-c.streak)+' 天'}</div></div>
-            <div class="subject-card s-english" style="min-height:auto;padding:16px"><div class="emoji">🏆</div><div class="name">积分 100</div><div class="count">${c.points>=100?'已获得':'差 '+(100-c.points)+' 分'}</div></div>
-            <div class="subject-card s-math" style="min-height:auto;padding:16px"><div class="emoji">🚀</div><div class="name">积分 300</div><div class="count">${c.points>=300?'已获得':'差 '+(300-c.points)+' 分'}</div></div>
-            <div class="subject-card s-science" style="min-height:auto;padding:16px"><div class="emoji">💎</div><div class="name">积分 500</div><div class="count">${c.points>=500?'已获得':'差 '+(500-c.points)+' 分'}</div></div>
+            <div class="subject-card s-english" style="min-height:auto;padding:16px"><div class="emoji">🏆</div><div class="name">积分 100</div><div class="count">${(c.earned||0)>=100?'已获得':'差 '+(100-(c.earned||0))+' 分'}</div></div>
+            <div class="subject-card s-math" style="min-height:auto;padding:16px"><div class="emoji">🚀</div><div class="name">积分 300</div><div class="count">${(c.earned||0)>=300?'已获得':'差 '+(300-(c.earned||0))+' 分'}</div></div>
+            <div class="subject-card s-science" style="min-height:auto;padding:16px"><div class="emoji">💎</div><div class="name">积分 500</div><div class="count">${(c.earned||0)>=500?'已获得':'差 '+(500-(c.earned||0))+' 分'}</div></div>
           </div>
         </div>
       </div>
@@ -1774,7 +1951,7 @@
     if (t.done) {
       t.doneAt = Date.now();
       const k = DATA.children.find(c => c.id === t.childId);
-      k.points += t.points;
+      k.earned = (k.earned || 0) + t.points; k.points += t.points;
       DATA.pointsHistory.unshift({ id: 'h'+Date.now(), childId: k.id, date: t.date || TODAY, title: t.title, points: t.points, at: Date.now() });
       toast(`+${t.points} 分 · 已记录给 ${k.name}`);
     } else {
@@ -1948,7 +2125,7 @@
     t.proofData = { type: PROOF_STASH.type, data: PROOF_STASH.data, at: Date.now() };
     const k = DATA.children.find(c => c.id === t.childId);
     if (k) {
-      k.points += t.points;
+      k.earned = (k.earned || 0) + t.points; k.points += t.points;
       DATA.pointsHistory.unshift({ id: 'h'+Date.now(), childId: k.id, date: TODAY, title: t.title, points: t.points, at: Date.now() });
       toast(`凭证收到！+${t.points} 分 ⭐`);
     }
@@ -2868,6 +3045,7 @@
     return todays.length === 0 || todays.every(t => t.done);
   }
   function awardStars(c, n, title) {
+    c.earned = (c.earned || 0) + n;
     c.points += n;
     DATA.pointsHistory.unshift({ id: 'h' + Date.now(), childId: c.id, date: TODAY, title, points: n });
     saveData(DATA);
@@ -2875,17 +3053,14 @@
   const FUN_GATE = '🔒 完成今天的打卡任务才能玩哦';
 
   // ---- 幸运转盘 ----
-  // 成本 10★，整体期望值约 9.6★（原来是 4.5★，孩子怎么抽都亏，已整体上调）
-  const WHEEL_SEGS = [
-    { label: '+5★',  pts: 5,  w: 20 }, { label: '谢谢参与', pts: 0, w: 12 },
-    { label: '+10★', pts: 10, w: 20 }, { label: '+15★', pts: 15, w: 13 },
-    { label: '再来一次', pts: 0, again: true, w: 8 }, { label: '+25★', pts: 25, w: 8 },
-    { label: '+8★',  pts: 8,  w: 13 }, { label: '+30★', pts: 30, w: 5 },
-  ];
+  // 盘面由妈妈后台配置（DATA.wheel）：可增删扇区、改文字/星星/权重(概率)/关联许诺奖励。
+  // 权重 w 即「被转到的概率权重」，越大越容易中。默认种子见 DEFAULT_DATA.wheel。
+  function getWheel() { return (DATA.wheel && DATA.wheel.length) ? DATA.wheel : DEFAULT_DATA.wheel; }
   const WHEEL_COLORS = ['#F06292','#BA68C8','#4DD0E1','#FFB74D','#81C784','#9575CD','#FF8A65','#4FC3F7'];
   let wheelRot = 0, wheelBusy = false;
   function wheelGradient() {
-    return 'conic-gradient(' + WHEEL_COLORS.map((c, i) => `${c} ${i*45}deg ${(i+1)*45}deg`).join(',') + ')';
+    const N = getWheel().length || 8, COL = WHEEL_COLORS;
+    return 'conic-gradient(' + Array.from({length: N}, (_, i) => `${COL[i % COL.length]} ${i*360/N}deg ${(i+1)*360/N}deg`).join(',') + ')';
   }
   function spinWheel() {
     if (wheelBusy) return;
@@ -2895,20 +3070,22 @@
     if (c.points < 10) { toast('星星不够啦，先去打卡赚星星吧 ⭐'); return; }
     c.points -= 10; saveData(DATA);
     wheelBusy = true; render();
-    const total = WHEEL_SEGS.reduce((a, s) => a + s.w, 0);
+    const segs = getWheel();
+    const total = segs.reduce((a, s) => a + (s.w||0), 0);
     let r = Math.random() * total, idx = 0;
-    for (let i = 0; i < WHEEL_SEGS.length; i++) { r -= WHEEL_SEGS[i].w; if (r <= 0) { idx = i; break; } }
-    const desired = 360 - (idx * 45 + 22.5);
+    for (let i = 0; i < segs.length; i++) { r -= (segs[i].w||0); if (r <= 0) { idx = i; break; } }
+    const sa = 360 / segs.length;
+    const desired = 360 - (idx * sa + sa / 2);
     const delta = ((desired - wheelRot) % 360 + 360) % 360 + 1800;
     wheelRot += delta;
     const el = document.getElementById('wheel');
     if (el) el.style.transform = `rotate(${wheelRot}deg)`;
     setTimeout(() => {
       wheelBusy = false;
-      const seg = WHEEL_SEGS[idx];
+      const seg = segs[idx];
       if (seg.again) { c.points += 10; saveData(DATA); toast('🎡 再来一次！星星已退回'); }
       else if (seg.pts > 0) { awardStars(c, seg.pts, `幸运转盘中奖 ${seg.pts} 星`); toast(`🎉 恭喜抽中 ${seg.pts} 颗星星！`); }
-      else toast('😅 谢谢参与，明天再来');
+      else { toast('🎁 抽中：' + seg.label + '！和妈妈商量兑现哦～'); }
       render();
     }, 3350);
   }
@@ -3172,6 +3349,267 @@
     }
   }
 
+  // ========== 算 24 点（双人对战抢答 + 单人计时，妈妈口头判） ==========
+  let M24 = null;
+  let M24_DIFF = 'normal';          // normal=1-13, easy=1-9
+  let m24Timer = null;
+
+  // 求解器：返回等于 24 的算式字符串，无解返回 null
+  function solve24(nums) {
+    const OPS = [
+      (a, b) => ({ s: '+', v: a + b }),
+      (a, b) => ({ s: '-', v: a - b }),
+      (a, b) => ({ s: '*', v: a * b }),
+      (a, b) => (b === 0 ? null : { s: '/', v: a / b }),
+    ];
+    function rec(items) {
+      if (items.length === 1) return Math.abs(items[0].v - 24) < 1e-6 ? items[0].e : null;
+      for (let i = 0; i < items.length; i++) for (let j = 0; j < items.length; j++) {
+        if (i === j) continue;
+        const a = items[i], b = items[j];
+        const rest = items.filter((_, k) => k !== i && k !== j);
+        for (const op of OPS) {
+          const r = op(a.v, b.v); if (!r) continue;
+          const e = '(' + a.e + r.s + b.e + ')';
+          const res = rec(rest.concat([{ v: r.v, e }]));
+          if (res) return res;
+        }
+      }
+      return null;
+    }
+    const sol = rec(nums.map(n => ({ v: n, e: String(n) })));
+    return sol ? sol.replace(/^\(|\)$/g, '') : null;
+  }
+  function gen24() {
+    const mx = M24_DIFF === 'easy' ? 9 : 13;
+    for (let t = 0; t < 800; t++) {
+      const ns = [1, 2, 3, 4].map(() => 1 + Math.floor(Math.random() * mx));
+      const sol = solve24(ns);
+      if (sol) return { nums: ns, solution: sol };
+    }
+    return { nums: [4, 6, 1, 1], solution: solve24([4, 6, 1, 1]) || '4*6' };
+  }
+  function startM24Timer() {
+    if (m24Timer) clearInterval(m24Timer);
+    m24Timer = setInterval(() => {
+      const el = document.getElementById('m24-timer');
+      if (!el) { clearInterval(m24Timer); m24Timer = null; return; }
+      if (!M24 || M24.phase === 'buzzed' || M24.phase === 'reveal' || M24.phase === 'over') return;
+      M24.timeLeft--;
+      el.textContent = M24.timeLeft;
+      if (M24.timeLeft <= 0) { clearInterval(m24Timer); m24Timer = null; m24Reveal(true); }
+    }, 1000);
+  }
+  function m24SetDiff(d) {
+    M24_DIFF = d;
+    if (M24 && M24.phase !== 'over') {
+      const g = gen24();
+      M24.nums = g.nums; M24.solution = g.solution;
+      M24.locked = null; M24.wrong = null; M24.phase = 'play';
+      M24.roundStart = Date.now(); M24.timeLeft = 30;
+      startM24Timer(); render();
+    }
+  }
+  function startMath24(mode) {
+    const g = gen24();
+    M24 = {
+      mode,
+      nums: g.nums, solution: g.solution, round: 1,
+      score: [0, 0], names: ['玩家1', '玩家2'],
+      locked: null, wrong: null,
+      solved: 0, fails: 0, bestMs: null,
+      roundStart: Date.now(), timeLeft: 30, phase: 'play', timeup: false,
+    };
+    startM24Timer(); render();
+  }
+  function m24Buzz(p) {
+    if (!M24 || M24.mode !== 'vs' || M24.phase !== 'play') return;
+    if (M24.wrong === p || M24.locked !== null) return;
+    M24.locked = p; M24.phase = 'buzzed'; render();
+  }
+  function m24SoloBuzz() {
+    if (!M24 || M24.mode !== 'solo' || M24.phase !== 'play') return;
+    M24.phase = 'buzzed'; render();
+  }
+  function m24Judge(correct) {
+    if (!M24 || M24.phase !== 'buzzed') return;
+    const p = M24.locked;
+    if (correct) {
+      if (M24.mode === 'vs') { M24.score[p]++; toast(M24.names[p] + ' 得分 +1 🎉'); }
+      else { M24.solved++; const dt = Date.now() - M24.roundStart; if (M24.bestMs == null || dt < M24.bestMs) M24.bestMs = dt; toast('答对啦 +1 🎉'); }
+      m24Next();
+    } else {
+      if (M24.mode === 'vs') { M24.wrong = p; M24.locked = null; M24.phase = 'play'; toast(M24.names[p] + ' 答错了，对方继续抢'); render(); }
+      else { M24.fails++; toast('答错了，换一题'); m24Next(); }
+    }
+  }
+  function m24Reveal(timeup) {
+    if (!M24) return;
+    M24.phase = 'reveal'; M24.timeup = !!timeup;
+    if (m24Timer) { clearInterval(m24Timer); m24Timer = null; }
+    render();
+  }
+  function m24Next() {
+    if (!M24) { render(); return; }
+    M24.round++;
+    const g = gen24();
+    M24.nums = g.nums; M24.solution = g.solution;
+    M24.locked = null; M24.wrong = null; M24.phase = 'play'; M24.timeup = false;
+    M24.roundStart = Date.now(); M24.timeLeft = 30;
+    startM24Timer(); render();
+  }
+  function m24End() {
+    if (!M24) { location.hash = 'kid-fun'; return; }
+    M24.phase = 'over';
+    if (m24Timer) { clearInterval(m24Timer); m24Timer = null; }
+    render();
+  }
+  function m24Quit() {
+    if (m24Timer) { clearInterval(m24Timer); m24Timer = null; }
+    M24 = null; location.hash = 'kid-fun';
+  }
+  function m24Rename(p) {
+    if (!M24) return;
+    const modal = document.createElement('div');
+    modal.className = 'modal-mask';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+      <div class="modal">
+        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+        <h3>改玩家${p + 1}名字</h3>
+        <div class="field"><input id="m24-name" value="${esc(M24.names[p])}" maxlength="8" placeholder="如：哥哥 / 妹妹" /></div>
+        <button class="btn-primary" style="width:100%" onclick="m24SaveName(${p})">保存</button>
+      </div>`;
+    document.getElementById('modal-root').appendChild(modal);
+    const inp = modal.querySelector('#m24-name'); if (inp) inp.focus();
+  }
+  function m24SaveName(p) {
+    const v = document.getElementById('m24-name').value.trim();
+    if (v) M24.names[p] = v.slice(0, 8);
+    const m = document.querySelector('.modal-mask'); if (m) m.remove();
+    render();
+  }
+  function viewKidMath24() {
+    const c = kidCheck();
+    if (!M24) {
+      return `
+      <div class="topbar">
+        <button class="icon-btn" onclick="m24Quit()">${ICN.back}</button>
+        <h1>🔢 算 24 点</h1>
+        <div class="actions"><div class="icon-btn" style="background:var(--amber-50);color:var(--amber-600);font-size:13px;font-weight:600">${c ? '★ ' + c.points : '🎲'}</div></div>
+      </div>
+      <div class="page">
+        <div class="section">
+          <h3>选难度</h3>
+          <div class="diff-row">
+            <div class="diff-pill ${M24_DIFF === 'easy' ? 'on' : ''}" onclick="m24SetDiff('easy');render()">🙂 简单<br><span style="font-size:11px;font-weight:500">数字 1-9</span></div>
+            <div class="diff-pill ${M24_DIFF === 'normal' ? 'on' : ''}" onclick="m24SetDiff('normal');render()">🤔 普通<br><span style="font-size:11px;font-weight:500">数字 1-13</span></div>
+          </div>
+        </div>
+        <div class="section">
+          <h3>选玩法</h3>
+          <div class="game-card" onclick="startMath24('vs')">
+            <div class="gicon">⚔️</div>
+            <div class="ginfo"><h4>双人对战抢答</h4><p>同一台平板，左右两半各一人，谁先点谁抢到</p></div>
+          </div>
+          <div class="game-card" onclick="startMath24('solo')">
+            <div class="gicon">⏱️</div>
+            <div class="ginfo"><h4>单人计时挑战</h4><p>自己跟计时器比，看最快算出几题</p></div>
+          </div>
+        </div>
+        <p class="wq-hint">规则：用 + − × ÷ 把 4 个数字各用一次算出 24。抢到后孩子口头报答案，妈妈点「对 / 错」。</p>
+      </div>
+      ${kidTabBar('fun')}
+      `;
+    }
+    if (M24.phase === 'over') {
+      return `
+      <div class="topbar"><button class="icon-btn" onclick="m24Quit()">${ICN.back}</button><h1>🏁 战报</h1></div>
+      <div class="page">
+        ${M24.mode === 'vs' ? `
+          <div class="stat-card" style="background:linear-gradient(135deg,#7C4DFF,#448AFF);color:#fff">
+            <div class="big">${M24.score[0]} : ${M24.score[1]}</div>
+            <div class="meta">${esc(M24.names[0])} vs ${esc(M24.names[1])}</div>
+          </div>
+          <p style="text-align:center;font-size:18px;font-weight:700;margin:6px 0 12px">${M24.score[0] === M24.score[1] ? '平局！🤝' : (M24.score[0] > M24.score[1] ? esc(M24.names[0]) + ' 获胜 🏆' : esc(M24.names[1]) + ' 获胜 🏆')}</p>
+        ` : `
+          <div class="stat-card" style="background:linear-gradient(135deg,#26A69A,#00897B);color:#fff">
+            <div class="big">${M24.solved}</div>
+            <div class="meta">解出题数 · 最快 ${M24.bestMs ? (M24.bestMs / 1000).toFixed(1) + 's' : '—'} · 失误 ${M24.fails}</div>
+          </div>
+        `}
+        <button class="btn-primary" style="width:100%" onclick="m24Quit()">返回乐园</button>
+        <button class="btn-secondary" style="width:100%" onclick="startMath24('${M24.mode}')">再来一局 ▶</button>
+      </div>
+      ${kidTabBar('fun')}
+      `;
+    }
+    const nums = M24.nums;
+    if (M24.mode === 'vs') {
+      return `
+      <div class="topbar">
+        <button class="icon-btn" onclick="m24Quit()">${ICN.back}</button>
+        <h1>⚔️ 双人对战 · 第 ${M24.round} 题</h1>
+        <div class="actions"><button class="icon-btn" onclick="m24End()">结束</button></div>
+      </div>
+      <div class="page m24">
+        <div class="m24-score"><span>${esc(M24.names[0])} <b>${M24.score[0]}</b></span><span class="m24-vs">VS</span><span><b>${M24.score[1]}</b> ${esc(M24.names[1])}</span></div>
+        <div class="m24-nums">${nums.map(n => `<div class="m24-num">${n}</div>`).join('')}</div>
+        <div class="m24-timer-wrap">⏱️ <span id="m24-timer">${M24.timeLeft}</span>s</div>
+        <div class="m24-status" id="m24-status">${M24.phase === 'reveal' ? (M24.timeup ? '⏰ 时间到！' : '') + '正确答案：<b>' + M24.solution + ' = 24</b>' : (M24.phase === 'buzzed' ? esc(M24.names[M24.locked]) + ' 抢到了！等妈妈判～' : '看到数字就抢答，谁先点谁先答')}</div>
+        ${M24.phase === 'reveal' ? `
+          <button class="btn-primary" style="width:100%" onclick="m24Next()">下一题 ▶</button>
+        ` : M24.phase === 'play' ? `
+          <div class="m24-buzz">
+            <div class="m24-side left ${M24.wrong === 0 ? 'disabled' : ''}" onclick="m24Buzz(0)">
+              <div class="m24-side-name" onclick="event.stopPropagation();m24Rename(0)">${esc(M24.names[0])} ✎</div>
+              <div class="m24-buzz-btn">🙋 抢答</div>
+            </div>
+            <div class="m24-side right ${M24.wrong === 1 ? 'disabled' : ''}" onclick="m24Buzz(1)">
+              <div class="m24-side-name" onclick="event.stopPropagation();m24Rename(1)">${esc(M24.names[1])} ✎</div>
+              <div class="m24-buzz-btn">🙋 抢答</div>
+            </div>
+          </div>
+          <button class="btn-secondary" style="width:100%" onclick="m24Reveal(false)">不会，换一题</button>
+        ` : `
+          <div class="m24-judge">
+            <div class="m24-judge-who">${esc(M24.names[M24.locked])} 报的答案：</div>
+            <button class="btn-primary" style="width:100%" onclick="m24Judge(true)">✓ 对了</button>
+            <button class="btn-secondary" style="width:100%" onclick="m24Judge(false)">✗ 错了（对方继续抢）</button>
+          </div>
+        `}
+      </div>
+      ${kidTabBar('fun')}
+      `;
+    }
+    // solo
+    return `
+      <div class="topbar">
+        <button class="icon-btn" onclick="m24Quit()">${ICN.back}</button>
+        <h1>⏱️ 单人挑战 · 第 ${M24.round} 题</h1>
+        <div class="actions"><button class="icon-btn" onclick="m24End()">结束</button></div>
+      </div>
+      <div class="page m24">
+        <div class="m24-score"><span>已解出 <b>${M24.solved}</b></span><span class="m24-vs">最快</span><span><b>${M24.bestMs ? (M24.bestMs / 1000).toFixed(1) + 's' : '—'}</b></span></div>
+        <div class="m24-nums">${nums.map(n => `<div class="m24-num">${n}</div>`).join('')}</div>
+        <div class="m24-timer-wrap">⏱️ <span id="m24-timer">${M24.timeLeft}</span>s</div>
+        <div class="m24-status" id="m24-status">${M24.phase === 'reveal' ? (M24.timeup ? '⏰ 时间到！' : '') + '正确答案：<b>' + M24.solution + ' = 24</b>' : (M24.phase === 'buzzed' ? '等妈妈判～' : '算出 24 就点「我算出来了」')}</div>
+        ${M24.phase === 'reveal' ? `
+          <button class="btn-primary" style="width:100%" onclick="m24Next()">下一题 ▶</button>
+        ` : M24.phase === 'play' ? `
+          <button class="btn-primary" style="width:100%;font-size:18px;padding:16px" onclick="m24SoloBuzz()">🙋 我算出来了</button>
+          <button class="btn-secondary" style="width:100%" onclick="m24Reveal(false)">不会，换一题</button>
+        ` : `
+          <div class="m24-judge">
+            <button class="btn-primary" style="width:100%" onclick="m24Judge(true)">✓ 对了</button>
+            <button class="btn-secondary" style="width:100%" onclick="m24Judge(false)">✗ 错了（换一题）</button>
+          </div>
+        `}
+      </div>
+      ${kidTabBar('fun')}
+      `;
+  }
+
   // ---- 乐园主页 ----
   function viewKidFun() {
     const c = kidCheck();
@@ -3195,7 +3633,7 @@
           <div class="wheel-wrap">
             <div class="wheel-pointer">▼</div>
             <div class="wheel" id="wheel" style="background:${wheelGradient()};${wheelRot ? `transform:rotate(${wheelRot}deg)` : ''}">
-              ${WHEEL_SEGS.map((s, i) => `<div class="wheel-label" style="transform:translate(-50%,-50%) rotate(${i*45+22.5}deg) translateY(-88px) rotate(${-(i*45+22.5)}deg)">${s.label}</div>`).join('')}
+              ${(() => { const segs = getWheel(); const sa = 360 / segs.length; return segs.map((s, i) => `<div class="wheel-label" style="transform:translate(-50%,-50%) rotate(${i*sa+sa/2}deg) translateY(-88px) rotate(${-(i*sa+sa/2)}deg)">${s.label}</div>`).join(''); })()}
             </div>
             <div class="wheel-hub" onclick="spinWheel()">${wheelBusy ? '…' : '🎰'}</div>
           </div>
@@ -3216,6 +3654,11 @@
             <div class="gicon">🃏</div>
             <div class="ginfo"><h4>记忆翻翻乐</h4><p>10 对到 20 对大挑战，步数内配完，最高奖 12★</p></div>
             <div class="cost">5★/局</div>
+          </div>
+          <div class="game-card" onclick="location.hash='kid-math24'">
+            <div class="gicon">🔢</div>
+            <div class="ginfo"><h4>算 24 点</h4><p>双人对战抢答 / 单人计时，妈妈口头判</p></div>
+            <div class="cost" style="color:#2E7D32;background:#E8F5E9">免费</div>
           </div>
         </div>
       </div>
@@ -3965,7 +4408,7 @@
       t.proofData = { type: 'video', data: null, at: Date.now() };
       const k = DATA.children.find(c => c.id === t.childId);
       if (k) {
-        k.points += t.points;
+        k.earned = (k.earned || 0) + t.points; k.points += t.points;
         DATA.pointsHistory.unshift({ id: 'h' + Date.now(), childId: k.id, date: t.date || TODAY, title: t.title, points: t.points, at: Date.now() });
       }
       saveData(DATA);
@@ -4095,7 +4538,7 @@
     t.proofData = { type: 'video', data: null, at: Date.now() };
     const k = DATA.children.find(c => c.id === t.childId);
     if (k) {
-      k.points += t.points;
+      k.earned = (k.earned || 0) + t.points; k.points += t.points;
       DATA.pointsHistory.unshift({ id: 'h' + Date.now(), childId: k.id, date: t.date || TODAY, title: t.title, points: t.points, at: Date.now() });
     }
     saveData(DATA);
@@ -5479,26 +5922,27 @@
     modal.innerHTML = `
       <div class="modal">
         <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
-        <h3>添加奖励视频</h3>
+        <h3>添加奖励</h3>
         <div class="field">
           <label>Emoji 头像</label>
           <input id="rw-emoji" value="🎁" maxlength="2" />
         </div>
         <div class="field">
           <label>标题</label>
-          <input id="rw-title" placeholder="例：奖励：冰雪奇缘片段" />
+          <input id="rw-title" placeholder="例：冰雪奇缘片段 / 出去吃火锅一次" />
         </div>
         <div class="field">
           <label>分类</label>
-          <select id="rw-cat">${Object.entries(REWARD_CATS).map(([k,v]) => `<option value="${k}">${v.emoji} ${v.name}</option>`).join('')}</select>
+          <select id="rw-cat" onchange="rwCatChange()">${Object.entries(REWARD_CATS).map(([k,v]) => `<option value="${k}">${v.emoji} ${v.name}</option>`).join('')}</select>
         </div>
-        <div class="field">
-          <label>微云链接</label>
+        <div class="field" id="rw-url-field">
+          <label>微云链接（视频/音频类需要）</label>
           <input id="rw-url" placeholder="https://share.weiyun.com/xxx" />
         </div>
+        <p class="text-mute" id="rw-url-note" style="display:none;font-size:12px">「妈妈许诺」类（火锅/肯德基等）孩子兑换后进入待兑现，妈妈在后台确认，不用填链接。</p>
         <div class="field">
-          <label>积分门槛</label>
-          <input id="rw-threshold" type="number" value="100" min="10" max="9999" />
+          <label>兑换花费（积分）</label>
+          <input id="rw-cost" type="number" value="100" min="1" max="9999" />
         </div>
         <div class="btn-row">
           <button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">取消</button>
@@ -5508,14 +5952,22 @@
     `;
     document.getElementById('modal-root').appendChild(modal);
   }
+  function rwCatChange() {
+    const cat = document.getElementById('rw-cat').value;
+    const uf = document.getElementById('rw-url-field');
+    const un = document.getElementById('rw-url-note');
+    if (cat === 'promise') { if (uf) uf.style.display='none'; if (un) un.style.display='block'; }
+    else { if (uf) uf.style.display='block'; if (un) un.style.display='none'; }
+  }
   function addReward() {
     const emoji = document.getElementById('rw-emoji').value || '🎁';
     const title = document.getElementById('rw-title').value.trim();
-    const url = document.getElementById('rw-url').value.trim();
-    const threshold = parseInt(document.getElementById('rw-threshold').value) || 100;
     const cat = document.getElementById('rw-cat') ? document.getElementById('rw-cat').value : 'cartoon';
-    if (!title || !url) { toast('标题和链接都要填'); return; }
-    DATA.rewards.push({ id: 'rw'+Date.now(), title, emoji, threshold, url, cat });
+    const cost = parseInt(document.getElementById('rw-cost').value) || 100;
+    const url = cat === 'promise' ? '' : document.getElementById('rw-url').value.trim();
+    if (!title) { toast('标题要填'); return; }
+    if (cat !== 'promise' && !url) { toast('视频类奖励要填微云链接'); return; }
+    DATA.rewards.push({ id: 'rw'+Date.now(), title, emoji, cost, url, cat });
     saveData(DATA); document.querySelector('.modal-mask').remove(); render(); toast('已添加');
   }
   function delReward(id) {
@@ -5528,6 +5980,99 @@
     const r = DATA.rewards.find(x => x.id === id);
     if (!r) return;
     openResourceLink(r.title, 'video', r.url);
+  }
+  // 孩子用积分兑换奖励：扣积分 + 记录；视频类直接打开，妈妈许诺类进入待兑现
+  function redeemReward(id) {
+    const c = kidCheck(); if (!c) return;
+    const r = DATA.rewards.find(x => x.id === id); if (!r) return;
+    if (c.points < r.cost) { toast('积分不够，还差 ' + (r.cost - c.points) + ' 分'); return; }
+    c.points -= r.cost;
+    const isPromise = r.cat === 'promise';
+    DATA.redemptions.unshift({ id: 'rd'+Date.now(), childId: c.id, rewardId: id, rewardTitle: r.title, emoji: r.emoji, cost: r.cost, cat: r.cat, at: Date.now(), status: isPromise ? 'pending' : 'done' });
+    DATA.pointsHistory.unshift({ id: 'h'+Date.now(), childId: c.id, date: TODAY, title: '兑换：'+r.title, points: -r.cost, at: Date.now() });
+    saveData(DATA); render();
+    if (isPromise) toast('已申请！等妈妈带你去 ' + r.emoji);
+    else openReward(id);
+  }
+  // 妈妈后台：标记许诺类奖励已兑现
+  function markRedemptionDone(id) {
+    const r = (DATA.redemptions||[]).find(x => x.id === id); if (!r) return;
+    r.status = 'done'; r.doneAt = Date.now();
+    saveData(DATA); render(); toast('已标记兑现 ✅');
+  }
+  // 妈妈后台：转盘盘面设置（扇区内容 + 概率权重 + 关联许诺奖励）
+  function openWheelModal() {
+    const segs = DATA.wheel || (DATA.wheel = []);
+    const totalW = segs.reduce((a, s) => a + (s.w || 0), 0) || 1;
+    const rows = segs.map((s, i) => {
+      const pct = ((s.w || 0) / totalW * 100).toFixed(0);
+      return `<div class="wheel-seg-edit">
+        <input class="wl-label" value="${esc(s.label || '')}" placeholder="扇区文字(如：一次购物)" style="width:120px" oninput="wheelSegEdit(${i},'label',this.value)">
+        <label>★<input type="number" min="0" value="${s.pts || 0}" style="width:50px" oninput="wheelSegEdit(${i},'pts',this.value)" ${s.again ? 'disabled' : ''}></label>
+        <label>权重<input type="number" min="1" max="999" value="${s.w || 1}" style="width:50px" oninput="wheelSegEdit(${i},'w',this.value)"></label>
+        <label><input type="checkbox" ${s.again ? 'checked' : ''} onchange="wheelSegAgain(${i},this.checked)">再来一次</label>
+        <span class="wl-pct">${pct}%</span>
+        <button class="icon-btn" onclick="wheelSegDel(${i})" title="删除扇区">${ICN.trash}</button>
+      </div>`;
+    }).join('');
+    const modal = document.createElement('div');
+    modal.className = 'modal-mask';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+      <div class="modal">
+        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+        <h3>🎡 转盘盘面设置</h3>
+        <p class="text-mute">概率 = 该扇区「权重」占全部权重的比例，权重越大越容易转到。扇区文字可写「一次购物」「去公园」等<b>口头允诺</b>奖励，由妈妈和孩子商量兑现，不需系统确认。</p>
+        <div class="wheel-seg-list">${rows || '<p>还没有扇区，点下面添加</p>'}</div>
+        <button class="btn-secondary" style="width:100%;margin-top:8px" onclick="wheelSegAdd()">+ 添加一个扇区</button>
+        <div class="btn-row" style="margin-top:14px">
+          <button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">取消</button>
+          <button class="btn-primary" onclick="saveWheel()">保存盘面</button>
+        </div>
+      </div>
+    `;
+    const root = document.getElementById('modal-root');
+    if (root) { const old = root.querySelector('.modal-mask'); if (old) old.remove(); root.appendChild(modal); }
+  }
+  function wheelSegEdit(i, field, val) {
+    const segs = DATA.wheel || []; if (!segs[i]) return;
+    segs[i][field] = (field === 'pts' || field === 'w') ? (parseInt(val) || 0) : val;
+    updateWheelPctLabels();
+  }
+  function wheelSegAgain(i, chk) {
+    const segs = DATA.wheel || []; if (!segs[i]) return;
+    segs[i].again = chk; if (chk) segs[i].pts = 0;
+    openWheelModal();
+  }
+  function wheelSegAdd() {
+    if (!DATA.wheel) DATA.wheel = [];
+    DATA.wheel.push({ id: 'ws' + Date.now(), label: '新扇区', pts: 0, w: 10 });
+    openWheelModal();
+  }
+  function wheelSegDel(i) {
+    if (!DATA.wheel) return;
+    DATA.wheel.splice(i, 1);
+    openWheelModal();
+  }
+  function updateWheelPctLabels() {
+    const segs = DATA.wheel || [];
+    const total = segs.reduce((a, s) => a + (s.w || 0), 0) || 1;
+    document.querySelectorAll('.wheel-seg-edit').forEach((row, idx) => {
+      const p = row.querySelector('.wl-pct');
+      if (p) p.textContent = (((segs[idx] && segs[idx].w) || 0) / total * 100).toFixed(0) + '%';
+    });
+  }
+  function saveWheel() {
+    DATA.wheel = (DATA.wheel || []).filter(s => s && (s.label || '').trim()).map(s => ({
+      id: s.id || ('ws' + Date.now() + Math.random().toString(36).slice(2, 6)),
+      label: (s.label || '').trim(),
+      pts: s.again ? 0 : (parseInt(s.pts) || 0),
+      w: Math.max(1, parseInt(s.w) || 1),
+      again: !!s.again
+    }));
+    saveData(DATA);
+    const m = document.querySelector('.modal-mask'); if (m) m.remove();
+    render(); toast('转盘盘面已保存 🎡');
   }
 
   // ========== 模态：编辑孩子 ==========
@@ -5577,7 +6122,9 @@
     c.name = document.getElementById('c-name').value || c.name;
     const pin = document.getElementById('c-pin').value;
     if (/^\d{4}$/.test(pin)) c.pin = pin; else { toast('PIN 必须是 4 位数字'); return; }
-    c.points = parseInt(document.getElementById('c-points').value) || 0;
+    const np = parseInt(document.getElementById('c-points').value) || 0;
+    c.earned = Math.max(c.earned || 0, np); // 妈妈手动改积分：累计获得不低于当前余额
+    c.points = np;
     saveData(DATA); document.querySelector('.modal-mask').remove(); render(); toast('已保存');
   }
   function addChild() {
