@@ -314,6 +314,9 @@
     .subject-card.s-math { background: linear-gradient(135deg, #FF9800, #E65100); }
     .subject-card.s-english { background: linear-gradient(135deg, #00BCD4, #00838F); }
     .subject-card.s-science { background: linear-gradient(135deg, #9C27B0, #6A1B9A); }
+    /* 我的合集：炫酷深紫蓝渐变 + 发光 */
+    .subject-card.s-collection { background: linear-gradient(135deg, #8B5CF6, #2563EB); box-shadow: 0 4px 14px rgba(99,102,241,.35); }
+    .subject-card.s-collection .emoji svg { display: block; }
     .subject-card.s-music { background: linear-gradient(135deg, #4CAF50, #2E7D32); }
     .subject-card.s-art { background: linear-gradient(135deg, #FFC107, #FF8F00); }
 
@@ -518,6 +521,21 @@
     .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: #fff; padding: 10px 16px; border-radius: var(--radius-md); font-size: 13px; z-index: 200; }
 
     /* ===== 工具 ===== */
+    /* 好习惯：妈妈端的打卡小标签 */
+    .habit-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+    .habit-chip { font-size:12px; padding:5px 10px; border-radius:12px; background:var(--gray-100); color:var(--gray-600); cursor:pointer; border:1.5px solid transparent; }
+    .habit-chip.on { background:var(--green-50); color:var(--green-600); border-color:var(--green-400); }
+    .habit-chip.pen { border-style:dashed; }
+    .habit-chip.pen.on { background:var(--red-50); color:var(--red-600); border-color:var(--red-400); }
+    /* 常用习惯模板（可多选） */
+    .habit-preset { display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:10px; background:var(--gray-50); margin-bottom:6px; cursor:pointer; border:1.5px solid transparent; }
+    .habit-preset .cb { width:18px; height:18px; border-radius:5px; border:1.5px solid var(--gray-400); display:flex; align-items:center; justify-content:center; flex:none; }
+    .habit-preset .cb svg { width:12px; height:12px; color:#fff; }
+    .habit-preset .t { flex:1; font-size:13px; }
+    .habit-preset .p { font-size:12px; padding:3px 8px; border-radius:6px; background:var(--amber-50); color:var(--amber-600); font-weight:500; }
+    .habit-preset.on { background:var(--pink-50); border-color:var(--pink-200); }
+    .habit-preset.on .cb { background:var(--pink-400); border-color:var(--pink-400); }
+    .habit-preset.has { opacity:.5; }
     .empty { text-align: center; padding: 40px 16px; color: var(--gray-600); }
     .empty .emoji { font-size: 40px; margin-bottom: 8px; opacity: 0.5; }
     .row { display:flex; align-items: center; gap: 8px; }
@@ -705,6 +723,9 @@
     ],
     dictations: [],
     homeworks: [],
+    // 好习惯清单：长期约定，每天自动出现。习惯本身不带日期，只有「做到了」的记录带日期
+    habits: [],
+    habitLogs: [],
     // 上网白名单：孩子点开外部链接时，仅白名单域名可直接访问，其余需妈妈密码解锁
     safeDomains: ['bilibili.com', 'weiyun.com', 'basic.smartedu.cn', 'open.163.com', 'docs.qq.com'],
   };
@@ -805,13 +826,13 @@
   // ---- 合并式同步 ----
   // 坑（重要）：原来是「谁后写谁赢」的整包覆盖 —— 妈妈刚加的词库，只要孩子端在
   // 这 2.8 秒里打了一次卡，整包就被冲掉。改成按 id 取并集，两边的新增都能活下来。
-  const MERGE_KEYS = ['resources', 'wordSets', 'wordTasks', 'dictations', 'homeworks', 'tasks', 'rewards', 'redemptions', 'wheel', 'pointsHistory', 'children'];
+  const MERGE_KEYS = ['resources', 'wordSets', 'wordTasks', 'dictations', 'homeworks', 'tasks', 'rewards', 'redemptions', 'wheel', 'pointsHistory', 'children', 'habits', 'habitLogs'];
   // 墓碑：删掉的东西记一笔，别的设备推回来时不许复活
   // （合并规则是「本地新增一律保留」，只删数组会被另一台设备的旧缓存救回来）
   // 坑（2026-08-30）：原来这里只写了 tasks/homeworks，于是资源、奖励、词库这些
   // 删完又活 —— 尤其出厂那 10 条示例资源，任何一台新设备首次打开都自带一份，
   // 一推送就把全家删掉的东西全带回来。凡是用户能删的实体，一律进墓碑。
-  const TOMB_KEYS = ['tasks', 'homeworks', 'resources', 'rewards', 'wordSets', 'wordTasks', 'dictations', 'children', 'wheel'];
+  const TOMB_KEYS = ['tasks', 'homeworks', 'resources', 'rewards', 'wordSets', 'wordTasks', 'dictations', 'children', 'wheel', 'habits', 'habitLogs'];
   const TOMB_TTL = 14 * 86400000;
   function tombAdd(kind, id) {
     if (!id) return;
@@ -930,7 +951,8 @@
       }
       if (!r.category) r.category = 'learn';
       if (SUBJECT_MIGRATE[r.subject]) r.subject = SUBJECT_MIGRATE[r.subject];
-      if (!SUBJECTS[r.subject]) r.subject = 'suyang';
+      if (!SUBJECTS[r.subject]) r.subject = 'science';
+      if (!r.col || !RES_CATS[r.col]) r.col = inferResCol(r);
       // 给谁看：旧数据没这字段 → 默认「姐弟俩都看」，向后兼容
       if (r.who !== 'sis' && r.who !== 'bro' && r.who !== 'both') r.who = 'both';
     });
@@ -973,6 +995,19 @@
       }
     });
     if (!Array.isArray(d.safeDomains)) d.safeDomains = JSON.parse(JSON.stringify(DEFAULT_DATA.safeDomains));
+    if (!Array.isArray(d.habits)) d.habits = [];
+    if (!Array.isArray(d.habitLogs)) d.habitLogs = [];
+    (d.habits || []).forEach(h => {
+      if (h.kind !== 'penalty') h.kind = 'reward';
+      if (h.points == null) h.points = 2;
+      // 取绝对值：星数一律是正数，「奖/扣」由 kind 决定。老数据里把扣分项存成 -5 的也能救回来
+      h.points = Math.abs(parseInt(h.points) || 0);
+      if (!h.emoji) h.emoji = h.kind === 'penalty' ? '⚠️' : '⭐';
+      if (h.who !== 'sis' && h.who !== 'bro') h.who = 'both';
+      // 频率：每天 / 周一至周五 / 周末
+      if (h.freq !== 'weekday' && h.freq !== 'weekend') h.freq = 'daily';
+      if (typeof h.time !== 'string') h.time = '';
+    });
     return d;
   }
   function syncUrl() { return 'https://textdb.dev/api/data/flp-lebaomaibao-' + encodeURIComponent(SYNC.code.trim()); }
@@ -1141,12 +1176,35 @@
     chinese: { name: '语文', emoji: '📖', color: 'pink' },
     math:    { name: '数学', emoji: '🔢', color: 'orange' },
     english: { name: '英语', emoji: '🎤', color: 'cyan' },
-    wuhua:   { name: '物化', emoji: '⚛️', color: 'purple' },
-    small4:  { name: '小四门', emoji: '🗂️', color: 'green' },
-    suyang:  { name: '素养', emoji: '🌟', color: 'amber' },
+    science: { name: '科普', emoji: '🔬', color: 'purple' },
   };
-  // 旧科目映射到新分类（历史数据迁移）
-  const SUBJECT_MIGRATE = { physics: 'wuhua', chemistry: 'wuhua', history: 'small4', politics: 'small4', debate: 'suyang', music: 'suyang' };
+  // 用途栏目（资源一级分类）：孩子一眼找到「我要干嘛」
+  const RES_CATS = {
+    video:   { name: '动画·视频', emoji: '📺', color: 'cyan' },
+    audio:   { name: '故事·音频', emoji: '🎧', color: 'purple' },
+    book:    { name: '绘本·文件', emoji: '📖', color: 'amber' },
+    quiz:    { name: '练习·题库', emoji: '✏️', color: 'green' },
+    english: { name: '英语专区', emoji: '🎤', color: 'pink' },
+  };
+  const RES_CAT_ORDER = ['video', 'audio', 'book', 'quiz', 'english'];
+  // 「我的合集」入口图标：内联卡通 SVG（星星收藏 + 播放气泡，圆润高光风，无外部依赖）
+  const COLLECTION_ICON = `<svg viewBox="0 0 48 48" width="34" height="34" aria-hidden="true">
+    <circle cx="24" cy="24" r="21" fill="#ffffff" opacity="0.16"/>
+    <path d="M15 12l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z" fill="#FFE36E" stroke="#fff" stroke-width="1.3" stroke-linejoin="round"/>
+    <path d="M35 15l1.5 3 3.4.5-2.5 2.4.6 3.4-3-1.6-3 1.6.6-3.4-2.5-2.4 3.4-.5z" fill="#7DE2FF" stroke="#fff" stroke-width="1.1" stroke-linejoin="round"/>
+    <circle cx="31" cy="34" r="7.5" fill="#fff"/>
+    <path d="M28.8 30.8v6.4l5.5-3.2z" fill="#6A1B9A"/>
+  </svg>`;
+  // 旧科目映射到新学科标签（历史数据迁移，初中术语合并进科普）
+  const SUBJECT_MIGRATE = { physics: 'science', chemistry: 'science', history: 'science', politics: 'science', wuhua: 'science', small4: 'science', debate: 'science', music: 'science', suyang: 'science' };
+  // 资源用途栏目推断（老资源无 col 时按 类型+学科 兜底）
+  function inferResCol(r) {
+    if (r && r.col && RES_CATS[r.col]) return r.col;
+    if (!r) return 'video';
+    if (r.type === 'audio') return r.subject === 'english' ? 'english' : 'audio';
+    if (r.type === 'pdf') return 'book';
+    return r.subject === 'english' ? 'english' : 'video';
+  }
   const SUBJECT_FALLBACK = { name: '其他', emoji: '📦', color: 'gray' };
   // 奖励分类：游戏 / 电影 / 动画片 / 漫画 / 听说
   const REWARD_CATS = {
@@ -1226,7 +1284,8 @@
       'kid-mine':    viewKidMine,
       'kid-memory':  viewKidMemory,
       'kid-math24':  viewKidMath24,
-      'subject':     viewSubject,
+      'cat':         viewCategory,
+      'collections': viewCollection,
     };
 
     const fn = routes[route] || viewEntry;
@@ -1413,6 +1472,8 @@
 
         ${momFutureTasks()}
 
+        ${momHabitSection()}
+
         ${hwSection(true)}
 
         <div class="section">
@@ -1426,6 +1487,33 @@
       ${momTabBar('today')}
       <button class="fab" onclick="openTaskModal()">${ICN.add}</button>
     `;
+  }
+  // 妈妈端「今日好习惯」：每个娃一行，点一下即可代记 / 撤销（记错了点回去就退回星星）
+  function momHabitSection() {
+    const kids = DATA.children || [];
+    return `
+      <div class="section">
+        <h3>🌟 今日好习惯 <button class="text-pink" style="font-size:12px" onclick="openHabitModal()">${ICN.edit} 清单</button></h3>
+        ${(DATA.habits || []).length ? kids.map(k => {
+          const hs = habitList(k);
+          const done = hs.filter(h => habitLogOn(h.id, k.id, TODAY)).length;
+          return `
+            <div class="kid-row" style="margin-bottom:10px">
+              <div class="avatar">${k.avatar}</div>
+              <div class="info">
+                <div class="name">${esc(k.name)} · 习惯 ${done}/${hs.length}</div>
+                <div class="progress">点一下就记上：绿=做到了，红=扣分项；再点一下撤销</div>
+                <div class="habit-chips">
+                  ${hs.length ? hs.map(h => {
+                    const on = !!habitLogOn(h.id, k.id, TODAY);
+                    const pen = h.kind === 'penalty';
+                    return `<span class="habit-chip${on ? ' on' : ''}${pen ? ' pen' : ''}" onclick="momToggleHabit('${h.id}','${k.id}')">${esc(h.emoji || '⭐')} ${esc(h.title)} ${pen ? '-' : '+'}${h.points}</span>`;
+                  }).join('') : '<span class="text-mute" style="font-size:12px">今天没有适用的习惯</span>'}
+                </div>
+              </div>
+            </div>`;
+        }).join('') : '<div class="empty" style="padding:18px"><div class="emoji">🌟</div>还没定习惯清单<br><span style="font-size:12px">点右上角「清单」，和娃商量着定几条</span></div>'}
+      </div>`;
   }
   function momTabBar(active) {
     const tabs = [
@@ -1449,16 +1537,22 @@
           <button class="btn-primary" onclick="openResourceModal()">＋ 添加新资源</button>
         </div>
         <div class="section">
-          <h3>按学科</h3>
+          <h3>按栏目（一级分类）</h3>
           <div class="subject-row">
-            ${Object.entries(SUBJECTS).map(([k, v]) => {
-              const count = DATA.resources.filter(r => r.subject === k).length;
-              return `<div class="subject-card s-${v.color}" onclick="location.hash='subject?key=${k}&role=mom'">
+            ${RES_CAT_ORDER.map(k => {
+              const v = RES_CATS[k];
+              const count = DATA.resources.filter(r => r.col === k).length;
+              return `<div class="subject-card s-${v.color}" onclick="location.hash='cat?key=${k}&role=mom'">
                 <div class="emoji">${v.emoji}</div>
                 <div class="name">${v.name}</div>
                 <div class="count">${count} 个资源</div>
               </div>`;
             }).join('')}
+            <div class="subject-card s-collection" onclick="location.hash='collections?role=mom'">
+              <div class="emoji">${COLLECTION_ICON}</div>
+              <div class="name">我的合集</div>
+              <div class="count">${DATA.resources.filter(r => r.episodes && r.episodes.length >= 2).length} 个</div>
+            </div>
           </div>
         </div>
         <div class="section">
@@ -1559,6 +1653,11 @@
         <div class="section">
           <h3>妈妈密码</h3>
           <button class="btn-secondary" onclick="changePassword()">修改密码</button>
+        </div>
+        <div class="section">
+          <h3>🌟 好习惯清单</h3>
+          <p class="text-mute" style="font-size:12px;margin-bottom:8px">和娃商量着定：做到奖几颗星、没做到扣几颗星。奖励类孩子自己就能打卡，扣分类由妈妈记录。</p>
+          <button class="btn-secondary" onclick="openHabitModal()">编辑清单（${(DATA.habits || []).length} 条）</button>
         </div>
         <div class="section">
           <h3>🌐 上网白名单</h3>
@@ -1734,6 +1833,284 @@
     if (w === 'bro') return `<span class="badge-subj" style="background:var(--purple-50);color:var(--purple-600)">👦 只给弟弟</span>`;
     return `<span class="badge-subj" style="background:var(--gray-100);color:var(--gray-600)">👧👦 姐弟俩</span>`;
   }
+
+  // ========== 好习惯清单（奖惩） ==========
+  // 和「任务」的分工：任务是一天一条的实例（带 date，妈妈逐天布置、做完就消失）；
+  // 习惯是长期约定，每天自动出现，只记「哪天谁做到了哪条」(habitLogs)，不再生成实例。
+  const HABIT_FREQ = { daily: '每天', weekday: '周一至周五', weekend: '周末' };
+  // 常用习惯模板：只有妈妈点「从常用习惯里挑」时才写进数据，绝不能进 DEFAULT_DATA ——
+  // 否则任何一台新设备首次打开都自带一份，全家人删掉的又被带回来（和出厂示例资源同一个坑）
+  const HABIT_PRESETS = [
+    { emoji: '😴', title: '午觉 13:05 前上床',      kind: 'reward',  points: 2, time: '13:05', freq: 'daily' },
+    { emoji: '🌙', title: '晚上 22:30 前上床睡觉',   kind: 'reward',  points: 2, time: '22:30', freq: 'daily' },
+    { emoji: '🎒', title: '自己整理书包',            kind: 'reward',  points: 2, time: '',      freq: 'weekday' },
+    { emoji: '✍️', title: '先写作业再玩',            kind: 'reward',  points: 3, time: '',      freq: 'weekday' },
+    { emoji: '🦷', title: '早晚刷牙',                kind: 'reward',  points: 1, time: '',      freq: 'daily' },
+    { emoji: '🍚', title: '专心吃饭不拖拉',          kind: 'reward',  points: 2, time: '',      freq: 'daily' },
+    { emoji: '🧹', title: '玩具用完自己收好',        kind: 'reward',  points: 2, time: '',      freq: 'daily' },
+    { emoji: '📖', title: '每天阅读 20 分钟',        kind: 'reward',  points: 3, time: '',      freq: 'daily' },
+    { emoji: '🏃', title: '户外运动 30 分钟',        kind: 'reward',  points: 3, time: '',      freq: 'weekend' },
+    { emoji: '🙏', title: '主动打招呼问好',          kind: 'reward',  points: 1, time: '',      freq: 'daily' },
+    { emoji: '🌛', title: '22:30 后还没睡',          kind: 'penalty', points: 2, time: '22:30', freq: 'daily' },
+    { emoji: '📱', title: '偷偷玩手机 / 平板',       kind: 'penalty', points: 3, time: '',      freq: 'daily' },
+    { emoji: '😤', title: '乱发脾气、顶嘴',          kind: 'penalty', points: 2, time: '',      freq: 'daily' },
+    { emoji: '🧸', title: '玩具乱扔不收拾',          kind: 'penalty', points: 1, time: '',      freq: 'daily' },
+    { emoji: '🍬', title: '饭前偷吃零食',            kind: 'penalty', points: 1, time: '',      freq: 'daily' },
+  ];
+  // 习惯是否适用这个孩子（姐姐 / 弟弟 / 姐弟俩），规则与资源完全一致
+  function habitForKid(h, c) {
+    if (!h || !h.who || h.who === 'both') return true;
+    return h.who === kidSide(c);
+  }
+  // 今天这条习惯是否要出现：每天 / 只上学日 / 只周末
+  function habitToday(h, date) {
+    const f = (h && h.freq) || 'daily';
+    if (f === 'daily') return true;
+    const wd = new Date((date || TODAY) + 'T00:00:00').getDay(); // 0=周日
+    const weekend = (wd === 0 || wd === 6);
+    return f === 'weekend' ? weekend : !weekend;
+  }
+  // 某个孩子今天要打卡的习惯，按时间点从早到晚排（没填时间的排最后）
+  function habitList(c) {
+    return (DATA.habits || []).filter(h => habitForKid(h, c) && habitToday(h, TODAY))
+      .sort((a, b) => String(a.time || '99:99').localeCompare(String(b.time || '99:99')));
+  }
+  function habitLogOn(habitId, childId, date) {
+    const d = date || TODAY;
+    return (DATA.habitLogs || []).find(l => l.habitId === habitId && l.childId === childId && l.date === d) || null;
+  }
+  // 本周（周一起算）做到过几次
+  function habitWeekCount(habitId, childId) {
+    const wd = (new Date(TODAY + 'T00:00:00').getDay() + 6) % 7; // 周一=0
+    const monday = addDays(TODAY, -wd);
+    return (DATA.habitLogs || []).filter(l => l.habitId === habitId && l.childId === childId && l.date >= monday).length;
+  }
+  // 打卡 / 撤销。on=true 记一笔并发分，on=false 把这一笔连同积分一起退回去。
+  // 坑：撤销必须同时删 habitLogs 并进墓碑，只删数组会被另一台设备的旧缓存推回来，
+  // 界面显示「做到了」但积分已经退回，两边对不上。
+  function applyHabit(h, c, on, by) {
+    const n = Math.max(0, parseInt(h.points) || 0);
+    const title = '习惯：' + h.title;
+    if (on) {
+      if (!DATA.habitLogs) DATA.habitLogs = [];
+      DATA.habitLogs.push({
+        id: 'hl' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        habitId: h.id, childId: c.id, date: TODAY, by: by || 'mom', at: Date.now(),
+      });
+      if (h.kind === 'penalty') {
+        // 扣分只动余额，不动「累计获得 earned」——和兑换扣分保持一致：
+        // 孩子挣过的星不该被抹掉，否则勋章/等级会莫名其妙往回退
+        c.points = Math.max(0, c.points - n);
+        DATA.pointsHistory.unshift({ id: 'h' + Date.now(), childId: c.id, date: TODAY, title: title, points: -n, at: Date.now() });
+      } else {
+        awardStars(c, n, title);
+      }
+    } else {
+      const log = habitLogOn(h.id, c.id, TODAY);
+      if (log) {
+        tombAdd('habitLogs', log.id);
+        DATA.habitLogs = DATA.habitLogs.filter(x => x.id !== log.id);
+      }
+      if (h.kind === 'penalty') c.points += n;                                  // 扣错的分还回去
+      else { c.points = Math.max(0, c.points - n); c.earned = Math.max(0, (c.earned || 0) - n); }
+      const i = DATA.pointsHistory.findIndex(x => x.childId === c.id && x.date === TODAY && x.title === title);
+      if (i >= 0) DATA.pointsHistory.splice(i, 1);
+    }
+    saveData(DATA);
+  }
+  // 孩子端打卡：只能勾奖励项。扣分项让孩子自己按不现实，一律交给妈妈。
+  function kidToggleHabit(hid) {
+    const c = kidCheck();
+    if (!c) return;
+    const h = (DATA.habits || []).find(x => x.id === hid);
+    if (!h || !habitForKid(h, c)) return;
+    if (h.kind === 'penalty') { toast('这条由妈妈来记哦'); return; }
+    const on = !habitLogOn(h.id, c.id, TODAY);
+    applyHabit(h, c, on, 'kid');
+    toast(on ? `+${h.points} 星 · ${h.title}` : '已取消，星星退回啦');
+    render();
+  }
+  // 妈妈端代勾：奖励和扣分都能记，也都能撤销（记错了点一下就退回）
+  function momToggleHabit(hid, cid) {
+    const h = (DATA.habits || []).find(x => x.id === hid);
+    const c = DATA.children.find(x => x.id === cid);
+    if (!h || !c) return;
+    const on = !habitLogOn(h.id, c.id, TODAY);
+    applyHabit(h, c, on, 'mom');
+    toast(on ? `${h.kind === 'penalty' ? '-' : '+'}${h.points} 星 · ${c.name}：${h.title}` : `已撤销 · ${c.name}：${h.title}`);
+    render();
+  }
+
+  // ---- 习惯清单管理（妈妈端）----
+  function openHabitModal(editId) {
+    const ed = editId ? (DATA.habits || []).find(x => x.id === editId) : null;
+    window.__editHabitId = ed ? editId : null;
+    const sel = (v, cur) => (v === cur ? ' selected' : '');
+    const modal = document.createElement('div');
+    modal.className = 'modal-mask habit-mask';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+      <div class="modal">
+        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+        <h3>🌟 好习惯清单</h3>
+        <p class="text-mute" style="margin-top:-8px;margin-bottom:12px;font-size:12px;line-height:1.6">
+          和娃商量着定，写清楚「做到哪一步」和「奖几颗星 / 扣几颗星」。<br>
+          奖励类孩子自己就能打卡；扣分类由妈妈来记。</p>
+        <button class="btn-secondary btn-sm" style="width:100%" onclick="openHabitPresetModal()">＋ 从常用习惯里挑</button>
+
+        <div style="margin:14px 0 6px;font-size:12px;color:var(--gray-600)">已定好的 <span class="badge">${(DATA.habits || []).length} 条</span></div>
+        ${(DATA.habits || []).length ? (DATA.habits || []).slice().sort((a, b) => String(a.time || '99:99').localeCompare(String(b.time || '99:99'))).map(h => `
+          <div class="task" style="cursor:default;align-items:center">
+            <div style="font-size:20px;width:24px;text-align:center">${esc(h.emoji || '⭐')}</div>
+            <div class="title">
+              <div class="name">${esc(h.title)}${h.time ? ` <span style="font-weight:400;color:var(--gray-600)">⏰ ${esc(h.time)}</span>` : ''}</div>
+              <div class="meta">${HABIT_FREQ[h.freq] || '每天'} · ${h.who === 'sis' ? '👧 姐姐' : h.who === 'bro' ? '👦 弟弟' : '👧👦 姐弟俩'}</div>
+            </div>
+            <div class="pts" style="${h.kind === 'penalty' ? 'background:var(--red-50);color:var(--red-600)' : ''}">${h.kind === 'penalty' ? '-' : '+'}${h.points}</div>
+            <button class="icon-btn" onclick="openHabitModal('${h.id}')" title="编辑">${ICN.edit}</button>
+            <button class="icon-btn" style="background:#FFEBEE;color:#C62828" onclick="delHabit('${h.id}')" title="删除">${ICN.trash}</button>
+          </div>`).join('')
+          : '<div class="empty" style="padding:16px"><div class="emoji">🌟</div>还没有习惯，先从上面挑几条</div>'}
+
+        <div style="margin:14px 0 8px;font-size:13px;font-weight:600">${ed ? '修改这条' : '自己写一条'}</div>
+        <div style="display:flex;gap:8px">
+          <div class="field" style="flex:0 0 62px"><label>图标</label>
+            <input id="h-emoji" value="${ed ? escAttr(ed.emoji) : '⭐'}" style="text-align:center" /></div>
+          <div class="field" style="flex:1"><label>习惯内容</label>
+            <input id="h-title" placeholder="例：晚上 22:30 前上床睡觉" value="${ed ? escAttr(ed.title) : ''}" /></div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <div class="field" style="flex:1"><label>类型</label>
+            <select id="h-kind">
+              <option value="reward"${sel('reward', ed && ed.kind)}>✅ 做到就奖励</option>
+              <option value="penalty"${sel('penalty', ed && ed.kind)}>⚠️ 没做到就扣分</option>
+            </select></div>
+          <div class="field" style="flex:1"><label>星数</label>
+            <input id="h-points" type="number" min="1" max="50" value="${ed ? (ed.points || 2) : 2}" /></div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <div class="field" style="flex:1"><label>给谁</label>
+            <select id="h-who">
+              <option value="both"${sel('both', ed && (ed.who || 'both'))}>👧👦 姐弟俩</option>
+              <option value="sis"${sel('sis', ed && ed.who)}>👧 只给姐姐</option>
+              <option value="bro"${sel('bro', ed && ed.who)}>👦 只给弟弟</option>
+            </select></div>
+          <div class="field" style="flex:1"><label>哪天适用</label>
+            <select id="h-freq">
+              <option value="daily"${sel('daily', ed && (ed.freq || 'daily'))}>每天</option>
+              <option value="weekday"${sel('weekday', ed && ed.freq)}>周一至周五</option>
+              <option value="weekend"${sel('weekend', ed && ed.freq)}>周末</option>
+            </select></div>
+        </div>
+        <div class="field"><label>时间点（可选，填了会按时间排序）</label>
+          <input id="h-time" type="time" value="${ed ? escAttr(ed.time || '') : ''}" /></div>
+        <div class="btn-row">
+          ${ed ? '<button class="btn-secondary" onclick="openHabitModal()">取消修改</button>' : '<button class="btn-secondary" onclick="this.closest(\'.modal-mask\').remove()">关闭</button>'}
+          <button class="btn-primary" onclick="saveHabit()">${ed ? '保存修改' : '加入清单'}</button>
+        </div>
+      </div>`;
+    document.getElementById('modal-root').appendChild(modal);
+    if (ed) { const t = document.getElementById('h-title'); if (t) t.focus(); }
+  }
+  function saveHabit() {
+    const title = (document.getElementById('h-title').value || '').trim();
+    if (!title) { toast('写一下习惯内容'); return; }
+    const pts = Math.max(1, Math.min(50, parseInt(document.getElementById('h-points').value) || 2));
+    const one = {
+      emoji: (document.getElementById('h-emoji').value || '').trim() || '⭐',
+      title: title,
+      kind: document.getElementById('h-kind').value === 'penalty' ? 'penalty' : 'reward',
+      points: pts,
+      who: document.getElementById('h-who').value,
+      freq: document.getElementById('h-freq').value,
+      time: document.getElementById('h-time').value || '',
+    };
+    const eid = window.__editHabitId;
+    if (eid) {
+      const h = (DATA.habits || []).find(x => x.id === eid);
+      if (h) Object.assign(h, one); // 保留原 id：打卡记录靠 habitId 关联，换 id 就全断链了
+      toast('已修改');
+    } else {
+      if (!DATA.habits) DATA.habits = [];
+      DATA.habits.push(Object.assign({ id: 'hb' + Date.now().toString(36) }, one));
+      toast('已加入清单');
+    }
+    window.__editHabitId = null;
+    saveData(DATA);
+    const m = document.querySelector('.habit-mask'); if (m) m.remove();
+    openHabitModal();
+    render();
+  }
+  function delHabit(id) {
+    const h = (DATA.habits || []).find(x => x.id === id);
+    if (!h) return;
+    if (!confirm('删除这条习惯？\n\n' + h.title + '\n\n已经打过的卡和发过的星星不会退回来。')) return;
+    tombAdd('habits', id);
+    DATA.habits = DATA.habits.filter(x => x.id !== id);
+    // 连它的打卡记录一起埋掉，否则删了习惯、记录还在，界面上会冒出没有主人的条目
+    (DATA.habitLogs || []).filter(l => l.habitId === id).forEach(l => tombAdd('habitLogs', l.id));
+    DATA.habitLogs = (DATA.habitLogs || []).filter(l => l.habitId !== id);
+    saveData(DATA);
+    const m = document.querySelector('.habit-mask'); if (m) m.remove();
+    openHabitModal();
+    render();
+  }
+  function openHabitPresetModal() {
+    window.__habitPresetSel = new Set();
+    const modal = document.createElement('div');
+    modal.className = 'modal-mask habit-preset-mask';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+      <div class="modal">
+        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+        <h3>常用习惯</h3>
+        <p class="text-mute" style="margin-top:-8px;margin-bottom:10px;font-size:12px">点一下选中，可以一次挑好几条。加进去之后还能再改内容、星数和给谁。</p>
+        ${HABIT_PRESETS.map((p, i) => {
+          const has = (DATA.habits || []).some(h => h.title === p.title);
+          return `<div class="habit-preset${has ? ' has' : ''}" onclick="toggleHabitPreset(${i})">
+            <div class="cb">${has ? '✓' : (ICN.check)}</div>
+            <div class="t">${p.emoji} ${esc(p.title)}</div>
+            <div class="p" style="${p.kind === 'penalty' ? 'background:var(--red-50);color:var(--red-600)' : ''}">${p.kind === 'penalty' ? '-' : '+'}${p.points}</div>
+          </div>`;
+        }).join('')}
+        <div class="btn-row">
+          <button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">取消</button>
+          <button class="btn-primary" onclick="addHabitPresets()">加入清单</button>
+        </div>
+      </div>`;
+    document.getElementById('modal-root').appendChild(modal);
+  }
+  function toggleHabitPreset(i) {
+    if (!window.__habitPresetSel) window.__habitPresetSel = new Set();
+    const el = document.querySelectorAll('.habit-preset')[i];
+    const has = (DATA.habits || []).some(h => h.title === HABIT_PRESETS[i].title);
+    if (has) { toast('这条已经在清单里了'); return; }
+    if (window.__habitPresetSel.has(i)) window.__habitPresetSel.delete(i);
+    else window.__habitPresetSel.add(i);
+    if (el) el.classList.toggle('on');
+  }
+  function addHabitPresets() {
+    const selSet = window.__habitPresetSel || new Set();
+    if (!selSet.size) { toast('先点几条选中'); return; }
+    let n = 0;
+    HABIT_PRESETS.forEach((p, i) => {
+      if (!selSet.has(i)) return;
+      if ((DATA.habits || []).some(h => h.title === p.title)) return; // 同名不重复加
+      DATA.habits.push({
+        id: 'hb' + Date.now().toString(36) + n,
+        emoji: p.emoji, title: p.title, kind: p.kind, points: p.points,
+        time: p.time || '', freq: p.freq || 'daily', who: 'both',
+      });
+      n++;
+    });
+    saveData(DATA);
+    const pm = document.querySelector('.habit-preset-mask'); if (pm) pm.remove();
+    const hm = document.querySelector('.habit-mask'); if (hm) hm.remove();
+    toast(n ? `已加入 ${n} 条习惯` : '这几条已经在清单里了');
+    openHabitModal();
+    render();
+  }
+
   function viewKidTasks() {
     const c = kidCheck();
     if (!c) { location.hash='kid-select'; return ''; }
@@ -1783,10 +2160,35 @@
           `}).join('') : '<div class="empty"><div class="emoji">🎉</div>今天没有任务，等妈妈布置</div>'}
         </div>
 
+        ${kidHabitSection(c)}
+
         ${hwSection(false)}
       </div>
       ${kidTabBar('tasks')}
     `;
+  }
+  // 孩子端「今日好习惯」：奖励类自己点一下就打卡，扣分类置灰只展示（等妈妈来记）
+  function kidHabitSection(c) {
+    const hs = habitList(c);
+    const done = hs.filter(h => habitLogOn(h.id, c.id, TODAY)).length;
+    return `
+      <div class="section">
+        <h3>🌟 今日好习惯 ${hs.length ? `<span class="badge">${done}/${hs.length}</span>` : ''}</h3>
+        ${hs.length ? hs.map(h => {
+          const log = habitLogOn(h.id, c.id, TODAY);
+          const pen = h.kind === 'penalty';
+          const wk = habitWeekCount(h.id, c.id);
+          return `
+            <div class="task ${log ? 'done' : ''}" ${pen ? 'style="cursor:default;opacity:.8"' : `onclick="kidToggleHabit('${h.id}')"`}>
+              <div class="checkbox">${log ? ICN.check : ''}</div>
+              <div class="title">
+                <div class="name">${esc(h.emoji || '⭐')} ${esc(h.title)}</div>
+                <div class="meta">${h.time ? `⏰ ${esc(h.time)} · ` : ''}${HABIT_FREQ[h.freq] || '每天'} · 本周 ${wk} 次${pen ? ' · 🔒 由妈妈记录' : ''}</div>
+              </div>
+              <div class="pts" style="${pen ? 'background:var(--red-50);color:var(--red-600)' : ''}">${pen ? '-' : '+'}${h.points}</div>
+            </div>`;
+        }).join('') : '<div class="empty" style="padding:20px 16px"><div class="emoji">🌟</div>还没有习惯清单，让妈妈来定</div>'}
+      </div>`;
   }
   function kidTabBar(active) {
     const tabs = [
@@ -1806,6 +2208,7 @@
     const learn = DATA.resources.filter(r => (r.category || 'learn') === 'learn' && resForKid(r, c));
     const fun = DATA.resources.filter(r => r.category === 'fun' && resForKid(r, c));
     const funUnlocked = kidTasksDone(c);
+    const recent = DATA.resources.filter(r => resForKid(r, c)).slice(-6).reverse();
     return `
       <div class="topbar">
         <button class="icon-btn" data-back data-to="kid-tasks">${ICN.back}</button>
@@ -1814,32 +2217,36 @@
       </div>
       <div class="page">
         <div class="section">
-          <h3>学习资源 <span class="badge">随时能看</span></h3>
+          <h3>资源库 <span class="badge">${DATA.resources.filter(r => resForKid(r, c)).length} 个</span></h3>
           <div class="subject-row">
-            ${Object.entries(SUBJECTS).map(([k, v]) => {
-              const count = learn.filter(r => r.subject === k).length;
-              return `<div class="subject-card s-${v.color}" onclick="location.hash='subject?key=${k}&role=kid'">
+            ${RES_CAT_ORDER.map(k => {
+              const v = RES_CATS[k];
+              const count = DATA.resources.filter(r => r.col === k && resForKid(r, c)).length;
+              return `<div class="subject-card s-${v.color}" onclick="location.hash='cat?key=${k}&role=kid'">
                 <div class="emoji">${v.emoji}</div>
                 <div class="name">${v.name}</div>
-                <div class="count">${count} 个资源</div>
+                <div class="count">${count} 个</div>
               </div>`;
             }).join('')}
+            <div class="subject-card s-collection" onclick="location.hash='collections?role=kid'">
+              <div class="emoji">${COLLECTION_ICON}</div>
+              <div class="name">我的合集</div>
+              <div class="count">${DATA.resources.filter(r => r.episodes && r.episodes.length >= 2 && resForKid(r, c)).length} 个</div>
+            </div>
           </div>
         </div>
         <div class="section">
-          <h3>学习资源 · 最新</h3>
-          ${learn.slice(-5).reverse().map(r => resCard(r)).join('') || '<div class="empty">还没有学习资源</div>'}
-        </div>
-        <div class="section">
-          <h3>🎁 奖励资源 <span class="badge" style="background:${funUnlocked?'var(--green-50);color:var(--green-600)':'var(--gray-100);color:var(--gray-600)'}">${funUnlocked ? '已解锁' : '完成打卡解锁'}</span></h3>
-          ${fun.length ? fun.map(r => `
-            <div class="resource" style="${funUnlocked?'':'opacity:.6'}" onclick="openResource('${r.id}')">
-              <div class="thumb">${funUnlocked ? '🎁' : '🔒'}</div>
+          <h3>最近添加</h3>
+          ${recent.length ? recent.map(r => {
+            const locked = (r.category === 'fun') && !funUnlocked;
+            return `<div class="resource" style="${locked?'opacity:.6':''}" onclick="openResource('${r.id}')">
+              <div class="thumb">${locked ? '🔒' : (ICN[r.type]||ICN.pdf)}</div>
               <div class="info">
                 <div class="name">${esc(r.title)}</div>
-                <div class="meta">${funUnlocked ? '🎉 点开观看' : '完成今日打卡后可看'}</div>
+                <div class="meta">${r.category === 'fun' ? (funUnlocked ? '🎉 点开观看' : '完成今日打卡后可看') : (RES_CATS[r.col] ? RES_CATS[r.col].name : '资源')}${r.episodes && r.episodes.length >= 2 ? ` · <span style="color:var(--amber-600)">共${r.episodes.length}集</span>` : ''}</div>
               </div>
-            </div>`).join('') : '<div class="empty"><div class="emoji">🎁</div>妈妈还没放奖励资源</div>'}
+            </div>`;
+          }).join('') : '<div class="empty"><div class="emoji">📦</div>妈妈还没放资源</div>'}
         </div>
       </div>
       ${kidTabBar('resources')}
@@ -1859,27 +2266,38 @@
   // ========== 学科详情 ==========
   let SUBJ_FILTER = 'all'; // 科目内类型筛选：all | video | audio | pdf
   function subjTypeLabel(t) { return t === 'video' ? '🎬 视频' : t === 'audio' ? '🎵 音频' : '📄 文件'; }
-  function viewSubject(p) {
+  const RES_CAT_FALLBACK = { name: '资源', emoji: '📦', color: 'gray' };
+  function viewCategory(p) {
     const isMom = p.role === 'mom';
     const c = isMom ? null : kidCheck();
-    const s = SUBJECTS[p.key] || SUBJECT_FALLBACK;
-    const all = DATA.resources.filter(r => r.subject === p.key && (isMom || resForKid(r, c)));
-    const list = SUBJ_FILTER === 'all' ? all : all.filter(r => r.type === SUBJ_FILTER);
+    const col = p.key;
+    const cat = RES_CATS[col] || RES_CAT_FALLBACK;
+    const f = window.SUBJ_FILTER || 'all';
+    const sj = window.SUBJ_SUBJ || 'all';
+    const all = DATA.resources.filter(r => r.col === col && (isMom || resForKid(r, c)));
+    const list = all.filter(r => (f === 'all' || r.type === f) && (sj === 'all' || r.subject === sj));
     const TYPE_TABS = [['all', '全部'], ['video', '🎬 视频'], ['audio', '🎵 音频'], ['pdf', '📄 文件']];
+    const SUBJ_TABS = [['all', '全部'], ['chinese', '语文'], ['math', '数学'], ['english', '英语'], ['science', '科普']];
     return `
       <div class="topbar">
         <button class="icon-btn" data-back data-to="${isMom ? 'mom-resources' : 'kid-resources'}">${ICN.back}</button>
-        <h1>${s.emoji} ${s.name}</h1>
+        <h1>${cat.emoji} ${cat.name}</h1>
         <div class="actions">
-          ${isMom ? `<button class="icon-btn" onclick="openResourceModal('${p.key}')" title="添加资源">${ICN.add}</button>` : `<div style="width:36px"></div>`}
+          ${isMom ? `<button class="icon-btn" onclick="openResourceModal(null,null,'${col}')" title="添加资源">${ICN.add}</button>` : `<div style="width:36px"></div>`}
         </div>
       </div>
       <div class="page">
         <div class="section">
-          <h3>${s.name}资源 <span class="badge">${list.length} 个</span></h3>
+          <h3>${cat.name} <span class="badge">${list.length} 个</span></h3>
           <div class="type-tabs">
             ${TYPE_TABS.map(([k, label]) => `
-              <div class="type-tab ${SUBJ_FILTER === k ? 'on' : ''}" onclick="SUBJ_FILTER='${k}';render()">${label}</div>
+              <div class="type-tab ${(window.SUBJ_FILTER||'all') === k ? 'on' : ''}" onclick="window.SUBJ_FILTER='${k}';render()">${label}</div>
+            `).join('')}
+            <div class="type-tab ${(window.SUBJ_SUBJ||'all') !== 'all' ? 'on' : ''}" style="background:var(--gray-100);color:var(--gray-600);cursor:default">按学科</div>
+          </div>
+          <div class="type-tabs" style="margin-top:8px">
+            ${SUBJ_TABS.map(([k, label]) => `
+              <div class="type-tab ${(window.SUBJ_SUBJ||'all') === k ? 'on' : ''}" onclick="window.SUBJ_SUBJ='${k}';window.SUBJ_FILTER=window.SUBJ_FILTER||'all';render()">${label}</div>
             `).join('')}
           </div>
           ${(isMom && list.filter(resIsNetdisk).length) ? `
@@ -1892,13 +2310,51 @@
               <div class="thumb">${ICN[r.type]||ICN.pdf}</div>
               <div class="info">
                 <div class="name">${esc(r.title)}</div>
-                <div class="meta">${r.type==='video'?'🎬 视频':r.type==='pdf'?'📄 PDF':'🎵 音频'}${r.episodes&&r.episodes.length>=2?` · <span style="color:var(--amber-600)">共${r.episodes.length}集</span>`:''}${resSubCount(r)?`<span class="res-sub-tag">CC 字幕</span>`:''}${isMom && resIsNetdisk(r)?`<span class="res-nd-tag" title="网盘链接，平台里打不开，只能跳转">↗ 网盘</span>`:''}${isMom?whoTag(r):''}</div>
+                <div class="meta">${r.type==='video'?'🎬 视频':r.type==='pdf'?'📄 PDF':'🎵 音频'}${r.episodes&&r.episodes.length>=2?` · <span style="color:var(--amber-600)">共${r.episodes.length}集</span>`:''}${resSubCount(r)?`<span class="res-sub-tag">CC 字幕</span>`:''}${r.category==='fun'?'<span class="badge-subj" style="background:var(--purple-50);color:var(--purple-600)">🎁 奖励</span>':''}${isMom && resIsNetdisk(r)?`<span class="res-nd-tag" title="网盘链接，平台里打不开，只能跳转">↗ 网盘</span>`:''}${isMom?whoTag(r):''}</div>
               </div>
               ${isMom ? `<button class="icon-btn" onclick="event.stopPropagation();openResourceModal(null,'${r.id}')" title="编辑">${ICN.edit}</button>` : ''}
               ${isMom ? (r.type === 'video' ? `<button class="icon-btn" onclick="event.stopPropagation();openResSubModal('${r.id}')" title="挂字幕" style="font-size:11px;font-weight:600">CC</button>` : '') : ''}
               ${isMom ? `<button class="icon-btn" onclick="event.stopPropagation();delResource('${r.id}')">${ICN.trash}</button>` : ''}
             </div>
-          `).join('') : `<div class="empty"><div class="emoji">📦</div>该分类还没有资源${isMom ? '，点右上角 ＋ 添加' : ''}</div>`}
+          `).join('') : `<div class="empty"><div class="emoji">📦</div>这个栏目还没有资源${isMom ? '，点右上角 ＋ 添加' : ''}</div>`}
+        </div>
+      </div>
+    `;
+  }
+  // ========== 合集页：聚合所有多集资源，学习合集 + 奖励合集合在一起 ==========
+  function viewCollection(p) {
+    const isMom = p.role === 'mom';
+    const c = isMom ? null : kidCheck();
+    const all = DATA.resources.filter(r => r.episodes && r.episodes.length >= 2 && (isMom || resForKid(r, c)));
+    const funUnlocked = isMom ? true : kidTasksDone(c);
+    const learnCols = all.filter(r => (r.category || 'learn') === 'learn');
+    const funCols = all.filter(r => (r.category || 'learn') === 'fun');
+    const card = (r) => {
+      const locked = !isMom && (r.category || 'learn') === 'fun' && !funUnlocked;
+      return `<div class="resource" style="${locked?'opacity:.6':''}" onclick="openResource('${r.id}')">
+        <div class="thumb">${locked ? '🔒' : (RES_CATS[r.col] ? RES_CATS[r.col].emoji : '📺')}</div>
+        <div class="info">
+          <div class="name">${esc(r.title)}</div>
+          <div class="meta"><span class="badge-subj" style="background:var(--amber-50);color:var(--amber-600)">▶ 共${r.episodes.length}集</span>${(r.category||'learn')==='fun'?'<span class="badge-subj" style="background:var(--purple-50);color:var(--purple-600)">🎁 奖励</span>':'<span class="badge-subj" style="background:var(--green-50);color:var(--green-600)">学习</span>'}${locked?'<span class="badge-subj" style="background:var(--gray-100);color:var(--gray-600)">完成打卡解锁</span>':''}${isMom?whoTag(r):''}</div>
+        </div>
+        ${isMom ? `<button class="icon-btn" onclick="event.stopPropagation();openResourceModal(null,'${r.id}')" title="编辑">${ICN.edit}</button>` : ''}
+        ${isMom ? `<button class="icon-btn" onclick="event.stopPropagation();delResource('${r.id}')">${ICN.trash}</button>` : ''}
+      </div>`;
+    };
+    return `
+      <div class="topbar">
+        <button class="icon-btn" data-back data-to="${isMom ? 'mom-resources' : 'kid-resources'}">${ICN.back}</button>
+        <h1>📺 我的合集</h1>
+        <div class="actions"><div style="width:36px"></div></div>
+      </div>
+      <div class="page">
+        <div class="section">
+          <h3>学习合集 <span class="badge">${learnCols.length}</span></h3>
+          ${learnCols.length ? learnCols.map(card).join('') : '<div class="empty"><div class="emoji">📺</div>还没有学习类合集</div>'}
+        </div>
+        <div class="section">
+          <h3>🎁 奖励合集 <span class="badge" style="background:${funUnlocked?'var(--green-50);color:var(--green-600)':'var(--gray-100);color:var(--gray-600)'}">${funUnlocked?'已解锁':'完成打卡解锁'}</span></h3>
+          ${funCols.length ? funCols.map(card).join('') : '<div class="empty"><div class="emoji">🎁</div>妈妈还没放奖励合集</div>'}
         </div>
       </div>
     `;
@@ -4650,7 +5106,7 @@
   }
 
   // ========== 模态：添加资源 ==========
-  function openResourceModal(preselectSubject, editId) {
+  function openResourceModal(preselectSubject, editId, preselectCol) {
     const modal = document.createElement('div');
     modal.className = 'modal-mask';
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
@@ -4679,6 +5135,10 @@
         <div class="field">
           <label>类型</label>
           <select id="r-type"><option value="video"${sel('video', ed&&ed.type)}>视频</option><option value="pdf"${sel('pdf', ed&&ed.type)}>PDF 文件</option><option value="audio"${sel('audio', ed&&ed.type)}>音频</option></select>
+        </div>
+        <div class="field">
+          <label>栏目（资源库里的一级分类）</label>
+          <select id="r-col">${RES_CAT_ORDER.map(k => `<option value="${k}"${sel(k, (ed&&ed.col)||preselectCol)}>${RES_CATS[k].emoji} ${RES_CATS[k].name}</option>`).join('')}</select>
         </div>
         <div class="field">
           <label>类别</label>
@@ -4818,7 +5278,8 @@
     if ((checkBili(url) || eps.some(e => checkBili(e.url))) && type !== 'video') type = 'video';
 
     const who = document.getElementById('r-who') ? document.getElementById('r-who').value : 'both';
-    const res = { type, subject, title, url, category: cat, who };
+    const col = document.getElementById('r-col') ? document.getElementById('r-col').value : inferResCol({ type, subject });
+    const res = { type, col, subject, title, url, category: cat, who };
     // B站自动识别的分集（妈妈贴一条链接时已异步拉取）
     if (window.__biliEps && window.__biliEps.length >= 2 && window.__biliEpsUrl === url && eps.length === 0) {
       const base = url.replace(/[?&]p=\d+/, '').replace(/#.*$/, '');
@@ -4890,7 +5351,7 @@
           return {
             title: String(x.title || '').slice(0, 80),
             type,
-            subject: SUBJECTS[x.subject] ? x.subject : 'suyang',
+            subject: SUBJECTS[x.subject] ? x.subject : 'science',
             category: x.category === 'fun' ? 'fun' : 'learn',
             who: 'both',
             url: eps.length ? eps[0].url : base,
@@ -4914,7 +5375,7 @@
         return {
           title: String(x.title || '').slice(0, 80),
           type,
-          subject: SUBJECTS[x.subject] ? x.subject : 'suyang',
+          subject: SUBJECTS[x.subject] ? x.subject : 'science',
           category: x.category === 'fun' ? 'fun' : 'learn',
           who: 'both',
           url: String(x.url || ''),
