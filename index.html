@@ -176,9 +176,24 @@
     .sv-cover { position:absolute; left:0; top:0; right:0; bottom:0; background:rgba(0,0,0,.35); color:#fff; border:none; font-size:40px; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; }
     .sv-cover span { font-size:13px; margin-top:6px; }
     .sv-ctrls { position:absolute; left:0; right:0; bottom:0; display:flex; align-items:center; gap:8px; padding:8px 10px; background:linear-gradient(transparent, rgba(0,0,0,.55)); z-index:3; }
-    .sv-ctrls button { flex:none; width:40px; height:40px; border-radius:50%; border:none; background:rgba(255,255,255,.92); color:#1a1a1a; font-size:17px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; }
+    .sv-ctrls button { flex:none; width:40px; height:40px; border-radius:50%; border:none; background:#fff; color:#111; font-size:17px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; box-shadow:0 2px 8px rgba(0,0,0,.4); }
     .sv-ctrls button:active { transform:scale(.93); }
-    .sv-ctrls .sv-fs { margin-left:auto; }
+    .sv-ctrls .sv-fs { margin-left:auto; background:var(--indigo-600); color:#fff; }
+    /* CSS 全屏：移动端/APK WebView 原生 requestFullscreen 会静默失败，改用铺满视口的 CSS 全屏 */
+    .modal.lv-fs .sv-stage { flex:1 1 auto; height:100%; border-radius:0; }
+    .modal.lv-fs .sv-stage video { max-height:none; height:100%; width:100%; object-fit:contain; }
+    .modal.lv-fs .sv-subrow { display:none; }
+    /* ---- 勋章墙 ---- */
+    .medal-wall { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+    .medal { text-align:center; padding:18px 10px; border-radius:16px; border:2px solid transparent; }
+    .medal.got { background:linear-gradient(135deg,var(--amber-50),#FFE0B2); border-color:var(--amber-600); box-shadow:0 6px 16px rgba(255,152,0,.28); }
+    .medal.locked { background:var(--gray-50); border-color:var(--gray-200); opacity:.55; filter:grayscale(.4); }
+    .medal-emoji { font-size:36px; line-height:1; }
+    .medal.got .medal-emoji { transform:scale(1.06); }
+    .medal-name { font-weight:600; margin-top:7px; color:var(--gray-800); font-size:14px; }
+    .medal-count { font-size:12px; margin-top:3px; color:var(--gray-600); }
+    .medal.got .medal-count { color:var(--green-600); font-weight:700; }
+    .medal-rule { margin-top:12px; font-size:12px; text-align:center; line-height:1.6; }
     .sv-bar { height:8px; border-radius:4px; background:var(--gray-200); overflow:hidden; margin-top:10px; }
     .sv-bar-in { height:100%; width:0; background:linear-gradient(90deg,var(--indigo-400),var(--indigo-600)); border-radius:4px; }
     .sv-time { display:flex; justify-content:space-between; font-size:12px; color:var(--gray-600); margin-top:5px; }
@@ -2497,13 +2512,21 @@
           }).join('') || '<div class="empty">还没有兑换记录</div>'}
         </div>
         <div class="section">
-          <h3>勋章 <span class="badge">收集</span></h3>
-          <div class="subject-row">
-            <div class="subject-card s-chinese" style="min-height:auto;padding:16px"><div class="emoji">🌟</div><div class="name">连续 7 天</div><div class="count">${c.streak>=7?'已获得':'差 '+(7-c.streak)+' 天'}</div></div>
-            <div class="subject-card s-english" style="min-height:auto;padding:16px"><div class="emoji">🏆</div><div class="name">积分 100</div><div class="count">${(c.earned||0)>=100?'已获得':'差 '+(100-(c.earned||0))+' 分'}</div></div>
-            <div class="subject-card s-math" style="min-height:auto;padding:16px"><div class="emoji">🚀</div><div class="name">积分 300</div><div class="count">${(c.earned||0)>=300?'已获得':'差 '+(300-(c.earned||0))+' 分'}</div></div>
-            <div class="subject-card s-science" style="min-height:auto;padding:16px"><div class="emoji">💎</div><div class="name">积分 500</div><div class="count">${(c.earned||0)>=500?'已获得':'差 '+(500-(c.earned||0))+' 分'}</div></div>
+          <h3>勋章墙 <span class="badge">收集</span></h3>
+          <div class="medal-wall">
+            ${[
+              {emoji:'🌟', name:'连续 7 天', got: c.streak>=7, need:(7-c.streak)+' 天'},
+              {emoji:'🏆', name:'积分 100', got:(c.earned||0)>=100, need:(100-(c.earned||0))+' 分'},
+              {emoji:'🚀', name:'积分 300', got:(c.earned||0)>=300, need:(300-(c.earned||0))+' 分'},
+              {emoji:'💎', name:'积分 500', got:(c.earned||0)>=500, need:(500-(c.earned||0))+' 分'},
+            ].map(m => `
+              <div class="medal ${m.got?'got':'locked'}">
+                <div class="medal-emoji">${m.emoji}</div>
+                <div class="medal-name">${m.name}</div>
+                <div class="medal-count">${m.got?'✓ 已获得':'还差 '+m.need}</div>
+              </div>`).join('')}
           </div>
+          <p class="medal-rule text-mute">勋章靠连续打卡和累计积分获得，集齐更多解锁更多成就 🌟</p>
         </div>
       </div>
       ${kidTabBar('rewards')}
@@ -4814,7 +4837,7 @@
           <div class="sv-ctrls">
             <button type="button" id="sv-playbtn" onclick="svToggle()">▶</button>
             <button type="button" onclick="svSeek(-10)" title="后退 10 秒">⏪</button>
-            <button type="button" class="sv-fs" onclick="svFull()" title="全屏">⛶</button>
+            <button type="button" id="sv-fs-btn" class="sv-fs" onclick="svToggleFs()" title="全屏">⛶</button>
           </div>
         </div>
         <div class="sv-bar"><div class="sv-bar-in" id="sv-bar-in"></div></div>
@@ -4995,14 +5018,20 @@
     if (b) b.textContent = SV_RATES[SV.rate].toFixed(2).replace(/0$/, '') + '×';
     if (SV_RATES[SV.rate] === 1.5) toast('最快就是 1.5 倍速啦');
   }
-  function svFull() {
-    const v = SV && SV.video;
-    if (!v) return;
-    try {
-      if (v.requestFullscreen) v.requestFullscreen();
-      else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
-      else if (v.webkitRequestFullscreen) v.webkitRequestFullscreen();
-    } catch (e) {}
+  function svToggleFs() {
+    const mask = document.getElementById('sv-mask');
+    const modal = mask && mask.querySelector('.modal');
+    if (!modal) return;
+    const on = modal.classList.toggle('lv-fs');
+    const fsBtn = document.getElementById('sv-fs-btn');
+    if (fsBtn) fsBtn.textContent = on ? '⤢' : '⛶';
+    // 原生全屏仅作桌面增强；移动端/APK 用上面的 CSS 全屏，必然生效
+    if (on) {
+      const v = SV && SV.video;
+      if (v && v.requestFullscreen && document.fullscreenEnabled) { try { v.requestFullscreen(); } catch (e) {} }
+    } else if (document.fullscreenElement) {
+      try { document.exitFullscreen(); } catch (e) {}
+    }
   }
   function svFinish() {
     if (!SV || SV.finished) return;
