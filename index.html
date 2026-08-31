@@ -175,11 +175,13 @@
     .sv-stage video { display:block; width:100%; max-height:52vh; background:#000; }
     .sv-cover { position:absolute; left:0; top:0; right:0; bottom:0; background:rgba(0,0,0,.35); color:#fff; border:none; font-size:40px; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; }
     .sv-cover span { font-size:13px; margin-top:6px; }
+    .sv-ctrls { position:absolute; left:0; right:0; bottom:0; display:flex; align-items:center; gap:8px; padding:8px 10px; background:linear-gradient(transparent, rgba(0,0,0,.55)); z-index:3; }
+    .sv-ctrls button { flex:none; width:40px; height:40px; border-radius:50%; border:none; background:rgba(255,255,255,.92); color:#1a1a1a; font-size:17px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; }
+    .sv-ctrls button:active { transform:scale(.93); }
+    .sv-ctrls .sv-fs { margin-left:auto; }
     .sv-bar { height:8px; border-radius:4px; background:var(--gray-200); overflow:hidden; margin-top:10px; }
     .sv-bar-in { height:100%; width:0; background:linear-gradient(90deg,var(--indigo-400),var(--indigo-600)); border-radius:4px; }
     .sv-time { display:flex; justify-content:space-between; font-size:12px; color:var(--gray-600); margin-top:5px; }
-    .sv-ctrl { display:flex; gap:6px; margin-top:10px; }
-    .sv-ctrl button { flex:1; padding:9px 2px; border-radius:9px; border:1px solid var(--border); background:var(--bg-card); font-size:13px; cursor:pointer; }
     .sv-tip { text-align:center; font-size:12px; color:var(--gray-600); margin-top:10px; }
     .sv-subrow { display:none; margin-top:9px; text-align:center; }
     .sv-subrow .btn-sm { min-width:96px; }
@@ -191,9 +193,6 @@
     .res-nd-tag { display:inline-block; margin-left:5px; padding:0 5px; border-radius:5px; background:var(--orange-50); color:var(--orange-600); font-size:11px; vertical-align:middle; }
     .nd-note { text-align:left; background:var(--gray-50); border-radius:12px; padding:12px 14px; font-size:12.5px; line-height:1.75; color:#555; margin-top:10px; }
     .nd-note b { color:#333; }
-    /* 妈妈端汇总提示条：不点开就发现不了自己有多少资源其实是废的 */
-    .nd-bar { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:0 0 10px; padding:9px 12px; border-radius:10px; background:var(--orange-50); color:var(--orange-600); font-size:12.5px; line-height:1.45; cursor:pointer; }
-    .nd-bar span { flex:none; font-weight:600; white-space:nowrap; }
     /* ---- 作业栏 ---- */
     .hw-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:11px 12px; margin-bottom:8px; }
     .hw-head { display:flex; align-items:center; gap:6px; margin-bottom:5px; }
@@ -317,6 +316,8 @@
     /* 我的合集：炫酷深紫蓝渐变 + 发光 */
     .subject-card.s-collection { background: linear-gradient(135deg, #8B5CF6, #2563EB); box-shadow: 0 4px 14px rgba(99,102,241,.35); }
     .subject-card.s-collection .emoji svg { display: block; }
+    .subject-card.s-fun { background: linear-gradient(135deg, #FF6B9D, #FF8A3D); box-shadow: 0 4px 14px rgba(255,107,157,.3); }
+    .subject-card.s-fun .emoji svg { display: block; }
     .subject-card.s-music { background: linear-gradient(135deg, #4CAF50, #2E7D32); }
     .subject-card.s-art { background: linear-gradient(135deg, #FFC107, #FF8F00); }
 
@@ -952,6 +953,7 @@
       if (!r.category) r.category = 'learn';
       if (SUBJECT_MIGRATE[r.subject]) r.subject = SUBJECT_MIGRATE[r.subject];
       if (!SUBJECTS[r.subject]) r.subject = 'science';
+      if (r.col === 'english') r.col = 'video'; // 英语专区取消：英文视频归动画视频栏目
       if (!r.col || !RES_CATS[r.col]) r.col = inferResCol(r);
       // 给谁看：旧数据没这字段 → 默认「姐弟俩都看」，向后兼容
       if (r.who !== 'sis' && r.who !== 'bro' && r.who !== 'both') r.who = 'both';
@@ -1181,12 +1183,12 @@
   // 用途栏目（资源一级分类）：孩子一眼找到「我要干嘛」
   const RES_CATS = {
     video:   { name: '动画·视频', emoji: '📺', color: 'cyan' },
+    notes:   { name: '课本·笔记资料', emoji: '📝', color: 'indigo' },
     audio:   { name: '故事·音频', emoji: '🎧', color: 'purple' },
-    book:    { name: '绘本·文件', emoji: '📖', color: 'amber' },
     quiz:    { name: '练习·题库', emoji: '✏️', color: 'green' },
-    english: { name: '英语专区', emoji: '🎤', color: 'pink' },
+    book:    { name: '绘本·漫画', emoji: '📚', color: 'amber' },
   };
-  const RES_CAT_ORDER = ['video', 'audio', 'book', 'quiz', 'english'];
+  const RES_CAT_ORDER = ['video', 'notes', 'audio', 'quiz', 'book'];
   // 「我的合集」入口图标：内联卡通 SVG（星星收藏 + 播放气泡，圆润高光风，无外部依赖）
   const COLLECTION_ICON = `<svg viewBox="0 0 48 48" width="34" height="34" aria-hidden="true">
     <circle cx="24" cy="24" r="21" fill="#ffffff" opacity="0.16"/>
@@ -1195,15 +1197,34 @@
     <circle cx="31" cy="34" r="7.5" fill="#fff"/>
     <path d="M28.8 30.8v6.4l5.5-3.2z" fill="#6A1B9A"/>
   </svg>`;
+  // 「休闲娱乐专区」入口图标：内联卡通 SVG（爆米花）
+  const FUN_ICON = `<svg viewBox="0 0 48 48" width="34" height="34" aria-hidden="true">
+    <circle cx="24" cy="24" r="21" fill="#ffffff" opacity="0.16"/>
+    <path d="M14 20h20l-2 14a3 3 0 0 1-3 2.6H19a3 3 0 0 1-3-2.6z" fill="#FFE0B2" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/>
+    <path d="M16 20c0-4 3-7 8-7s8 3 8 7" fill="none" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>
+    <circle cx="17" cy="17" r="2.2" fill="#FF7043"/>
+    <circle cx="23" cy="15" r="2.2" fill="#FFCA28"/>
+    <circle cx="29" cy="17" r="2.2" fill="#FF7043"/>
+    <circle cx="31" cy="22" r="2.2" fill="#FFCA28"/>
+    <circle cx="14" cy="22" r="2.2" fill="#FFCA28"/>
+  </svg>`;
+  // 「知识拓展合集」入口图标：内联卡通 SVG（打开的书本 + 上升星星，学习探索风）
+  const LEARN_ICON = `<svg viewBox="0 0 48 48" width="34" height="34" aria-hidden="true">
+    <circle cx="24" cy="24" r="21" fill="#ffffff" opacity="0.16"/>
+    <path d="M11 15c4-2 9-2 13 0v20c-4-2-9-2-13 0z" fill="#A5D6FF" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/>
+    <path d="M37 15c-4-2-9-2-13 0v20c4-2 9-2 13 0z" fill="#7DE2FF" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/>
+    <path d="M24 15v20" stroke="#fff" stroke-width="1.4"/>
+    <path d="M30 10l1.6 3.4 3.8.5-2.8 2.7.7 3.8-3.3-1.7-3.3 1.7.7-3.8-2.8-2.7 3.8-.5z" fill="#FFE36E" stroke="#fff" stroke-width="1" stroke-linejoin="round"/>
+  </svg>`;
   // 旧科目映射到新学科标签（历史数据迁移，初中术语合并进科普）
   const SUBJECT_MIGRATE = { physics: 'science', chemistry: 'science', history: 'science', politics: 'science', wuhua: 'science', small4: 'science', debate: 'science', music: 'science', suyang: 'science' };
   // 资源用途栏目推断（老资源无 col 时按 类型+学科 兜底）
   function inferResCol(r) {
     if (r && r.col && RES_CATS[r.col]) return r.col;
     if (!r) return 'video';
-    if (r.type === 'audio') return r.subject === 'english' ? 'english' : 'audio';
+    if (r.type === 'audio') return 'audio';
     if (r.type === 'pdf') return 'book';
-    return r.subject === 'english' ? 'english' : 'video';
+    return 'video';
   }
   const SUBJECT_FALLBACK = { name: '其他', emoji: '📦', color: 'gray' };
   // 奖励分类：游戏 / 电影 / 动画片 / 漫画 / 听说
@@ -1539,19 +1560,35 @@
         <div class="section">
           <h3>按栏目（一级分类）</h3>
           <div class="subject-row">
-            ${RES_CAT_ORDER.map(k => {
-              const v = RES_CATS[k];
-              const count = DATA.resources.filter(r => r.col === k).length;
-              return `<div class="subject-card s-${v.color}" onclick="location.hash='cat?key=${k}&role=mom'">
-                <div class="emoji">${v.emoji}</div>
-                <div class="name">${v.name}</div>
-                <div class="count">${count} 个资源</div>
-              </div>`;
-            }).join('')}
-            <div class="subject-card s-collection" onclick="location.hash='collections?role=mom'">
-              <div class="emoji">${COLLECTION_ICON}</div>
-              <div class="name">我的合集</div>
-              <div class="count">${DATA.resources.filter(r => r.episodes && r.episodes.length >= 2).length} 个</div>
+            <div class="subject-card s-collection" onclick="location.hash='collections?kind=learn&role=mom'">
+              <div class="emoji">${LEARN_ICON}</div>
+              <div class="name">知识拓展视频</div>
+              <div class="count">${DATA.resources.filter(r => r.col === 'video' && (r.category || 'learn') !== 'fun').length} 个</div>
+            </div>
+            <div class="subject-card s-indigo" onclick="location.hash='cat?key=notes&role=mom'">
+              <div class="emoji">${RES_CATS.notes.emoji}</div>
+              <div class="name">${RES_CATS.notes.name}</div>
+              <div class="count">${DATA.resources.filter(r => r.col === 'notes').length} 个</div>
+            </div>
+            <div class="subject-card s-purple" onclick="location.hash='cat?key=audio&role=mom'">
+              <div class="emoji">${RES_CATS.audio.emoji}</div>
+              <div class="name">${RES_CATS.audio.name}</div>
+              <div class="count">${DATA.resources.filter(r => r.col === 'audio').length} 个</div>
+            </div>
+            <div class="subject-card s-green" onclick="location.hash='cat?key=quiz&role=mom'">
+              <div class="emoji">${RES_CATS.quiz.emoji}</div>
+              <div class="name">${RES_CATS.quiz.name}</div>
+              <div class="count">${DATA.resources.filter(r => r.col === 'quiz').length} 个</div>
+            </div>
+            <div class="subject-card s-amber" onclick="location.hash='cat?key=book&role=mom'">
+              <div class="emoji">${RES_CATS.book.emoji}</div>
+              <div class="name">${RES_CATS.book.name}</div>
+              <div class="count">${DATA.resources.filter(r => r.col === 'book').length} 个</div>
+            </div>
+            <div class="subject-card s-collection" onclick="location.hash='collections?kind=fun&role=mom'">
+              <div class="emoji">${FUN_ICON}</div>
+              <div class="name">休闲娱乐视频</div>
+              <div class="count">${DATA.resources.filter(r => r.col === 'video' && (r.category || 'learn') === 'fun').length} 个</div>
             </div>
           </div>
         </div>
@@ -2219,19 +2256,35 @@
         <div class="section">
           <h3>资源库 <span class="badge">${DATA.resources.filter(r => resForKid(r, c)).length} 个</span></h3>
           <div class="subject-row">
-            ${RES_CAT_ORDER.map(k => {
-              const v = RES_CATS[k];
-              const count = DATA.resources.filter(r => r.col === k && resForKid(r, c)).length;
-              return `<div class="subject-card s-${v.color}" onclick="location.hash='cat?key=${k}&role=kid'">
-                <div class="emoji">${v.emoji}</div>
-                <div class="name">${v.name}</div>
-                <div class="count">${count} 个</div>
-              </div>`;
-            }).join('')}
-            <div class="subject-card s-collection" onclick="location.hash='collections?role=kid'">
-              <div class="emoji">${COLLECTION_ICON}</div>
-              <div class="name">我的合集</div>
-              <div class="count">${DATA.resources.filter(r => r.episodes && r.episodes.length >= 2 && resForKid(r, c)).length} 个</div>
+            <div class="subject-card s-collection" onclick="location.hash='collections?kind=learn&role=kid'">
+              <div class="emoji">${LEARN_ICON}</div>
+              <div class="name">知识拓展视频</div>
+              <div class="count">${DATA.resources.filter(r => r.col === 'video' && (r.category || 'learn') !== 'fun' && resForKid(r, c)).length} 个</div>
+            </div>
+            <div class="subject-card s-indigo" onclick="location.hash='cat?key=notes&role=kid'">
+              <div class="emoji">${RES_CATS.notes.emoji}</div>
+              <div class="name">${RES_CATS.notes.name}</div>
+              <div class="count">${DATA.resources.filter(r => r.col === 'notes' && resForKid(r, c)).length} 个</div>
+            </div>
+            <div class="subject-card s-purple" onclick="location.hash='cat?key=audio&role=kid'">
+              <div class="emoji">${RES_CATS.audio.emoji}</div>
+              <div class="name">${RES_CATS.audio.name}</div>
+              <div class="count">${DATA.resources.filter(r => r.col === 'audio' && resForKid(r, c)).length} 个</div>
+            </div>
+            <div class="subject-card s-green" onclick="location.hash='cat?key=quiz&role=kid'">
+              <div class="emoji">${RES_CATS.quiz.emoji}</div>
+              <div class="name">${RES_CATS.quiz.name}</div>
+              <div class="count">${DATA.resources.filter(r => r.col === 'quiz' && resForKid(r, c)).length} 个</div>
+            </div>
+            <div class="subject-card s-amber" onclick="location.hash='cat?key=book&role=kid'">
+              <div class="emoji">${RES_CATS.book.emoji}</div>
+              <div class="name">${RES_CATS.book.name}</div>
+              <div class="count">${DATA.resources.filter(r => r.col === 'book' && resForKid(r, c)).length} 个</div>
+            </div>
+            <div class="subject-card s-collection" onclick="location.hash='collections?kind=fun&role=kid'">
+              <div class="emoji">${FUN_ICON}</div>
+              <div class="name">休闲娱乐视频</div>
+              <div class="count">${DATA.resources.filter(r => r.col === 'video' && (r.category || 'learn') === 'fun' && resForKid(r, c)).length} 个</div>
             </div>
           </div>
         </div>
@@ -2263,21 +2316,24 @@
     </div>`;
   }
 
-  // ========== 学科详情 ==========
-  let SUBJ_FILTER = 'all'; // 科目内类型筛选：all | video | audio | pdf
-  function subjTypeLabel(t) { return t === 'video' ? '🎬 视频' : t === 'audio' ? '🎵 音频' : '📄 文件'; }
+  // ========== 栏目详情 ==========
   const RES_CAT_FALLBACK = { name: '资源', emoji: '📦', color: 'gray' };
+  // ========== 科目二级筛选（按科目分：全部/语文/数学/英语/科普） ==========
+  let SUBJ_FILTER = 'all';
+  const SUBJ_TABS = [['all','全部'],['chinese','语文'],['math','数学'],['english','英语'],['science','科普']];
+  const subjTabBar = () => `
+    <div class="type-tabs" style="margin-bottom:12px">
+      ${SUBJ_TABS.map(([k, label]) => `
+        <div class="type-tab ${SUBJ_FILTER === k ? 'on' : ''}" onclick="SUBJ_FILTER='${k}';render()">${label}</div>
+      `).join('')}
+    </div>`;
   function viewCategory(p) {
     const isMom = p.role === 'mom';
     const c = isMom ? null : kidCheck();
     const col = p.key;
     const cat = RES_CATS[col] || RES_CAT_FALLBACK;
-    const f = window.SUBJ_FILTER || 'all';
-    const sj = window.SUBJ_SUBJ || 'all';
     const all = DATA.resources.filter(r => r.col === col && (isMom || resForKid(r, c)));
-    const list = all.filter(r => (f === 'all' || r.type === f) && (sj === 'all' || r.subject === sj));
-    const TYPE_TABS = [['all', '全部'], ['video', '🎬 视频'], ['audio', '🎵 音频'], ['pdf', '📄 文件']];
-    const SUBJ_TABS = [['all', '全部'], ['chinese', '语文'], ['math', '数学'], ['english', '英语'], ['science', '科普']];
+    const list = all.filter(r => SUBJ_FILTER === 'all' || (r.subject || 'science') === SUBJ_FILTER);
     return `
       <div class="topbar">
         <button class="icon-btn" data-back data-to="${isMom ? 'mom-resources' : 'kid-resources'}">${ICN.back}</button>
@@ -2288,23 +2344,8 @@
       </div>
       <div class="page">
         <div class="section">
+          ${subjTabBar()}
           <h3>${cat.name} <span class="badge">${list.length} 个</span></h3>
-          <div class="type-tabs">
-            ${TYPE_TABS.map(([k, label]) => `
-              <div class="type-tab ${(window.SUBJ_FILTER||'all') === k ? 'on' : ''}" onclick="window.SUBJ_FILTER='${k}';render()">${label}</div>
-            `).join('')}
-            <div class="type-tab ${(window.SUBJ_SUBJ||'all') !== 'all' ? 'on' : ''}" style="background:var(--gray-100);color:var(--gray-600);cursor:default">按学科</div>
-          </div>
-          <div class="type-tabs" style="margin-top:8px">
-            ${SUBJ_TABS.map(([k, label]) => `
-              <div class="type-tab ${(window.SUBJ_SUBJ||'all') === k ? 'on' : ''}" onclick="window.SUBJ_SUBJ='${k}';window.SUBJ_FILTER=window.SUBJ_FILTER||'all';render()">${label}</div>
-            `).join('')}
-          </div>
-          ${(isMom && list.filter(resIsNetdisk).length) ? `
-            <div class="nd-bar" onclick="showNetdiskHelp(${list.filter(resIsNetdisk).length})">
-              <span style="flex:1;font-weight:400">⚠️ 有 ${list.filter(resIsNetdisk).length} 个资源挂在网盘上，平台里打不开</span>
-              <span>怎么办 ›</span>
-            </div>` : ''}
           ${list.length ? list.map(r => `
             <div class="resource" onclick="openResource('${r.id}')">
               <div class="thumb">${ICN[r.type]||ICN.pdf}</div>
@@ -2321,40 +2362,76 @@
       </div>
     `;
   }
-  // ========== 合集页：聚合所有多集资源，学习合集 + 奖励合集合在一起 ==========
+  // ========== 合集页：知识拓展合集(学习视频) / 休闲娱乐合集(奖励视频) ==========
   function viewCollection(p) {
     const isMom = p.role === 'mom';
     const c = isMom ? null : kidCheck();
-    const all = DATA.resources.filter(r => r.episodes && r.episodes.length >= 2 && (isMom || resForKid(r, c)));
+    const kind = p.kind || 'all'; // learn=知识拓展 / fun=休闲娱乐 / all=两组都显示
     const funUnlocked = isMom ? true : kidTasksDone(c);
-    const learnCols = all.filter(r => (r.category || 'learn') === 'learn');
-    const funCols = all.filter(r => (r.category || 'learn') === 'fun');
+    const learnList = DATA.resources.filter(r => r.col === 'video' && (r.category || 'learn') !== 'fun' && (isMom || resForKid(r, c)) && (SUBJ_FILTER === 'all' || (r.subject || 'science') === SUBJ_FILTER));
+    const funList = DATA.resources.filter(r => r.col === 'video' && (r.category || 'learn') === 'fun' && (isMom || resForKid(r, c)) && (SUBJ_FILTER === 'all' || (r.subject || 'science') === SUBJ_FILTER));
     const card = (r) => {
-      const locked = !isMom && (r.category || 'learn') === 'fun' && !funUnlocked;
+      const isFun = (r.category || 'learn') === 'fun';
+      const locked = !isMom && isFun && !funUnlocked;
+      const multi = r.episodes && r.episodes.length >= 2;
       return `<div class="resource" style="${locked?'opacity:.6':''}" onclick="openResource('${r.id}')">
         <div class="thumb">${locked ? '🔒' : (RES_CATS[r.col] ? RES_CATS[r.col].emoji : '📺')}</div>
         <div class="info">
           <div class="name">${esc(r.title)}</div>
-          <div class="meta"><span class="badge-subj" style="background:var(--amber-50);color:var(--amber-600)">▶ 共${r.episodes.length}集</span>${(r.category||'learn')==='fun'?'<span class="badge-subj" style="background:var(--purple-50);color:var(--purple-600)">🎁 奖励</span>':'<span class="badge-subj" style="background:var(--green-50);color:var(--green-600)">学习</span>'}${locked?'<span class="badge-subj" style="background:var(--gray-100);color:var(--gray-600)">完成打卡解锁</span>':''}${isMom?whoTag(r):''}</div>
+          <div class="meta">${multi ? `<span class="badge-subj" style="background:var(--amber-50);color:var(--amber-600)">▶ 共${r.episodes.length}集</span>` : '🎬 视频'}${isFun?'<span class="badge-subj" style="background:var(--purple-50);color:var(--purple-600)">🎁 奖励</span>':'<span class="badge-subj" style="background:var(--green-50);color:var(--green-600)">学习</span>'}${locked?'<span class="badge-subj" style="background:var(--gray-100);color:var(--gray-600)">完成打卡解锁</span>':''}${isMom?whoTag(r):''}</div>
         </div>
         ${isMom ? `<button class="icon-btn" onclick="event.stopPropagation();openResourceModal(null,'${r.id}')" title="编辑">${ICN.edit}</button>` : ''}
         ${isMom ? `<button class="icon-btn" onclick="event.stopPropagation();delResource('${r.id}')">${ICN.trash}</button>` : ''}
       </div>`;
     };
+    if (kind === 'learn') {
+      return `
+        <div class="topbar">
+          <button class="icon-btn" data-back data-to="${isMom ? 'mom-resources' : 'kid-resources'}">${ICN.back}</button>
+          <h1>📚 知识拓展视频</h1>
+          <div class="actions"><div style="width:36px"></div></div>
+        </div>
+        <div class="page">
+          <div class="section">
+            ${subjTabBar()}
+            <h3>学习视频 <span class="badge">${learnList.length}</span></h3>
+            ${learnList.length ? learnList.map(card).join('') : '<div class="empty"><div class="emoji">📺</div>还没有学习视频</div>'}
+          </div>
+        </div>
+      `;
+    }
+    if (kind === 'fun') {
+      return `
+        <div class="topbar">
+          <button class="icon-btn" data-back data-to="${isMom ? 'mom-resources' : 'kid-resources'}">${ICN.back}</button>
+          <h1>🎮 休闲娱乐视频</h1>
+          <div class="actions"><div style="width:36px"></div></div>
+        </div>
+        <div class="page">
+          <div class="section">
+            ${subjTabBar()}
+            <h3>🎁 奖励视频 <span class="badge" style="background:${funUnlocked?'var(--green-50);color:var(--green-600)':'var(--gray-100);color:var(--gray-600)'}">${funUnlocked?'已解锁':'完成打卡解锁'}</span></h3>
+            ${funList.length ? funList.map(card).join('') : '<div class="empty"><div class="emoji">🎮</div>妈妈还没放奖励视频</div>'}
+          </div>
+        </div>
+      `;
+    }
+    // 兼容旧链接：两组都显示
     return `
       <div class="topbar">
         <button class="icon-btn" data-back data-to="${isMom ? 'mom-resources' : 'kid-resources'}">${ICN.back}</button>
         <h1>📺 我的合集</h1>
         <div class="actions"><div style="width:36px"></div></div>
       </div>
-      <div class="page">
-        <div class="section">
-          <h3>学习合集 <span class="badge">${learnCols.length}</span></h3>
-          ${learnCols.length ? learnCols.map(card).join('') : '<div class="empty"><div class="emoji">📺</div>还没有学习类合集</div>'}
+        <div class="page">
+          <div class="section">
+            ${subjTabBar()}
+            <h3>学习合集 <span class="badge">${learnList.length}</span></h3>
+          ${learnList.length ? learnList.map(card).join('') : '<div class="empty"><div class="emoji">📺</div>还没有学习类合集</div>'}
         </div>
         <div class="section">
           <h3>🎁 奖励合集 <span class="badge" style="background:${funUnlocked?'var(--green-50);color:var(--green-600)':'var(--gray-100);color:var(--gray-600)'}">${funUnlocked?'已解锁':'完成打卡解锁'}</span></h3>
-          ${funCols.length ? funCols.map(card).join('') : '<div class="empty"><div class="emoji">🎁</div>妈妈还没放奖励合集</div>'}
+          ${funList.length ? funList.map(card).join('') : '<div class="empty"><div class="emoji">🎁</div>妈妈还没放奖励合集</div>'}
         </div>
       </div>
     `;
@@ -4734,15 +4811,14 @@
         <div class="sv-stage" id="sv-stage">
           <video id="sv-video" playsinline preload="auto" src="${escA(url)}" disablepictureinpicture controlslist="nodownload"></video>
           <button class="sv-cover" id="sv-cover" onclick="svToggle()">▶<span>点击开始播放</span></button>
+          <div class="sv-ctrls">
+            <button type="button" id="sv-playbtn" onclick="svToggle()">▶</button>
+            <button type="button" onclick="svSeek(-10)" title="后退 10 秒">⏪</button>
+            <button type="button" class="sv-fs" onclick="svFull()" title="全屏">⛶</button>
+          </div>
         </div>
         <div class="sv-bar"><div class="sv-bar-in" id="sv-bar-in"></div></div>
         <div class="sv-time"><span id="sv-cur">00:00</span><span id="sv-pct">0%</span><span id="sv-dur">--:--</span></div>
-        <div class="sv-ctrl">
-          <button type="button" onclick="svSeek(-10)">⏪ 10秒</button>
-          <button type="button" id="sv-playbtn" onclick="svToggle()">⏸ 暂停</button>
-          <button type="button" id="sv-rate" onclick="svRate()">1.0×</button>
-          <button type="button" onclick="svFull()">⛶ 全屏</button>
-        </div>
         <div class="sv-subrow" id="sv-subrow">
           <button type="button" class="btn-sm" id="sv-sub" onclick="svToggleSub()">字幕：开</button>
           <span class="sv-subinfo" id="sv-subinfo"></span>
@@ -4769,7 +4845,7 @@
     const p = v.play();
     if (p && p.catch) p.catch(() => {});
   }
-  function svBtn(txt) { const b = document.getElementById('sv-playbtn'); if (b) b.textContent = txt; }
+  function svBtn(txt) { const b = document.getElementById('sv-playbtn'); if (b) b.innerHTML = (txt && txt.indexOf('暂停') >= 0) ? '⏸' : '▶'; }
   // ---- 字幕 ----
   // srt → vtt：浏览器只认 WebVTT。差别就是把时间轴的逗号换成点，再加个 WEBVTT 头。
   function srtToVtt(txt) {
@@ -4984,7 +5060,6 @@
         ${iframe}
         <p class="wq-hint" style="margin-top:10px">这个视频在别的网站上，我们管不了它的播放器，所以没法自动判断有没有看完${subUrl ? '，也没法把字幕挂上去（视频存到自己的空间才能带字幕）' : ''}</p>
         <div class="lv-normal-bar">
-          <button class="btn-secondary" style="width:100%;margin-top:10px" onclick="lvToggleFs()">⛶ 全屏观看</button>
           <button class="btn-primary" style="width:100%;margin-top:10px" onclick="lvDone('${task.id}')">✅ 我看完了，打卡 +${task.points} 分</button>
         </div>
         <div class="lv-fs-bar">
@@ -5831,39 +5906,6 @@
       </div>`;
     document.getElementById('modal-root').appendChild(modal);
   }
-  // 妈妈端：网盘资源怎么搬到能直接读的地方
-  function showNetdiskHelp(count) {
-    const n = parseInt(count, 10) || 0;
-    const modal = document.createElement('div');
-    modal.className = 'modal-mask';
-    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-    modal.innerHTML = `
-      <div class="modal">
-        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
-        <h3>📦 网盘资源怎么办</h3>
-        <p class="text-mute" style="margin:-8px 0 12px;font-size:12.5px">这一科有 <b>${n}</b> 个资源挂在网盘上（卡片上带「↗ 网盘」标记）</p>
-        <div class="nd-note" style="margin-top:0">
-          <b>为什么打不开</b><br>
-          网盘链接是一个网页，不是文件本身。网盘不允许别的网站读取里面的内容，
-          所以平台没法直接播放或翻页 —— 只能跳出去在网盘里看，
-          而网盘页面在孩子平板上通常会变成「开始下载」，孩子根本看不到内容。
-        </div>
-        <div class="nd-note">
-          <b>怎么才能让孩子一点就开</b><br>
-          把文件存到<b>阿里云 OSS</b>，拿到的是永久直链，平台里直接读，不依赖任何第三方。<br><br>
-          ① 在电脑上把网盘里的文件下载下来<br>
-          ② 放进一个文件夹，跑 <code>python3 oss_upload.py 文件夹名</code><br>
-          ③ 把生成的 <code>oss_import_code.txt</code> 在妈妈端导入，或发给我批量导<br><br>
-          单本超过 20MB 建议先压缩，平板打开会快好几倍；<b>压缩后文件名要一字不差</b>再覆盖上传，
-          改名等于换文件，平台里那条会变死链。
-        </div>
-        <div class="btn-row" style="margin-top:16px">
-          <button class="btn-primary" onclick="this.closest('.modal-mask').remove()">知道了</button>
-        </div>
-      </div>`;
-    document.getElementById('modal-root').appendChild(modal);
-  }
-
   // ===== B站播放：内嵌 / 外跳 双通道 =====
   // 坑（重要）：B站 player.html 内部会读 UA，只要含 "Mobile" 就执行
   // location.href 跳到 www.bilibili.com/blackboard/webplayer/mbplayer.html；
