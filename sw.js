@@ -1,10 +1,11 @@
-const CACHE = 'lebao-v6';
+const CACHE = 'lebao-v7';
 // 动态计算基准路径，兼容根目录和子目录部署（如 /english-learning/）
 const BASE = self.location.pathname.replace(/sw\.js$/, '');
 const ASSETS = [BASE, BASE + 'index.html', BASE + 'manifest.json', BASE + 'icon.svg'];
 
 // 音视频 + 文档后缀：这些一律不进 Cache Storage
-const MEDIA_RE = /\.(mp4|m3u8|ts|mp3|m4a|aac|wav|ogg|webm|flv|mov|mkv|pdf)(\?|$)/i;
+// epub 也在这里：一本电子书几百 KB 到几 MB，缓存几本就把配额吃光了
+const MEDIA_RE = /\.(mp4|m3u8|ts|mp3|m4a|aac|wav|ogg|webm|flv|mov|mkv|pdf|epub)(\?|$)/i;
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).catch(() => {}));

@@ -499,6 +499,29 @@
     .modal.lv-fs .pdf-page input { background: #222; color: #fff; border-color: #3a3a3a; }
     .modal.lv-fs .pdf-tip, .modal.lv-fs .pdf-err { display: none; }
 
+    /* ===== EPUB 电子书阅读器（epub.js）=====
+       EPUB 是一个 zip 包，里面是 XHTML 章节 + 图片 + 目录。
+       和 PDF 一样必须先开 CORS，否则 epub.js 连包都取不回来。
+       排版重排（reflow）是 EPUB 相对 PDF 最大的好处：手机上字会自动跟着屏幕走，不用放大缩小。 */
+    .epub-stage { position: relative; width: 100%; height: 58vh; min-height: 300px; background: #f6f4ef; border-radius: 10px; overflow: hidden; }
+    .epub-view { position: absolute; inset: 0; }
+    /* epub.js 把章节渲染进 iframe，滚动和点击翻页都由它自己接管 */
+    .epub-view iframe { width: 100% !important; height: 100% !important; border: 0; background: transparent; }
+    /* 复用 PDF 的加载动画，但底色是浅的，文字要换成深色才看得见 */
+    .epub-stage .pdf-loading { position: absolute; inset: 0; z-index: 8; background: #f6f4ef; color: var(--gray-600); }
+    .epub-stage .pdf-spin { border-color: rgba(0,0,0,.12); border-top-color: var(--pink-400); }
+    .epub-stage .pdf-prog { background: rgba(0,0,0,.1); }
+    .epub-toc { display: none; position: absolute; inset: 0; z-index: 9; background: #fff; overflow: auto; -webkit-overflow-scrolling: touch; }
+    .epub-toc.on { display: block; }
+    .epub-toc-hd { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: #fff; border-bottom: 1px solid var(--border-soft); font-weight: 700; font-size: 14px; }
+    .epub-toc-list { padding: 6px 0 16px; }
+    .epub-toc-item { display: block; width: 100%; text-align: left; padding: 11px 16px; border: 0; background: none; font-size: 14px; color: var(--gray-800); cursor: pointer; line-height: 1.5; }
+    .epub-toc-item:active { background: var(--gray-100); }
+    .epub-toc-item.sub { padding-left: 30px; font-size: 13px; color: var(--gray-600); }
+    .epub-tip { font-size: 12px; color: var(--gray-600); margin-top: 8px; text-align: center; line-height: 1.7; }
+    .modal.lv-fs .epub-stage { flex: 1 1 auto; height: auto; border-radius: 0; }
+    .modal.lv-fs .epub-tip { display: none; }
+
     /* ===== B站外跳播放卡（平板 / 学习机 / 手机默认走这条） ===== */
     .bili-card { background: linear-gradient(180deg,#ffffff 0%,var(--pink-50) 100%); border:1px solid var(--pink-200); border-radius:14px; padding:22px 16px 16px; text-align:center; }
     .bc-logo { width:66px;height:66px;margin:0 auto 12px;border-radius:50%;background:var(--pink-400);color:#fff;font-size:28px;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(255,107,157,.32); }
@@ -1194,6 +1217,7 @@
     math:    { name: '数学', emoji: '🔢', color: 'orange' },
     english: { name: '英语', emoji: '🎤', color: 'cyan' },
     science: { name: '科普', emoji: '🔬', color: 'purple' },
+    mind:    { name: '心灵之窗', emoji: '💗', color: 'teal' },
   };
   // 用途栏目（资源一级分类）：孩子一眼找到「我要干嘛」
   const RES_CATS = {
@@ -1238,10 +1262,18 @@
     if (r && r.col && RES_CATS[r.col]) return r.col;
     if (!r) return 'video';
     if (r.type === 'audio') return 'audio';
-    if (r.type === 'pdf') return 'book';
+    // EPUB 和 PDF 一样是「读完一本」的东西，都归到绘本·漫画栏目
+    if (r.type === 'pdf' || r.type === 'epub') return 'book';
     return 'video';
   }
   const SUBJECT_FALLBACK = { name: '其他', emoji: '📦', color: 'gray' };
+  // 资源类型显示名 / 带图标的显示名。写在一处，免得加新类型时漏改某个角落。
+  function typeName(t) {
+    return t === 'video' ? '视频' : t === 'pdf' ? 'PDF' : t === 'epub' ? 'EPUB 电子书' : '音频';
+  }
+  function typeIcon(t) {
+    return t === 'video' ? '🎬 视频' : t === 'pdf' ? '📄 PDF' : t === 'epub' ? '📖 EPUB' : '🎵 音频';
+  }
   // 奖励分类：游戏 / 电影 / 动画片 / 漫画 / 听说
   const REWARD_CATS = {
     game:    { name: '游戏',   emoji: '🎮', color: 'purple' },
@@ -1270,6 +1302,7 @@
     vid:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>',
     pdf:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>',
     aud:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+    epub: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 016.5 22H20V2H6.5A2.5 2.5 0 004 4.5v15z"/><path d="M9 7h7M9 11h5"/></svg>',
     home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2h-4v-7h-6v7H5a2 2 0 01-2-2z"/></svg>',
     book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 016.5 22H20V2H6.5A2.5 2.5 0 004 4.5v15z"/></svg>',
     gift: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/></svg>',
@@ -2326,16 +2359,16 @@
       <div class="thumb">${ICN[r.type]||ICN.pdf}</div>
       <div class="info">
         <div class="name">${esc(r.title)}</div>
-        <div class="meta">${s.emoji} ${s.name} · ${r.type==='video'?'视频':r.type==='pdf'?'PDF':'音频'}</div>
+        <div class="meta">${s.emoji} ${s.name} · ${typeName(r.type)}</div>
       </div>
     </div>`;
   }
 
   // ========== 栏目详情 ==========
   const RES_CAT_FALLBACK = { name: '资源', emoji: '📦', color: 'gray' };
-  // ========== 科目二级筛选（按科目分：全部/语文/数学/英语/科普） ==========
+  // ========== 科目二级筛选（按科目分：全部/语文/数学/英语/科普/心灵之窗） ==========
   let SUBJ_FILTER = 'all';
-  const SUBJ_TABS = [['all','全部'],['chinese','语文'],['math','数学'],['english','英语'],['science','科普']];
+  const SUBJ_TABS = [['all','全部'],['chinese','语文'],['math','数学'],['english','英语'],['science','科普'],['mind','心灵之窗']];
   const subjTabBar = () => `
     <div class="type-tabs" style="margin-bottom:12px">
       ${SUBJ_TABS.map(([k, label]) => `
@@ -2366,7 +2399,7 @@
               <div class="thumb">${ICN[r.type]||ICN.pdf}</div>
               <div class="info">
                 <div class="name">${esc(r.title)}</div>
-                <div class="meta">${r.type==='video'?'🎬 视频':r.type==='pdf'?'📄 PDF':'🎵 音频'}${r.episodes&&r.episodes.length>=2?` · <span style="color:var(--amber-600)">共${r.episodes.length}集</span>`:''}${resSubCount(r)?`<span class="res-sub-tag">CC 字幕</span>`:''}${r.category==='fun'?'<span class="badge-subj" style="background:var(--purple-50);color:var(--purple-600)">🎁 奖励</span>':''}${isMom && resIsNetdisk(r)?`<span class="res-nd-tag" title="网盘链接，平台里打不开，只能跳转">↗ 网盘</span>`:''}${isMom?whoTag(r):''}</div>
+                <div class="meta">${typeIcon(r.type)}${r.episodes&&r.episodes.length>=2?` · <span style="color:var(--amber-600)">共${r.episodes.length}集</span>`:''}${resSubCount(r)?`<span class="res-sub-tag">CC 字幕</span>`:''}${r.category==='fun'?'<span class="badge-subj" style="background:var(--purple-50);color:var(--purple-600)">🎁 奖励</span>':''}${isMom && resIsNetdisk(r)?`<span class="res-nd-tag" title="网盘链接，平台里打不开，只能跳转">↗ 网盘</span>`:''}${isMom?whoTag(r):''}</div>
               </div>
               ${isMom ? `<button class="icon-btn" onclick="event.stopPropagation();openResourceModal(null,'${r.id}')" title="编辑">${ICN.edit}</button>` : ''}
               ${isMom ? (r.type === 'video' ? `<button class="icon-btn" onclick="event.stopPropagation();openResSubModal('${r.id}')" title="挂字幕" style="font-size:11px;font-weight:600">CC</button>` : '') : ''}
@@ -4865,6 +4898,18 @@
       const k = (e.key || '').toLowerCase();
       if (['arrowright', 'arrowleft', 'arrowup', 'arrowdown', 'j', 'l', ' ', 'k'].indexOf(k) >= 0) e.preventDefault();
     });
+    // 失败兜底：APP / 部分手机浏览器对「直链 MP4」会因 Content-Type 不对或编码不支持而静默播不了。
+    // 第一层降级：把视频 fetch 成 blob 再喂（绕过 Content-Type 限制）；仍失败就给明确提示。
+    v.addEventListener('error', () => {
+      if (v.dataset.blobTried !== '1') {
+        v.dataset.blobTried = '1';
+        fetch(url).then(r => { if (!r.ok) throw new Error('http ' + r.status); return r.blob(); })
+          .then(b => { try { v.src = URL.createObjectURL(b); const p2 = v.play(); if (p2 && p2.catch) p2.catch(() => svShowVideoError()); } catch (e) { svShowVideoError(); } })
+          .catch(() => svShowVideoError());
+        return;
+      }
+      svShowVideoError();
+    });
     const p = v.play();
     if (p && p.catch) p.catch(() => {});
   }
@@ -5053,6 +5098,17 @@
     if (tip) { tip.textContent = '✅ 已看完，自动打卡完成！'; tip.style.color = 'var(--green-600)'; }
     setTimeout(closeSv, 1500);
   }
+  function svShowVideoError() {
+    if (!SV) return;
+    const tip = document.querySelector('#sv-mask .sv-tip');
+    if (tip) {
+      tip.innerHTML = '⚠️ 这个视频当前设备（APP / 手机浏览器）无法播放，多半是编码格式不支持。'
+        + '请在<b>电脑</b>或<b>网页版</b>观看；或把视频转成普通 MP4（H.264 + AAC）后重新上传到 OSS。';
+      tip.style.color = 'var(--orange-600)';
+    }
+    const cover = document.getElementById('sv-cover');
+    if (cover) { const sp = cover.querySelector('span'); if (sp) sp.textContent = '设备不支持该格式'; }
+  }
   function closeSv() {
     if (SV && SV.video) {
       try { SV.video.pause(); } catch (e) {}
@@ -5237,7 +5293,7 @@
         <p class="text-mute" style="margin-top:-8px;margin-bottom:12px">支持 B站视频 / 阿里云 OSS 文件直链 / 任意网页链接，直接粘贴即可</p>
         <div class="field">
           <label>类型</label>
-          <select id="r-type"><option value="video"${sel('video', ed&&ed.type)}>视频</option><option value="pdf"${sel('pdf', ed&&ed.type)}>PDF 文件</option><option value="audio"${sel('audio', ed&&ed.type)}>音频</option></select>
+          <select id="r-type"><option value="video"${sel('video', ed&&ed.type)}>视频</option><option value="pdf"${sel('pdf', ed&&ed.type)}>PDF 文件</option><option value="epub"${sel('epub', ed&&ed.type)}>EPUB 电子书</option><option value="audio"${sel('audio', ed&&ed.type)}>音频</option></select>
         </div>
         <div class="field">
           <label>栏目（资源库里的一级分类）</label>
@@ -5441,7 +5497,7 @@
         if (!Array.isArray(items)) return null;
         const hasBili = u => !!parseBilibili(u);
         return items.filter(x => x && (x.base || x.url)).map(x => {
-          let type = ['video', 'pdf', 'audio'].includes(x.type) ? x.type : 'video';
+          let type = ['video', 'pdf', 'epub', 'audio'].includes(x.type) ? x.type : 'video';
           if (hasBili(x.base) || hasBili(x.url)) type = 'video';
           const base = String(x.base || x.url || '');
           const eps = Array.isArray(x.eps) ? x.eps.map((e, i) => {
@@ -5473,7 +5529,7 @@
       if (!Array.isArray(items)) return null;
       const hasBili = u => !!parseBilibili(u);
       return items.filter(x => x && (x.url || (x.eps && x.eps.length))).map(x => {
-        let type = ['video', 'pdf', 'audio'].includes(x.type) ? x.type : 'video';
+        let type = ['video', 'pdf', 'epub', 'audio'].includes(x.type) ? x.type : 'video';
         if (hasBili(x.url) || (x.eps || []).some(e => hasBili(e.url))) type = 'video';
         return {
           title: String(x.title || '').slice(0, 80),
@@ -5560,6 +5616,23 @@
     const sel = document.getElementById('r-type');
     if (!el || !sel) return;
     const url = el.value.trim();
+    // 文件直链（自家 OSS / 本站同域）：按扩展名自动选类型。
+    // 不然每加一本书都要记得手点一次「EPUB 电子书」，忘了就打不开。
+    // Kindle 专有格式（MOBI / AZW）浏览器读不了，提前说清楚，别让点了才发现白屏
+    const km = url.match(/\.(mobi|azw|azw3)(\?|#|$)/i);
+    if (km) {
+      toast('读不了 ' + km[1].toUpperCase() + '：Kindle 专有格式，请用 Calibre 转成 EPUB 再上传');
+      return;
+    }
+    const fm = url.match(/\.(epub|pdf|mp3|m4a|aac|wav|ogg|flac|opus)(\?|#|$)/i);
+    if (fm) {
+      const ext = fm[1].toLowerCase();
+      const want = ext === 'epub' ? 'epub' : ext === 'pdf' ? 'pdf' : 'audio';
+      if (sel.value !== want) {
+        sel.value = want;
+        toast('识别到 ' + ext.toUpperCase() + ' 文件，已自动选「' + typeName(want) + '」');
+      }
+    }
     if (parseBilibili(url) && sel.value !== 'video') {
       sel.value = 'video';
       toast('识别到 B站视频，已自动选「视频」类型');
@@ -5664,6 +5737,8 @@
     if (isDirectVideo(url)) { openHtmlVideo(title, url); return; }
     // 直接音频文件链接：audio 标签内嵌
     if (isDirectAudio(url)) { openHtmlAudio(title, url); return; }
+    // 直接 EPUB 文件链接：内嵌重排阅读，不跳转
+    if (isDirectEpub(url)) { openEpubViewer(title, url); return; }
     // 直接 PDF 文件链接（阿里云 OSS 直链）：内嵌预览，不跳转
     if (isDirectPdf(url)) { openPdfViewer(title, url); return; }
     // 其他网页（微云分享页、官网课程等）：走安全审核跳转页（白名单拦截）
@@ -5851,6 +5926,18 @@
     if (!url) return false;
     return /\.(mp3|wav|m4a|aac|ogg|flac|opus)([?#].*)?$/i.test(url);
   }
+  // 是否直接 EPUB 文件链接（阿里云 OSS / GitHub Pages 等同域直链）
+  // 和 PDF 一样，网盘分享页不是文件本身，所以只认真以 .epub 结尾的直链。
+  function isDirectEpub(url) {
+    if (!url) return false;
+    if (/\.(epub)([?#].*)?$/i.test(url)) return true;
+    try {
+      // 中文书名常被编码成 %E6%9A%97.epub，解码后再认一次
+      if (/\.epub$/i.test(decodeURIComponent(new URL(url).pathname || ''))) return true;
+    } catch (e) {}
+    return false;
+  }
+
   // 是否直接 PDF 文件链接（阿里云 OSS / 腾讯云 COS 等直链）
   function isDirectPdf(url) {
     if (!url) return false;
@@ -5908,7 +5995,7 @@
   // 网盘链接专用说明卡：讲清楚「为什么不能直接读」+ 给退路，别默默下载
   function openNetdiskCard(title, type, url, nd) {
     const isMom = !!sessionStorage.getItem('mom-auth');
-    const tname = type === 'video' ? '视频' : type === 'pdf' ? 'PDF' : '音频';
+    const tname = typeName(type);
     const modal = document.createElement('div');
     modal.className = 'modal-mask';
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
@@ -6555,6 +6642,296 @@
       }
     } catch (e) { /* 系统全屏拿不到就纯 CSS，照样铺满 */ }
     setTimeout(pdfRender, 150); // 尺寸变了要按新宽度重算
+  }
+
+  /* ==================================================================
+     EPUB 电子书阅读器（epub.js）
+     ------------------------------------------------------------------
+     为什么不能像 PDF 那样靠浏览器：EPUB 是一个 zip 包，里面是一堆 XHTML 章节、
+     图片和一个目录文件，浏览器根本不认识这个格式，只能靠 JS 解开再显示。
+     epub.js 把每一章塞进 iframe 里「重排」显示 —— 这是 EPUB 相对 PDF 最大的好处：
+     字会自动跟着屏幕宽度走，手机上不用放大缩小，还能调字号。
+
+     硬前提（和 PDF 一样）：文件服务器必须开 CORS，否则连包都取不回来。
+     第二个前提：书不能带 DRM 加密（Kindle 正版书大多是加密的）。
+     加密的书 epub.js 解得开目录、解不开正文，只能换无加密的 epub 文件。
+     ================================================================== */
+  var EPUBJS_VERSION = '0.3.93';
+  var JSZIP_VERSION = '3.10.1';
+  // epub.js 和它依赖的 JSZip 的加载源，按顺序自动降级，哪个能用用哪个：
+  //   ① 自家 OSS（深圳节点，家里网访问最快）—— 把 jszip.min.js、epub.min.js
+  //      两个文件传到 Bucket 的 epubjs/ 目录下就生效，不用改代码
+  //   ② 本站同域 epubjs/ 目录 —— 随网页一起部署，最稳
+  //   ③ 公共 CDN —— 最后兜底
+  var EPUBJS_BASES = [
+    'https://lantu5558.oss-cn-shenzhen.aliyuncs.com/epubjs/',
+    'epubjs/',
+    'https://cdn.jsdelivr.net/npm/epubjs@' + EPUBJS_VERSION + '/dist/',
+    'https://unpkg.com/epubjs@' + EPUBJS_VERSION + '/dist/'
+  ];
+  var JSZIP_BASES = [
+    'https://lantu5558.oss-cn-shenzhen.aliyuncs.com/epubjs/',
+    'epubjs/',
+    'https://cdn.jsdelivr.net/npm/jszip@' + JSZIP_VERSION + '/dist/',
+    'https://unpkg.com/jszip@' + JSZIP_VERSION + '/dist/'
+  ];
+  var EPUBJS_ACTIVE_BASE = '';
+  var _epubjsPromise = null;
+
+  /** 按顺序试各个源，加载成功后用 check() 校验全局变量真的挂上了 ——
+   *  返回 200 不代表能用（CDN 挂了时常返回一张错误页），所以每次都得验一下。 */
+  function loadOneOf(bases, file, check) {
+    return (function tryBase(i) {
+      if (i >= bases.length) return Promise.reject(new Error(file + '-all-sources-failed'));
+      return loadScript(bases[i] + file).then(function () {
+        if (!check()) throw new Error(file + '-invalid');
+        return bases[i];
+      }).catch(function () { return tryBase(i + 1); });
+    })(0);
+  }
+
+  /** 懒加载：只有真要看 EPUB 时才去下（JSZip 约 100KB + epub.js 约 220KB），
+   *  平时不影响开页速度。加载一次就缓存在内存里。
+   *
+   *  坑（2026-09-01 实测）：epub.js 0.3.x 的 dist/epub.min.js **不是自包含的**。
+   *  它的 UMD 头是 t.ePub = e(t.JSZip) —— 加载的那一刻就去读 window.JSZip。
+   *  所以必须先加载 JSZip 再加载 epub.js；顺序反了，epub.js 会静默装上一个
+   *  没有解压能力的空壳，表现是「目录能出来、正文一片空白」，极难排查。 */
+  function loadEpubjs() {
+    if (_epubjsPromise) return _epubjsPromise;
+    _epubjsPromise = loadOneOf(JSZIP_BASES, 'jszip.min.js', function () { return !!window.JSZip; })
+      .then(function () {
+        return loadOneOf(EPUBJS_BASES, 'epub.min.js', function () { return !!window.ePub; });
+      })
+      .then(function (base) {
+        EPUBJS_ACTIVE_BASE = base;
+        return window.ePub;
+      });
+    _epubjsPromise.catch(function () { _epubjsPromise = null; }); // 失败后允许下次重试
+    return _epubjsPromise;
+  }
+
+  var EPUB = null;      // 当前这本：{ book, rendition, url, toc, fontSize }
+  var EPUB_TOKEN = 0;   // 每次打开 +1，异步回调靠它判断「这还是不是同一次打开」
+
+  /** 阅读进度存本机，不往云端同步。
+   *  存的是 CFI —— 书内部的定位坐标（形如 epubcfi(/6/4[...]），几十个字符）。
+   *  它只对「这一本文件」有意义，换设备没书也用不上；
+   *  更重要的是同步包体积敏感（整包覆盖有丢数据的风险），没必要为它加字段。 */
+  function epubPosKey(url) { return 'lebao:epubpos:' + url; }
+  function epubGetPos(url) {
+    try { return localStorage.getItem(epubPosKey(url)) || ''; } catch (e) { return ''; }
+  }
+  function epubSetPos(url, cfi) {
+    try { if (cfi) localStorage.setItem(epubPosKey(url), cfi); } catch (e) {}
+  }
+
+  function openEpubViewer(title, url) {
+    var modal = document.createElement('div');
+    modal.className = 'modal-mask video-mask epub-mask';
+    modal.onclick = function (e) { if (e.target === modal) epubClose(modal); };
+    modal.innerHTML = `
+      <div class="modal video-modal">
+        <button class="icon-btn close" onclick="epubClose(this)">✕</button>
+        <button class="icon-btn" style="float:right;margin-top:-8px;margin-right:6px;font-size:15px" title="全屏阅读" onclick="epubFsToggle(this)">⛶</button>
+        <h3>${esc(title)}</h3>
+        <div class="epub-stage" id="epub-stage">
+          <div class="epub-view" id="epub-view"></div>
+          <div class="epub-toc" id="epub-toc">
+            <div class="epub-toc-hd"><span>目录</span><button class="icon-btn" onclick="epubTocToggle()">✕</button></div>
+            <div class="epub-toc-list" id="epub-toc-list"></div>
+          </div>
+          <div class="pdf-loading" id="epub-loading">
+            <div class="pdf-spin"></div>
+            <div id="epub-loadtext">正在准备阅读器…</div>
+          </div>
+        </div>
+        <div class="pdf-bar">
+          <button class="pdf-btn" onclick="epubGo(-1)">‹ 上一页</button>
+          <button class="pdf-btn" onclick="epubTocToggle()">☰ 目录</button>
+          <button class="pdf-btn" onclick="epubGo(1)">下一页 ›</button>
+          <button class="pdf-btn" onclick="epubFont(-10)">A－</button>
+          <button class="pdf-btn" onclick="epubFont(10)">A＋</button>
+        </div>
+        <div class="epub-tip" id="epub-tip"></div>
+        <div class="btn-row" style="margin-top:10px">
+          <button class="btn-secondary" onclick="epubClose(this)">关闭</button>
+          <button class="btn-primary" onclick="window.open('${escA(url)}','_blank')">⬇️ 下载 / 其他应用打开</button>
+        </div>
+      </div>`;
+    document.getElementById('modal-root').appendChild(modal);
+    epubStart(title, url);
+  }
+
+  function epubSetLoadText(t) {
+    var el = document.getElementById('epub-loadtext');
+    if (el) el.textContent = t;
+  }
+
+  function epubStart(title, url) {
+    epubDestroy();              // 开新一本之前，先把上一本占的内存还回去
+    var token = EPUB_TOKEN;     // 记住这次的编号
+    var stale = function () { return EPUB_TOKEN !== token; };
+    if (!document.getElementById('epub-stage')) return;
+    epubSetLoadText('正在加载阅读器…');
+    loadEpubjs().then(function (ePub) {
+      if (stale()) return null;
+      epubSetLoadText('正在打开电子书…');
+      var book = ePub(url, { openAs: 'epub' });
+      var rendition = book.renderTo('epub-view', {
+        width: '100%', height: '100%',
+        // 手机上永远单页：双页并排会把字挤得没法看
+        spread: 'none',
+        flow: 'paginated'
+      });
+      EPUB = { book: book, rendition: rendition, url: url, toc: [], fontSize: 100, title: title };
+      // 每翻一次页就记一次位置，下次打开直接回到这里
+      rendition.on('relocated', function (loc) {
+        if (stale() || !loc || !loc.start) return;
+        epubSetPos(url, loc.start.cfi);
+        epubTip(loc);
+      });
+      // book.ready = 元数据已经读完（此时才能安全地去翻页）
+      return book.ready.then(function () {
+        if (stale()) return null;
+        // 有上次的进度就接着看，没有就从第一页开始
+        return rendition.display(epubGetPos(url) || undefined);
+      }).then(function () {
+        if (stale()) return null;
+        var ld = document.getElementById('epub-loading');
+        if (ld && ld.remove) ld.remove();
+        return book.loaded.navigation;
+      }).then(function (nav) {
+        if (stale()) return null;
+        EPUB.toc = (nav && nav.toc) || [];
+        epubRenderToc();
+        epubTip();
+      });
+    }).catch(function (e) {
+      if (stale()) return;
+      epubFail(url, (e && e.message) || String(e));
+    });
+  }
+
+  function epubGo(d) {
+    if (!EPUB) return;
+    try { if (d < 0) EPUB.rendition.prev(); else EPUB.rendition.next(); } catch (e) {}
+  }
+  function epubFont(d) {
+    if (!EPUB) return;
+    var s = EPUB.fontSize + d;
+    if (s < 70) s = 70;
+    if (s > 200) s = 200;
+    EPUB.fontSize = s;
+    try { EPUB.rendition.themes.fontSize(s + '%'); } catch (e) {}
+    epubTip();
+  }
+  function epubTocToggle() {
+    var box = document.getElementById('epub-toc');
+    if (!box) return;
+    box.classList.toggle('on');
+  }
+  function epubRenderToc() {
+    var list = document.getElementById('epub-toc-list');
+    if (!list || !EPUB) return;
+    if (!EPUB.toc.length) {
+      list.innerHTML = '<div style="padding:18px 16px;color:var(--gray-600);font-size:13px;text-align:center">这本书没有目录</div>';
+      return;
+    }
+    list.innerHTML = EPUB.toc.map(function (t, i) {
+      var label = String((t && (t.label || t.title)) || '').trim();
+      // 子章节缩进一点，深浅一眼能分出来
+      var sub = t && (t.level > 0 || (t.subitems && t.subitems.length)) ? ' sub' : '';
+      return `<button class="epub-toc-item${sub}" onclick="epubGoto(${i})">${esc(label || ('第' + (i + 1) + '章'))}</button>`;
+    }).join('');
+  }
+  function epubGoto(i) {
+    if (!EPUB || !EPUB.toc[i]) return;
+    try { EPUB.rendition.display(EPUB.toc[i].href); } catch (e) {}
+    epubTocToggle();
+  }
+  /** 底部那行提示：现在在第几章、字号多大 */
+  function epubTip(loc) {
+    var el = document.getElementById('epub-tip');
+    if (!el || !EPUB) return;
+    var chap = '';
+    var href = loc && loc.start && loc.start.href;
+    if (href) {
+      var h = String(href).split('#')[0];
+      for (var i = 0; i < EPUB.toc.length; i++) {
+        var t = EPUB.toc[i];
+        if (t && t.href && String(t.href).split('#')[0] === h) {
+          chap = String(t.label || t.title || '').trim();
+          break;
+        }
+      }
+    }
+    el.textContent = (chap ? chap + ' · ' : '') + '字号 ' + EPUB.fontSize + '%';
+  }
+  function epubFsToggle(el) {
+    var mask = el && el.closest ? el.closest('.modal-mask') : null;
+    if (!mask) return;
+    var m = mask.querySelector('.modal');
+    if (!m) return;
+    var on = !m.classList.contains('lv-fs');
+    m.classList.toggle('lv-fs', on);
+    try {
+      var de = document.documentElement;
+      if (on) {
+        if (de.requestFullscreen) { var p = de.requestFullscreen(); if (p && p.catch) p.catch(function () {}); }
+        else if (de.webkitRequestFullscreen) de.webkitRequestFullscreen();
+      } else if (document.fullscreenElement || document.webkitFullscreenElement) {
+        if (document.exitFullscreen) { var q = document.exitFullscreen(); if (q && q.catch) q.catch(function () {}); }
+        else if (de.webkitExitFullscreen) de.webkitExitFullscreen();
+      }
+    } catch (e) { /* 拿不到系统全屏就纯 CSS 铺满，照样能看 */ }
+    // 容器尺寸变了，epub.js 得按新宽度重排，否则会留白或截断
+    setTimeout(function () {
+      if (EPUB && EPUB.rendition && EPUB.rendition.resize) {
+        try { EPUB.rendition.resize(); } catch (e) {}
+      }
+    }, 220);
+  }
+  /** 把书占的内存还回去：epub.js 把整包解压后的章节都留在内存里，
+   *  关掉弹窗只是摘掉 DOM，book 还被 EPUB 这个变量拽着 —— 来回开几本就崩了。 */
+  function epubDestroy() {
+    EPUB_TOKEN++;
+    if (EPUB && EPUB.book) { try { EPUB.book.destroy(); } catch (e) {} }
+    EPUB = null;
+  }
+  function epubClose(el) {
+    epubDestroy();
+    closeVideoModal(el);
+  }
+  /** 打不开的时候，讲清楚是哪一种原因 —— EPUB 打不开基本就三种情况。 */
+  function epubFail(url, detail) {
+    var stage = document.getElementById('epub-stage');
+    if (!stage) return;
+    var host = '';
+    try { host = new URL(url).hostname; } catch (e) { host = ''; }
+    // 网络层拿不到数据，99% 是跨域没开 —— 给能照着做的排查步骤
+    var isNet = /failed to fetch|networkerror|cors|network|fetch|load failed/i.test(detail);
+    var html = '<div class="pdf-err" style="margin:16px"><b>这本电子书没能打开。</b><br>';
+    if (isNet) {
+      html += '多半是<strong>文件服务器没开跨域（CORS）</strong> —— 浏览器不许网页去别的域名取数据，' +
+        '除非对方明确同意。阿里云 OSS 默认不开，手动开一次就行（开完所有资料都能看，一劳永逸）：' +
+        '<ol>' +
+        '<li>打开 <b>阿里云 OSS 控制台</b>，进 Bucket <code>' + esc(host.split('.')[0] || host) + '</code></li>' +
+        '<li>左侧 <b>数据安全 → 跨域设置</b> → 创建规则</li>' +
+        '<li>来源填 <code>https://lantu5558.github.io</code></li>' +
+        '<li>允许 Methods 勾 <b>GET、HEAD、OPTIONS</b>；允许 Headers 填 <code>*</code></li>' +
+        '<li>暴露 Headers 填 <code>*</code>；缓存时间 <code>3600</code></li>' +
+        '</ol>';
+    }
+    html += '<div style="margin-top:8px">另外两种常见情况：' +
+      '<br>· 书带 <b>DRM 加密</b>（Kindle 正版书常见）—— 浏览器一律读不了，只能用无加密的 epub；' +
+      '<br>· 链接不是文件本身而是 <b>网盘分享页</b> —— 网盘不给跨域，只能下载后用其他应用看。' +
+      '</div>' +
+      '<div style="margin-top:8px;font-size:11.5px;opacity:.8">错误信息：<code>' + esc(detail) + '</code></div>' +
+      '</div>';
+    stage.innerHTML = html;
+    var tip = document.getElementById('epub-tip');
+    if (tip) tip.textContent = '';
   }
 
   // ========== 模态：添加奖励 ==========
