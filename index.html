@@ -5092,7 +5092,6 @@
           <button class="btn-primary" style="width:100%;margin-top:10px" onclick="lvDone('${task.id}')">✅ 我看完了，打卡 +${task.points} 分</button>
         </div>
         <div class="lv-fs-bar">
-          <button class="btn-secondary" onclick="lvToggleFs()">⤢ 退出全屏</button>
           <button class="btn-primary" onclick="lvDone('${task.id}')">✅ 我看完了 +${task.points}</button>
         </div>
       </div>`;
@@ -6001,10 +6000,6 @@
             <button type="button" class="bili-swap" data-src="${escA(u.desktop)}" style="padding:5px 10px;margin-right:6px;border:1px solid #ffb37a;background:#fff;border-radius:8px;cursor:pointer;color:#8a5a00">官方版</button>
             <button type="button" class="bili-swap" data-src="${escA(u.mobile)}" style="padding:5px 10px;border:1px solid #ffb37a;background:#fff;border-radius:8px;cursor:pointer;color:#8a5a00">移动版</button>
           </div>
-        </div>
-        <div class="bili-fs-bar">
-          <button class="btn-secondary" onclick="biliToggleFs()">⤢ 退出全屏</button>
-          <button class="btn-secondary" onclick="biliToggleMenu(this)">↗ 播放不了？</button>
         </div>
       </div>
     `;
