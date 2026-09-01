@@ -125,6 +125,8 @@
     .wq-word-card { background: linear-gradient(135deg, var(--pink-400), #C2185B); color: #fff; border-radius: var(--radius-lg); padding: 28px 16px; text-align: center; margin-bottom: 12px; }
     .wq-word-card .w { font-size: 34px; font-weight: 700; letter-spacing: 1px; }
     .wq-word-card .cn { font-size: 15px; opacity: .92; margin-top: 4px; }
+    .wq-word-card .pos { display: inline-block; font-size: 12px; font-weight: 600; letter-spacing: .5px; padding: 2px 10px; border-radius: 10px; background: rgba(255,255,255,.22); margin-top: 6px; }
+    .ws-pos { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 6px; background: #FFF3E0; color: #E65100; }
     .wq-sound-btn { width: 64px; height: 64px; border-radius: 50%; background: rgba(255,255,255,.25); color: #fff; display: flex; align-items: center; justify-content: center; margin: 14px auto 0; font-size: 28px; }
     .wq-sound-btn:active { transform: scale(.92); }
     .wq-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
@@ -3552,6 +3554,7 @@
         ${roundTip}
         <div class="wq-word-card">
           <div class="w">${esc(word.w)}</div>
+          ${word.pos ? '<div class="pos">' + esc(word.pos) + '</div>' : ''}
           <div class="cn">${esc(word.cn)}</div>
           <button class="wq-sound-btn" data-w="${escA(word.w)}" onclick="speak(this.getAttribute('data-w'))">🔊</button>
         </div>
@@ -3573,6 +3576,7 @@
         ${roundTip}
         <div class="wq-word-card">
           <div class="w" style="font-size:26px">${esc(word.cn)}</div>
+          ${word.pos ? '<div class="pos">' + esc(word.pos) + '</div>' : ''}
           <div class="cn">英文怎么写？</div>
           <button class="wq-sound-btn" data-w="${escA(word.w)}" onclick="speak(this.getAttribute('data-w'))">🔊 听发音</button>
         </div>
@@ -4195,6 +4199,41 @@
   // 老规则 /^(\S+)\s+(.+)$/ 会把短语切断：'a banana 一根香蕉' → w='a', cn='banana 一根香蕉'。
   // 新规则按优先级切：Tab/CSV（表格复制） > 显式分隔符 > 英文库按中英边界、语文库按空白 > 整行。
   var WS_CJK = /[\u2E80-\u9FFF\uF900-\uFAFF\uFF00-\uFFEF]/;
+  // 词性表。只有命中这里才切出词性，所以短语（a banana / look after）绝对不会被误伤。
+  // 末尾的点会被吃掉，所以 'n' 'n.' 都认；斜杠 / & / 顿号组合（n./v.、n&v）也认。
+  var WS_POS = { n:1, v:1, vt:1, vi:1, adj:1, adv:1, prep:1, conj:1, pron:1, num:1, art:1, int:1,
+                 aux:1, pl:1, abbr:1, phr:1, pref:1, suff:1, modal:1, interj:1 };
+  // 中文词性只认两个及以上的词，单字（名/动/形）太容易跟中文释义撞车，不认
+  var WS_POS_CN = { '名词':1, '动词':1, '形容词':1, '副词':1, '介词':1, '连词':1, '代词':1, '数词':1,
+                    '冠词':1, '感叹词':1, '助动词':1, '情态动词':1, '及物动词':1, '不及物动词':1,
+                    '专有名词':1, '可数名词':1, '不可数名词':1, '短语动词':1, '量词':1, '拟声词':1,
+                    '前缀':1, '后缀':1 };
+  function wsIsPos(x) {
+    let t = String(x == null ? '' : x).trim().toLowerCase().replace(/\.+$/, '');
+    if (!t) return false;
+    const segs = t.split(/[\/&+、,;|\s]+/).filter(Boolean);
+    if (!segs.length) return false;
+    for (let i = 0; i < segs.length; i++) {
+      if (!WS_POS[String(segs[i]).replace(/\.+$/, '')]) return false;
+    }
+    return true;
+  }
+  // 从「英文部分 + 中文部分」里把词性剥出来。两条路：
+  //   英文末段命中词性表（apple n）／中文开头是多字中文词性（apple 名词 苹果）
+  // 都要求至少剩两段，所以单个词永远不会被当成词性切走
+  function wsSplitPos(w, cn) {
+    const segs = String(w == null ? '' : w).split(/\s+/).filter(Boolean);
+    if (segs.length >= 2 && wsIsPos(segs[segs.length - 1])) {
+      const p = segs.pop();
+      return { w: segs.join(' '), pos: String(p).trim(), cn: cn };
+    }
+    const csegs = String(cn == null ? '' : cn).split(/\s+/).filter(Boolean);
+    if (csegs.length >= 2 && WS_POS_CN[csegs[0]]) {
+      const p = csegs.shift();
+      return { w: w, pos: String(p), cn: csegs.join(' ') };
+    }
+    return { w: w, pos: '', cn: cn };
+  }
   function wsStripBullet(l) {
     return l.replace(/^\s*[0-9]+\s*[.、)．]\s*/, '').replace(/^\s*[-*•]\s+/, '');
   }
@@ -4232,24 +4271,34 @@
       if (mm) parts = [mm[1], mm[2]];
     }
     if (parts) {
-      const w = String(parts[0] || '').trim();
-      const cn = String(parts[1] || '').trim();
-      if (w) return { w: w, cn: cn };
+      const w0 = String(parts[0] || '').trim();
+      if (w0) {
+        // Tab / CSV 分出三段时，中间那段就是词性（从表格复制过来的常见格式）
+        if (parts.length >= 3) {
+          return { w: w0, pos: String(parts[1] || '').trim(), cn: parts.slice(2).join(' ').trim() };
+        }
+        return wsSplitPos(w0, String(parts[1] || '').trim());
+      }
     }
     if (lang === 'zh') {
       // 语文：词语本身不含空格，直接按空白切最稳（「苹果 píng guǒ」「苹果 一种水果」都对）
+      // 语文库不分词性，pos 恒为空
       const mz = l.match(/^(\S+)\s+(.+)$/);
-      if (mz) return { w: mz[1], cn: mz[2] };
-      return { w: l, cn: '' };
+      if (mz) return { w: mz[1], pos: '', cn: mz[2] };
+      return { w: l, pos: '', cn: '' };
     }
     // 英语：第一个汉字（或全角符号）出现的位置就是分界线，前面整段是英文短语
     const mc = l.match(WS_CJK);
     if (mc && mc.index > 0) {
-      const w = l.slice(0, mc.index).trim();
-      const cn = l.slice(mc.index).trim();
-      if (w) return { w: w, cn: cn };
+      const sp = wsSplitPos(l.slice(0, mc.index).trim(), l.slice(mc.index).trim());
+      if (sp.w) return sp;
     }
-    return { w: l, cn: '' };
+    // 整行都是英文（没写中文，比如 'apple n'）：末尾那段也可能就是词性
+    if (lang !== 'zh') {
+      const sp2 = wsSplitPos(l, '');
+      if (sp2.pos) return sp2;
+    }
+    return { w: l, pos: '', cn: '' };
   }
   function wsParseWords(raw, lang) {
     const out = [];
@@ -4269,7 +4318,9 @@
     const n = Math.min(8, ws.length);
     let h = '<div>已识别 <b>' + ws.length + '</b> 条：</div>';
     for (let i = 0; i < n; i++) {
-      h += '<div>' + esc(ws[i].w) + (ws[i].cn ? ' <span class="text-mute">→ ' + esc(ws[i].cn) + '</span>' : '') + '</div>';
+      h += '<div>' + esc(ws[i].w)
+        + (ws[i].pos ? ' <span class="ws-pos">' + esc(ws[i].pos) + '</span>' : '')
+        + (ws[i].cn ? ' <span class="text-mute">→ ' + esc(ws[i].cn) + '</span>' : '') + '</div>';
     }
     if (ws.length > n) h += '<div class="text-mute">… 还有 ' + (ws.length - n) + ' 条</div>';
     box.innerHTML = h;
@@ -4303,8 +4354,9 @@
             <option value="en">英语 —— 读英文单词（英语听写用）</option>
             <option value="zh">语文 —— 读中文词语（语文听写用）</option>
           </select></div>
-        <div class="field"><label>词条列表（每行一条，短语也能认）</label>
-          <textarea id="ws-words" rows="8" oninput="wsPreview()" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);font-size:14px" placeholder="apple 苹果&#10;a banana 一根香蕉&#10;look after 照顾"></textarea>
+        <div class="field"><label>词条列表（每行一条，中间可加词性）</label>
+          <div class="text-mute" style="font-size:12px;margin-bottom:6px">写法：<b>英文 词性 中文</b>，例 <code>apple n 苹果</code>。词性可省略，短语照样认（<code>a banana 一根香蕉</code>）</div>
+          <textarea id="ws-words" rows="8" oninput="wsPreview()" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);font-size:14px" placeholder="apple n 苹果&#10;a banana 一根香蕉&#10;beautiful adj 美丽的&#10;quickly adv 快速地"></textarea>
           <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
             <label class="btn-secondary" style="margin:0;font-size:12px;padding:6px 12px;cursor:pointer;display:inline-block">
               📄 从文件导入
@@ -4337,7 +4389,9 @@
     const ws = DATA.wordSets.find(s => s.id === id);
     if (!ws) return;
     const lg = setLang(ws);
-    const txt = (ws.words || []).map(function (w) { return w.w + (w.cn ? ' ' + w.cn : ''); }).join('\n');
+    const txt = (ws.words || []).map(function (w) {
+      return w.w + (w.pos ? ' ' + w.pos : '') + (w.cn ? ' ' + w.cn : '');
+    }).join('\n');
     const modal = document.createElement('div');
     modal.className = 'modal-mask';
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
@@ -4353,7 +4407,7 @@
             <option value="zh"${lg === 'zh' ? ' selected' : ''}>语文 —— 读中文词语（语文听写用）</option>
           </select></div>
         <div class="field"><label>词条列表（每行一条，短语也能认）</label>
-          <div class="text-mute" style="font-size:12px;margin-bottom:6px">以前被切坏的短语（比如只剩个 a），打开后直接点保存就能重新整理好</div>
+          <div class="text-mute" style="font-size:12px;margin-bottom:6px">写法：<b>英文 词性 中文</b>，词性可省略。以前被切坏的短语（比如只剩个 a），打开后直接点保存就能重新整理好</div>
           <textarea id="ws-words" rows="12" oninput="wsPreview()" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);font-size:14px">${esc(txt)}</textarea>
           <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
             <label class="btn-secondary" style="margin:0;font-size:12px;padding:6px 12px;cursor:pointer;display:inline-block">
