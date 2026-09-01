@@ -688,6 +688,28 @@
   html[data-theme="fc"] .wheel { border-color: rgba(255,255,255,0.85); }
   html[data-theme="fc"] .bili-card { background: var(--bg-card); border-color: var(--border); }
 
+    /* ===== 学习记录（妈妈端，近 7 天）===== */
+    .fp-note { font-size:12px; color:var(--gray-600); }
+    .fp-chips { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+    .fp-chip { border:1px solid var(--border-soft); background:var(--gray-50); color:var(--gray-600);
+               border-radius:999px; padding:6px 14px; font-size:13px; cursor:pointer; font-family:inherit; }
+    .fp-chip.on { background:var(--pink-600); border-color:var(--pink-600); color:#fff; font-weight:600; }
+    .fp-chart { display:flex; align-items:flex-end; gap:6px; height:118px; margin:6px 0 2px; }
+    .fp-col { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
+              height:100%; gap:4px; }
+    .fp-bar { width:100%; max-width:38px; background:var(--pink-400); border-radius:5px 5px 0 0; min-height:3px; }
+    .fp-col.today .fp-bar { background:var(--green-600); }
+    .fp-val { font-size:11px; color:var(--gray-600); }
+    .fp-lab { font-size:11px; color:var(--gray-600); }
+    .fp-list { border-radius:var(--radius-md); overflow:hidden; }
+    .fp-item { display:flex; gap:10px; align-items:flex-start; padding:10px 0;
+               border-top:1px solid var(--border-soft); }
+    .fp-item:first-child { border-top:0; }
+    .fp-ic { font-size:17px; width:22px; text-align:center; flex:none; line-height:1.3; }
+    .fp-tx { flex:1; min-width:0; }
+    .fp-t { font-size:13.5px; font-weight:600; word-break:break-all; }
+    .fp-s { font-size:12px; color:var(--gray-600); margin-top:2px; }
+    .fp-who { display:inline-block; margin-right:5px; }
   </style>
 </head>
 <body data-page-node-id="3DqP1Xb73JvetEw9f46gVv">
@@ -700,6 +722,7 @@
   const LS_KEY = 'lebao-data-v1';
   const DEFAULT_DATA = {
     tomb: {},
+    footprints: [],
     momPassword: '8888',
     children: [
       { id: 'c1', name: '姐姐', avatar: '👧', pin: '1111', points: 128, streak: 5 },
@@ -865,7 +888,7 @@
   // ---- 合并式同步 ----
   // 坑（重要）：原来是「谁后写谁赢」的整包覆盖 —— 妈妈刚加的词库，只要孩子端在
   // 这 2.8 秒里打了一次卡，整包就被冲掉。改成按 id 取并集，两边的新增都能活下来。
-  const MERGE_KEYS = ['resources', 'wordSets', 'wordTasks', 'dictations', 'homeworks', 'tasks', 'rewards', 'redemptions', 'wheel', 'pointsHistory', 'children', 'habits', 'habitLogs'];
+  const MERGE_KEYS = ['resources', 'wordSets', 'wordTasks', 'dictations', 'homeworks', 'tasks', 'rewards', 'redemptions', 'wheel', 'pointsHistory', 'children', 'habits', 'habitLogs', 'footprints'];
   // 墓碑：删掉的东西记一笔，别的设备推回来时不许复活
   // （合并规则是「本地新增一律保留」，只删数组会被另一台设备的旧缓存救回来）
   // 坑（2026-08-30）：原来这里只写了 tasks/homeworks，于是资源、奖励、词库这些
@@ -979,6 +1002,8 @@
     if (!d.wordTasks) d.wordTasks = [];
     if (!d.dictations) d.dictations = [];
     if (!d.tomb) d.tomb = {};
+    if (!Array.isArray(d.footprints)) d.footprints = [];
+    fpGc(d);
     // 老版本改过的密码没有 momPwdTs，补一个最早的标记，让后续合并有得可比
     // （保持「8888 且无时间戳」= 出厂未改过，新设备才能正确采用云端密码）
     if (d.momPassword && String(d.momPassword) !== '8888' && !d.momPwdTs) d.momPwdTs = 1;
@@ -1156,7 +1181,10 @@
             SYNC.lastRemoteTs = remote._ts;
             SYNC.lastTs = remote._ts;
             SYNC.dirty = false;
+            fpClose();                                  // 正在计时的先落库，别被整包替换冲掉
+            const fpKeep = (DATA.footprints || []).slice();
             DATA = normalizeData(unpackFromSync(remote.d));
+            fpAdopt(DATA, fpKeep);
             saveLocalOnly(DATA);
             render();
           } else {
@@ -1164,6 +1192,7 @@
           }
         } else {
           // 非首次：合并，绝不整包覆盖
+          fpClose();                                // 同上：先把这次观看写进本地，合并时才带得过去
           const incoming = normalizeData(unpackFromSync(remote.d));
           const merged = mergeData(DATA, incoming, SYNC.dirty);
           SYNC.lastRemoteTs = remote._ts;
@@ -1340,6 +1369,7 @@
       'mom-resources':viewMomResources,
       'mom-rewards': viewMomRewards,
       'mom-words':   viewMomWords,
+      'mom-log':     viewMomFootprints,
       'mom-settings':viewMomSettings,
       'kid-select':  viewKidSelect,
       'kid-pin':     viewKidPin,
@@ -1588,11 +1618,120 @@
     const tabs = [
       { id:'today', icon: ICN.home, label:'今日', hash:'mom-today' },
       { id:'words', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16M6 16l3-9 3 9M7.2 13.5h3.6M14 16l2-9 2 9M15 13.5h2"/></svg>', label:'单词', hash:'mom-words' },
+      { id:'log', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/></svg>', label:'记录', hash:'mom-log' },
       { id:'resources', icon: ICN.book, label:'资源', hash:'mom-resources' },
       { id:'rewards', icon: ICN.gift, label:'奖励', hash:'mom-rewards' },
       { id:'settings', icon: ICN.sett, label:'设置', hash:'mom-settings' },
     ];
     return `<div class="tabbar">${tabs.map(t => `<div class="tab ${active===t.id?'active':''}" onclick="location.hash='${t.hash}'">${t.icon}<span>${t.label}</span></div>`).join('')}</div>`;
+  }
+
+  // ========== 妈妈后台 - 学习记录（近 7 天）==========
+  let fpKid = 'all';
+  function fpSetKid(v) { fpKid = v; render(); }
+  function fpClock(ts) {
+    const d = new Date(ts);
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+  function fpMin(sec) {
+    const m = Math.round((Number(sec) || 0) / 60);
+    if (m <= 0) return '不到 1 分钟';
+    if (m < 60) return m + ' 分钟';
+    const h = Math.floor(m / 60), r = m % 60;
+    return h + ' 小时' + (r ? ' ' + r + ' 分' : '');
+  }
+  function fpDayLabel(date) {
+    if (date === TODAY) return '今天';
+    if (date === addDays(TODAY, -1)) return '昨天';
+    const w = '日一二三四五六'[new Date(date + 'T00:00:00').getDay()];
+    return date.slice(5).replace('-', '/') + ' 周' + w;
+  }
+  function viewMomFootprints() {
+    if (!sessionStorage.getItem('mom-auth')) { location.hash = 'mom-pin'; return ''; }
+    fpGc(DATA);
+    const list = (DATA.footprints || []).filter(f => fpKid === 'all' || f.childId === fpKid);
+    const days = [];
+    for (let i = FP_KEEP - 1; i >= 0; i--) days.push(addDays(TODAY, -i));
+    const dayStat = days.map(d => {
+      const rs = list.filter(f => f.date === d);
+      let sec = 0;
+      for (let i = 0; i < rs.length; i++) sec += rs[i].sec || 0;
+      return { date: d, sec: sec, n: rs.length };
+    });
+    let peak = 600;   // 柱子最低刻度 10 分钟，免得看一眼只有几秒也顶到天
+    for (let i = 0; i < dayStat.length; i++) if (dayStat[i].sec > peak) peak = dayStat[i].sec;
+    const todayRecs = list.filter(f => f.date === TODAY);
+    let todaySec = 0;
+    for (let i = 0; i < todayRecs.length; i++) todaySec += todayRecs[i].sec || 0;
+    const logins = todayRecs.filter(f => f.kind === 'login').length;
+    const kids = DATA.children;
+    const body = days.map(d => {
+      const rs = list.filter(f => f.date === d).sort((a, b) => b.at - a.at);
+      if (!rs.length) return '';
+      let sec = 0;
+      for (let i = 0; i < rs.length; i++) sec += rs[i].sec || 0;
+      return `<div class="section">
+          <h3>${fpDayLabel(d)}<span class="badge">${sec > 0 ? fpMin(sec) + ' · ' : ''}${rs.length} 项</span></h3>
+          <div class="fp-list">
+            ${rs.map(f => {
+              const kd = FP_KINDS[f.kind] || { icon: '📌', name: '活动' };
+              const who = fpKid === 'all'
+                ? ((kids.find(x => x.id === f.childId) || {}).avatar || '') + ' '
+                : '';
+              return `<div class="fp-item">
+                  <div class="fp-ic">${kd.icon}</div>
+                  <div class="fp-tx">
+                    <div class="fp-t"><span class="fp-who">${esc(who)}</span>${esc(f.title)}</div>
+                    <div class="fp-s">${fpClock(f.at)} · ${kd.name}${f.sec ? ' · ' + fpMin(f.sec) : ''}${f.pts ? ' · ' + (f.pts > 0 ? '+' : '') + f.pts + ' 分' : ''}</div>
+                  </div>
+                </div>`;
+            }).join('')}
+          </div>
+        </div>`;
+    }).join('');
+    return `
+      <div class="topbar">
+        <h1>👀 学习记录</h1>
+        <div class="actions"><span class="fp-note">只保留 ${FP_KEEP} 天</span></div>
+      </div>
+      <div class="page">
+        <div class="fp-chips">
+          <button class="fp-chip${fpKid === 'all' ? ' on' : ''}" onclick="fpSetKid('all')">全部</button>
+          ${kids.map(k => `<button class="fp-chip${fpKid === k.id ? ' on' : ''}" onclick="fpSetKid('${k.id}')">${k.avatar} ${esc(k.name)}</button>`).join('')}
+        </div>
+
+        <div class="stat-card">
+          <div class="label">${TODAY} · 今天</div>
+          <div class="big">${fpMin(todaySec)}</div>
+          <div class="meta">
+            <div>活动 <span>${todayRecs.length}</span> 项</div>
+            <div>进入 <span>${logins}</span> 次</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>近 ${FP_KEEP} 天时长<span class="badge">看视频 + 读书</span></h3>
+          <div class="fp-chart">
+            ${dayStat.map(d => `
+              <div class="fp-col${d.date === TODAY ? ' today' : ''}">
+                <div class="fp-val">${d.sec ? Math.round(d.sec / 60) + '′' : ''}</div>
+                <div class="fp-bar" style="height:${Math.max(3, Math.round(d.sec / peak * 82))}px"></div>
+                <div class="fp-lab">${d.date === TODAY ? '今天' : d.date.slice(5).replace('-', '/')}</div>
+              </div>`).join('')}
+          </div>
+        </div>
+
+        ${body || `<div class="section"><div class="empty" style="padding:26px 8px">
+            <div class="emoji">👀</div>近 ${FP_KEEP} 天还没有记录<br>
+            <span style="font-size:12px">孩子看视频、读书、打卡都会自动记在这里</span>
+          </div></div>`}
+
+        <p class="text-mute" style="font-size:12px;text-align:center;margin:14px 0 4px">
+          B站和外链视频拿不到精确进度，按「打开到关闭」计时；<br>切到后台的时间不算在内。记录满 7 天自动清除。
+        </p>
+      </div>
+      ${momTabBar('log')}
+    `;
   }
 
   // ========== 妈妈后台 - 资源 ==========
@@ -1880,6 +2019,8 @@
         const c = DATA.children.find(x => x.id === selectedChildId);
         if (kidPinBuf === c.pin) {
           sessionStorage.setItem('kid-auth', c.id);
+          fpAdd('login', c.name + ' 进入平台', { childId: c.id });
+          saveData(DATA);
           kidPinBuf = '';
           location.hash = 'kid-tasks';
         } else {
@@ -1893,6 +2034,127 @@
   function kidPinBackspace() { kidPinBuf = kidPinBuf.slice(0, -1); render(); }
 
   // ========== 孩子端 - 任务 ==========
+  // ========== 学习足迹（近 7 天，超期自动清）==========
+  // 记孩子在平台上做了什么：什么时候来过、看了哪个视频多久、读了什么书、完成了哪些任务。
+  // 只留 7 天：再久就成了监控，也白白占云端同步的空间。
+  // 注意：这里一律用 todayStr() 而不是 TODAY 常量 —— normalizeData 在 TODAY 初始化之前
+  // 就会被调用（loadData → normalizeData），那时读 const TODAY 会踩暂时性死区直接报错。
+  const FP_KEEP = 7;
+  const FP_MAX = 600;          // 条数上限，防止有人把页面开一整天攒出几万条
+  const FP_KINDS = {
+    login:     { icon: '🔑', name: '进入平台' },
+    video:     { icon: '🎬', name: '看视频' },
+    audio:     { icon: '🎵', name: '听音频' },
+    read:      { icon: '📖', name: '阅读' },
+    task:      { icon: '✅', name: '完成任务' },
+    word:      { icon: '🔤', name: '单词练习' },
+    dictation: { icon: '✍️', name: '听写' },
+    habit:     { icon: '⭐', name: '习惯打卡' },
+    game:      { icon: '🎮', name: '小游戏' },
+  };
+  function fpCutoff() { return addDays(todayStr(), -(FP_KEEP - 1)); }
+  function fpGc(d) {
+    const arr = (d && Array.isArray(d.footprints)) ? d.footprints : [];
+    const cut = fpCutoff();
+    let out = arr.filter(x => x && typeof x.date === 'string' && x.date >= cut);
+    if (out.length > FP_MAX) out = out.slice(out.length - FP_MAX);   // 超了就丢最旧的
+    if (d) d.footprints = out;
+    return out.length !== arr.length || out !== arr;
+  }
+  function fpWho() {
+    try { const k = kidCheck(); return k ? k.id : ''; } catch (e) { return ''; }
+  }
+  /** 记一条。opt: { childId, sec, pts, meta } */
+  function fpAdd(kind, title, opt) {
+    opt = opt || {};
+    const cid = opt.childId || fpWho();
+    if (!cid) return null;                       // 没登录的孩子（妈妈自己在浏览）不记
+    if (!Array.isArray(DATA.footprints)) DATA.footprints = [];
+    const now = Date.now();
+    const rec = {
+      id: 'f' + now.toString(36) + Math.random().toString(36).slice(2, 6),
+      childId: cid, at: now, date: todayStr(),
+      kind: FP_KINDS[kind] ? kind : 'task',
+      title: String(title || '').slice(0, 80) || (FP_KINDS[kind] ? FP_KINDS[kind].name : '活动'),
+    };
+    if (opt.sec > 0) rec.sec = Math.round(opt.sec);
+    if (opt.pts) rec.pts = Number(opt.pts) || 0;
+    if (opt.meta) rec.meta = opt.meta;
+    DATA.footprints.push(rec);
+    fpGc(DATA);
+    return rec;
+  }
+  /** DATA 被整包换掉时，把本机已有的足迹按 id 补回去（合并规则只认 id）*/
+  function fpAdopt(d, oldArr) {
+    if (!d) return;
+    if (!Array.isArray(d.footprints)) d.footprints = [];
+    const have = {};
+    for (let i = 0; i < d.footprints.length; i++) if (d.footprints[i] && d.footprints[i].id) have[d.footprints[i].id] = 1;
+    for (let i = 0; i < (oldArr || []).length; i++) {
+      const f = oldArr[i];
+      if (f && f.id && !have[f.id]) d.footprints.push(f);
+    }
+    fpGc(d);
+  }
+  /** 撤销时把今天这条抹掉（取消打卡、退星等）*/
+  function fpDrop(childId, kind, title, date) {
+    if (!Array.isArray(DATA.footprints)) return;
+    const d = date || TODAY;
+    for (let i = DATA.footprints.length - 1; i >= 0; i--) {
+      const f = DATA.footprints[i];
+      if (f && f.childId === childId && f.kind === kind && f.title === title && f.date === d) {
+        DATA.footprints.splice(i, 1);
+        return;
+      }
+    }
+  }
+  // ---- 计时：看视频 / 读书这类有持续时长的 ----
+  // 同一时刻只记一件事；精确时长由播放器自己累加（fpAcc），
+  // 管不了播放器的（B站 iframe、阅读器）退化为「打开到关闭」的墙钟时间，并扣掉切后台的时间。
+  let FP = null;
+  function fpOpen(kind, title, opt) {
+    fpClose();                                   // 上一件没收尾就先收掉，别串味
+    opt = opt || {};
+    const cid = opt.childId || fpWho();
+    if (!cid) { FP = null; return; }
+    FP = { kind: kind, title: title, childId: cid, t0: Date.now(), acc: 0,
+           hiddenAt: 0, hidden: 0, meta: opt.meta || null };
+  }
+  /** 播放器精确累加（只收正向推进，倒退 / 拖回不算）*/
+  function fpAcc(sec) { if (FP && sec > 0 && sec < 30) FP.acc += sec; }
+  function fpPause() { if (FP && !FP.hiddenAt) FP.hiddenAt = Date.now(); }
+  function fpResume() { if (FP && FP.hiddenAt) { FP.hidden += Date.now() - FP.hiddenAt; FP.hiddenAt = 0; } }
+  function fpClose() {
+    const cur = FP;
+    FP = null;
+    if (!cur) return null;
+    if (cur.hiddenAt) { cur.hidden += Date.now() - cur.hiddenAt; cur.hiddenAt = 0; }
+    let sec;
+    if (cur.acc > 0) sec = cur.acc;                                    // 播放器给了精确值
+    else sec = Math.min((Date.now() - cur.t0 - cur.hidden) / 1000, 3 * 3600);  // 忘了关最多算 3 小时
+    if (sec < 5) return null;                                          // 误点一下不算
+    const rec = fpAdd(cur.kind, cur.title, { childId: cur.childId, sec: sec, meta: cur.meta });
+    // 弹窗关掉之后不会再有别的保存动作，这里必须自己落盘，否则刷新就没了
+    try { if (rec) saveData(DATA); } catch (e) {}
+    return rec;
+  }
+  /** 弹窗被关掉 = 这件事结束了。用 MutationObserver 一次覆盖所有弹窗，
+   *  不用在每个播放器的关闭按钮上分别挂一遍（迟早会漏）。 */
+  function fpWatchModals() {
+    try {
+      if (typeof MutationObserver === 'undefined') return;
+      const root = document.getElementById('modal-root');
+      if (!root) return;
+      new MutationObserver(function (muts) {
+        for (let i = 0; i < muts.length; i++) {
+          const rm = muts[i].removedNodes || [];
+          for (let j = 0; j < rm.length; j++) {
+            if (rm[j] && rm[j].classList && rm[j].classList.contains('modal-mask')) fpClose();
+          }
+        }
+      }).observe(root, { childList: true });
+    } catch (e) {}
+  }
   function kidCheck() {
     const id = sessionStorage.getItem('kid-auth');
     return id && DATA.children.find(c => c.id === id);
@@ -1990,7 +2252,9 @@
       } else {
         awardStars(c, n, title);
       }
+      fpAdd('habit', h.title, { childId: c.id, pts: h.kind === 'penalty' ? -n : n });
     } else {
+      fpDrop(c.id, 'habit', h.title, TODAY);
       const log = habitLogOn(h.id, c.id, TODAY);
       if (log) {
         tombAdd('habitLogs', log.id);
@@ -2589,12 +2853,14 @@
       const k = DATA.children.find(c => c.id === t.childId);
       k.earned = (k.earned || 0) + t.points; k.points += t.points;
       DATA.pointsHistory.unshift({ id: 'h'+Date.now(), childId: k.id, date: t.date || TODAY, title: t.title, points: t.points, at: Date.now() });
+      fpAdd('task', t.title, { childId: k.id, pts: t.points });
       toast(`+${t.points} 分 · 已记录给 ${k.name}`);
     } else {
       t.doneAt = null;
       const k = DATA.children.find(c => c.id === t.childId);
       k.points = Math.max(0, k.points - t.points);
       DATA.pointsHistory = DATA.pointsHistory.filter(h => !(h.childId===k.id && h.title===t.title && h.date===(t.date||TODAY)));
+      fpDrop(k.id, 'task', t.title, t.date || TODAY);
     }
     saveData(DATA); render();
   }
@@ -2883,6 +3149,7 @@
     k.points += wt.points;
     const s = wtSet(wt);
     DATA.pointsHistory.unshift({ id: 'h' + Date.now(), childId: k.id, date: TODAY, title: `单词打卡：${s.title} ×${wt.count}`, points: wt.points });
+    fpAdd('word', s.title + ' ×' + wt.count, { childId: k.id, pts: wt.points });
     saveData(DATA);
     toast(`单词任务全部完成！+${wt.points} 分 🎉`);
   }
@@ -3404,6 +3671,7 @@
       const c = DATA.children.find(x => x.id === dt.childId);
       if (c) awardStars(c, gain, `听写：${s.title} ${right}/${total}`);
     }
+    fpAdd('dictation', s.title + ' ' + right + '/' + total, { childId: dt.childId, pts: first ? gain : 0 });
     saveData(DATA);
     DIC.phase = 'done';
     DIC.result = { right, total, wrong, gain, first };
@@ -4883,7 +5151,8 @@
       </div>`;
     document.getElementById('modal-root').appendChild(mask);
     SV = { task, video: document.getElementById('sv-video'), maxSeen: 0, finished: false, rate: 0,
-           subUrl: '', subOn: false, subBlob: '' };
+           subUrl: '', subOn: false, subBlob: '', lastT: null };
+    fpOpen('video', title, { childId: task && task.childId });
     const v = SV.video;
     if (!v) { closeSv(); return; }
     if (subUrl) svLoadSub(v, subUrl);
@@ -5031,6 +5300,9 @@
       return;
     }
     if (v.currentTime > SV.maxSeen) SV.maxSeen = v.currentTime;
+    // 学习足迹：只累加「正常往前播」的那部分，拖回 / 跳段都不算看过
+    if (SV.lastT != null && v.currentTime > SV.lastT) fpAcc(v.currentTime - SV.lastT);
+    SV.lastT = v.currentTime;
     if (v.playbackRate > 1.5) v.playbackRate = 1.5;   // 倍速封顶
     const pct = Math.max(0, Math.min(100, v.currentTime / v.duration * 100));
     const bar = document.getElementById('sv-bar-in');
@@ -5110,6 +5382,7 @@
     if (cover) { const sp = cover.querySelector('span'); if (sp) sp.textContent = '设备不支持该格式'; }
   }
   function closeSv() {
+    fpClose();
     if (SV && SV.video) {
       try { SV.video.pause(); } catch (e) {}
       const pct = SV.task.videoProgress || 0;
@@ -5128,6 +5401,7 @@
 
   // ---- 宽松模式（B站等外站，管不了播放器，孩子自己确认）----
   function openLooseVideo(task, title, bili, rawUrl, subUrl) {
+    fpOpen('video', title, { childId: task && task.childId, meta: { src: 'bilibili' } });
     let iframe = '';
     if (bili) {
       const u = biliUrls(bili);
@@ -5215,6 +5489,7 @@
   }
   /** 关任何视频弹窗都走这里：先退出全屏（不然壳会一直横屏 + 常亮），再移除。 */
   function closeVideoModal(el) {
+    fpClose();
     const mask = el && el.closest ? el.closest('.modal-mask') : null;
     if (mask) { try { videoFsSet(mask, false); } catch (e) {} mask.remove(); }
     else if (el && el.remove) el.remove();
@@ -5225,6 +5500,7 @@
     t.done = true; t.doneAt = Date.now();
     t.videoProgress = 100;
     t.proofData = { type: 'video', data: null, at: Date.now() };
+    fpClose();
     const k = DATA.children.find(c => c.id === t.childId);
     if (k) {
       k.earned = (k.earned || 0) + t.points; k.points += t.points;
@@ -6062,6 +6338,7 @@
     // 默认一律内嵌播放：手机 / 电脑上本来能播的设备完全不受影响。
     // 只有在这台设备点过一次「用 B站 打开」之后，才记住并改成外跳卡。
     if (biliPref() === 'outside') return openBiliCard(title, b);
+    fpOpen('video', title);
     const u = biliUrls(b);
     // 恢复手机原来能正常播放的写法：一律用 player.bilibili.com/player.html（B站官方嵌入地址）。
     // 教训：改成「移动端直接加载 mbplayer.html」后手机直接黑屏连 B站标识都不出来 ——
@@ -6167,6 +6444,7 @@
 
   // 内嵌直链视频播放（video 标签，不跳转）
   function openHtmlVideo(title, url) {
+    fpOpen('video', title);
     const modal = document.createElement('div');
     modal.className = 'modal-mask video-mask';
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
@@ -6190,6 +6468,7 @@
 
   // 内嵌直链音频播放（audio 标签，不跳转）
   function openHtmlAudio(title, url) {
+    fpOpen('audio', title);
     const modal = document.createElement('div');
     modal.className = 'modal-mask video-mask';
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
@@ -6383,6 +6662,7 @@
     return html;
   }
   function openPdfViewer(title, url) {
+    fpOpen('read', title, { meta: { type: 'pdf' } });
     var modal = document.createElement('div');
     modal.className = 'modal-mask video-mask pdf-mask';
     modal.onclick = function (e) { if (e.target === modal) pdfClose(modal); };
@@ -6727,6 +7007,7 @@
   }
 
   function openEpubViewer(title, url) {
+    fpOpen('read', title, { meta: { type: 'epub' } });
     var modal = document.createElement('div');
     modal.className = 'modal-mask video-mask epub-mask';
     modal.onclick = function (e) { if (e.target === modal) epubClose(modal); };
@@ -7228,6 +7509,14 @@
   // 结果妈妈在网页上布置的看视频任务，孩子端 t.kind 是 undefined，退化成普通任务、
   // 点了就直接勾完，根本不放视频。这里启动时对本地数据也补一遍。
   try { DATA = normalizeData(DATA); } catch (e) {}
+  // 学习足迹的收尾钩子。整段包一层：记不上足迹是小事，
+  // 万一哪个环境的浏览器 API 缺一块，把启动打断成白屏、全家打不开平台才是大事。
+  try {
+    fpWatchModals();                     // 弹窗关掉 = 这次观看 / 阅读结束
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) fpPause(); else fpResume(); // 切后台不计时
+    });
+  } catch (e) {}
   window.addEventListener('hashchange', render);
   render();
 
