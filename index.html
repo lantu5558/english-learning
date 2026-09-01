@@ -57,7 +57,8 @@
       display: flex; padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
       z-index: 50;
     }
-    .tab { flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; padding: 6px 0; color: var(--gray-600); }
+    .tab { position:relative; flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; padding: 6px 0; color: var(--gray-600); }
+    .tab .dot { position:absolute; top:3px; right:calc(50% - 20px); width:8px; height:8px; border-radius:50%; background:#F44336; box-shadow:0 0 0 2px var(--bg-card); }
     .tab.active { color: var(--pink-600); }
     .tab svg { width:22px; height:22px; }
     .tab span { font-size: 11px; }
@@ -792,6 +793,8 @@
     wordTasks: [
       { id: 'wt1', childId: 'c1', date: '2026-08-27', setId: 'ws1', count: 5, points: 5, done: false, wordState: {} },
     ],
+    // 轮转计划：布置一次，每天自动出下一批；计划本身不带日期，每天的实例仍是 wordTasks 里的条目
+    wordPlans: [],
     dictations: [],
     homeworks: [],
     // 好习惯清单：长期约定，每天自动出现。习惯本身不带日期，只有「做到了」的记录带日期
@@ -836,6 +839,7 @@
   // 兼容旧数据：补齐单词模块字段
   if (!DATA.wordSets) DATA.wordSets = JSON.parse(JSON.stringify(DEFAULT_DATA.wordSets));
   if (!DATA.wordTasks) DATA.wordTasks = [];
+  if (!DATA.wordPlans) DATA.wordPlans = [];   // 老版本本地数据没有轮转计划，补上空数组
   if (!DATA.dictations) DATA.dictations = [];   // 老版本本地数据没有听写模块，补上空数组
   if (!DATA.homeworks) DATA.homeworks = [];    // 老版本本地数据没有作业栏
   (DATA.resources || []).forEach(r => { if (!r.category) r.category = 'learn'; });
@@ -897,13 +901,13 @@
   // ---- 合并式同步 ----
   // 坑（重要）：原来是「谁后写谁赢」的整包覆盖 —— 妈妈刚加的词库，只要孩子端在
   // 这 2.8 秒里打了一次卡，整包就被冲掉。改成按 id 取并集，两边的新增都能活下来。
-  const MERGE_KEYS = ['resources', 'wordSets', 'wordTasks', 'dictations', 'homeworks', 'tasks', 'rewards', 'redemptions', 'wheel', 'pointsHistory', 'children', 'habits', 'habitLogs', 'footprints'];
+  const MERGE_KEYS = ['resources', 'wordSets', 'wordTasks', 'wordPlans', 'dictations', 'homeworks', 'tasks', 'rewards', 'redemptions', 'wheel', 'pointsHistory', 'children', 'habits', 'habitLogs', 'footprints'];
   // 墓碑：删掉的东西记一笔，别的设备推回来时不许复活
   // （合并规则是「本地新增一律保留」，只删数组会被另一台设备的旧缓存救回来）
   // 坑（2026-08-30）：原来这里只写了 tasks/homeworks，于是资源、奖励、词库这些
   // 删完又活 —— 尤其出厂那 10 条示例资源，任何一台新设备首次打开都自带一份，
   // 一推送就把全家删掉的东西全带回来。凡是用户能删的实体，一律进墓碑。
-  const TOMB_KEYS = ['tasks', 'homeworks', 'resources', 'rewards', 'wordSets', 'wordTasks', 'dictations', 'children', 'wheel', 'habits', 'habitLogs'];
+  const TOMB_KEYS = ['tasks', 'homeworks', 'resources', 'rewards', 'wordSets', 'wordTasks', 'wordPlans', 'dictations', 'children', 'wheel', 'habits', 'habitLogs'];
   const TOMB_TTL = 14 * 86400000;
   function tombAdd(kind, id) {
     if (!id) return;
@@ -1009,6 +1013,7 @@
     if (!d) return d;
     if (!d.wordSets) d.wordSets = JSON.parse(JSON.stringify(DEFAULT_DATA.wordSets));
     if (!d.wordTasks) d.wordTasks = [];
+    if (!d.wordPlans) d.wordPlans = [];
     if (!d.dictations) d.dictations = [];
     if (!d.tomb) d.tomb = {};
     if (!Array.isArray(d.footprints)) d.footprints = [];
@@ -1359,6 +1364,8 @@
     else delete de.dataset.theme;
   }
   function render() {
+    // 每天自动补上今天这一批（幂等：缺才补）。整段包一层，别让轮转出问题把全家页面搞白。
+    try { wpRoll(); } catch (e) {}
     const app = document.getElementById('app');
     const route = location.hash.slice(1).split('?')[0] || 'entry';
     // 按当前孩子套用主题（姐姐=原神提瓦特 / 弟弟=FC足球世界）；妈妈端与入口页保持浅色
@@ -1632,7 +1639,9 @@
       { id:'rewards', icon: ICN.gift, label:'奖励', hash:'mom-rewards' },
       { id:'settings', icon: ICN.sett, label:'设置', hash:'mom-settings' },
     ];
-    return `<div class="tabbar">${tabs.map(t => `<div class="tab ${active===t.id?'active':''}" onclick="location.hash='${t.hash}'">${t.icon}<span>${t.label}</span></div>`).join('')}</div>`;
+    // 词库学完待处理 → 单词 tab 挂红点，不然妈妈根本不知道要来看
+    const wpDot = (function () { try { return wpPendingMom().length; } catch (e) { return 0; } })();
+    return `<div class="tabbar">${tabs.map(t => `<div class="tab ${active===t.id?'active':''}" onclick="location.hash='${t.hash}'">${t.icon}<span>${t.label}</span>${(t.id === 'words' && wpDot && active !== 'words') ? '<i class="dot"></i>' : ''}</div>`).join('')}</div>`;
   }
 
   // ========== 妈妈后台 - 学习记录（近 7 天）==========
@@ -3148,22 +3157,39 @@
     }
   } catch (e) {}
   function wtSet(wt) { return DATA.wordSets.find(s => s.id === wt.setId) || { title: '词库已删除', words: [] }; }
-  function wtProgress(wt) { return Object.keys(wt.wordState || {}).filter(k => wt.wordState[k] >= 3).length; }
+  // 这一批真正有几个词：轮转后从 wt.offset 开始取，末尾不够时按剩下的算
+  function wtBatchSize(wt) {
+    const total = (wtSet(wt).words || []).length;
+    return Math.max(0, Math.min(wt.count || 0, total - (wt.offset || 0)));
+  }
+  function wtProgress(wt) {
+    const start = wt.offset || 0, n = wtBatchSize(wt), st = wt.wordState || {};
+    let c = 0;
+    for (let i = start; i < start + n; i++) if (st[i] >= 3) c++;
+    return c;
+  }
   function wtFirstIncomplete(wt) {
-    const n = Math.min(wt.count, wtSet(wt).words.length);
-    for (let i = 0; i < n; i++) { if ((wt.wordState[i] || 0) < 3) return i; }
+    const start = wt.offset || 0, n = wtBatchSize(wt), st = wt.wordState || {};
+    for (let i = start; i < start + n; i++) { if (st[i] < 3) return i; }
     return -1;
   }
   function wqFinish(wt) {
     if (wt.done) return;
     wt.done = true;
     const k = DATA.children.find(c => c.id === wt.childId);
+    if (!k) return;
     k.points += wt.points;
     const s = wtSet(wt);
-    DATA.pointsHistory.unshift({ id: 'h' + Date.now(), childId: k.id, date: TODAY, title: `单词打卡：${s.title} ×${wt.count}`, points: wt.points });
-    fpAdd('word', s.title + ' ×' + wt.count, { childId: k.id, pts: wt.points });
+    const n = wtBatchSize(wt);
+    DATA.pointsHistory.unshift({ id: 'h' + Date.now(), childId: k.id, date: TODAY, title: `单词打卡：${s.title} ×${n}`, points: wt.points });
+    fpAdd('word', s.title + ' ×' + n, { childId: k.id, pts: wt.points });
+    // 轮转：这一批全部掌握 → 计划前进一批；整本走完 → 标记待妈妈处理
+    if (wt.planId) wpOnTaskDone(wt);
     saveData(DATA);
-    toast(`单词任务全部完成！+${wt.points} 分 🎉`);
+    const p = wt.planId ? wpFind(wt.planId) : null;
+    toast(p && wpDone(p)
+      ? `《${s.title}》整本都学完啦！+${wt.points} 分 🎉 已通知妈妈`
+      : `单词任务全部完成！+${wt.points} 分 🎉`);
   }
 
   // ---- 孩子端：单词任务列表 ----
@@ -3180,22 +3206,27 @@
         ${wts.length ? wts.map(wt => {
           const s = wtSet(wt);
           const q = wt.wq;
-          let pct = 0, badge = `0/${wt.count} 词`, btn = '开始挑战 ▶';
-          if (wt.done) { pct = 100; badge = `${wt.count}/${wt.count} 词`; }
+          const n = wtBatchSize(wt);
+          const p = wt.planId ? wpFind(wt.planId) : null;
+          let pct = 0, badge = `0/${n} 词`, btn = '开始挑战 ▶';
+          if (wt.done) { pct = 100; badge = `${n}/${n} 词`; }
           else if (q && q.list.length) {
             pct = wqPercent(wt);
             const sl = WQ_STAGES[wqStageIdx(q.stage)].label;
             badge = (q.round > 1 ? `第${q.round}轮 · ` : '') + `${sl} ${q.idx + 1}/${q.list.length}`;
             if (q.round > 1 || q.idx > 0 || wqStageIdx(q.stage) > 0) btn = '继续挑战 ▶';
           }
+          const planLine = p ? `<p class="text-mute" style="margin:8px 0 0;font-size:12px">🔁 轮转中：整本已掌握 ${Math.min(p.offset || 0, wpTotal(p))}/${wpTotal(p)} 词${wpDone(p) ? ' · 🎉 全部学完' : ''}</p>` : '';
+          const canMore = wt.done && p && p.active && !wpDone(p);
           return `
           <div class="section">
             <h3>📚 ${esc(s.title)} <span class="badge">${badge}</span></h3>
             <div class="wq-bar"><div class="wq-bar-in" style="width:${pct}%"></div></div>
             <p class="text-mute" style="margin:10px 0">三步走：🔊 全部跟读 → 🌏 全部考意思 → ⌨️ 全部考拼写。<b>错的词会自动再来一轮</b>，全做对 +${wt.points} 分。</p>
             ${wt.done
-              ? '<div class="wq-done">🎉 今日单词已完成，太棒了！</div>'
+              ? '<div class="wq-done">🎉 今日单词已完成，太棒了！</div>' + (canMore ? `<button class="btn-secondary" style="width:100%;margin-top:8px" onclick="wpExtraBatch('${p.id}')">🔁 再来一批（+${wpBatch(p)} 词）</button>` : '')
               : `<button class="btn-primary" style="width:100%" onclick="location.hash='kid-word-quiz?wt=${wt.id}'">${btn}</button>`}
+            ${planLine}
           </div>`;
         }).join('') : '<div class="empty"><div class="emoji">📚</div>今天没有单词任务，等妈妈布置</div>'}
 
@@ -3231,12 +3262,14 @@
   ];
   // 进度存在 wt.wq 上（跟着云同步走，换设备或中途退出都能接着练）
   function wqInit(wt) {
-    const n = Math.min(wt.count, wtSet(wt).words.length);
+    const start = wt.offset || 0;
+    const n = wtBatchSize(wt);
     const q = wt.wq;
     if (!q || !q.list || !q.list.length || !q.stage) {
-      wt.wq = { round: 1, stage: 'read', idx: 0, list: Array.from({ length: n }, (_, i) => i), wrong: [] };
-    } else if (q.list.some(i => i >= n)) {
-      q.list = q.list.filter(i => i < n);
+      // list 存的是「词库里的绝对下标」，轮转靠 offset 整体平移
+      wt.wq = { round: 1, stage: 'read', idx: 0, list: Array.from({ length: n }, (_, i) => start + i), wrong: [] };
+    } else if (q.list.some(i => i < start || i >= start + n)) {
+      q.list = q.list.filter(i => i >= start && i < start + n);
       if (q.idx >= q.list.length) { q.stage = 'read'; q.idx = 0; }
     }
     return wt.wq;
@@ -3250,6 +3283,165 @@
   }
   function wqMarkWrong(wt, wi) { const q = wt.wq; if (q && q.wrong.indexOf(wi) === -1) q.wrong.push(wi); }
   function wqTask(id) { return DATA.wordTasks.find(t => t.id === id); }
+
+  // ========== 单词轮转计划 ==========
+  // 计划(wordPlans) 是长期约定，每天的实例仍是 wordTasks 里带 planId 的普通条目 ——
+  // 这样孩子端/妈妈端按 date 过滤的现有逻辑一行都不用改，同步合并也直接复用现成通道。
+  // 规则（用户确认）：每天自动出一批；上一批没掌握就继续同一批，学会了才前进；
+  //                 当天做完后可以主动「再来一批」加练，加练同样算进轮转进度。
+  function wpList() { return DATA.wordPlans || []; }
+  function wpFind(id) { const a = wpList(); for (let i = 0; i < a.length; i++) if (a[i] && a[i].id === id) return a[i]; return null; }
+  function wpSetOf(p) { return DATA.wordSets.find(s => s.id === p.setId) || { title: '词库已删除', words: [] }; }
+  function wpTotal(p) { return (wpSetOf(p).words || []).length; }
+  function wpBatch(p) { return Math.max(0, Math.min(p.count || 5, wpTotal(p) - (p.offset || 0))); }
+  function wpDone(p) { const t = wpTotal(p); return t > 0 && (p.offset || 0) >= t; }
+  function wpSkipped(p, date) { return (p.skips || []).indexOf(date) >= 0; }
+  function wpTaskFor(p, date) {
+    let r = null;
+    for (let i = 0; i < DATA.wordTasks.length; i++) { const t = DATA.wordTasks[i]; if (t && t.planId === p.id && t.date === date) r = t; }
+    return r; // 取最后一条：同一天加练过多批时，以最新的那批为准
+  }
+  function wpMakeTask(p, date) {
+    const t = { id: 'wt' + Date.now() + '' + Math.floor(Math.random() * 1000), planId: p.id, childId: p.childId,
+                date: date, setId: p.setId, count: p.count || 5, points: p.points || 5,
+                offset: p.offset || 0, done: false, wordState: {} };
+    DATA.wordTasks.push(t);
+    return t;
+  }
+  // 每天自动填充：缺今天这条就补。offset 只在「上一批做完了」时才前进（见 wpOnTaskDone），
+  // 所以昨天没学会的话，今天拿到的还是同一批 —— 不前进，不夹生。
+  function wpRoll(silent) {
+    if (!Array.isArray(DATA.wordPlans)) DATA.wordPlans = [];
+    let changed = false;
+    for (let i = 0; i < DATA.wordPlans.length; i++) {
+      const p = DATA.wordPlans[i];
+      if (!p || !p.setId) continue;
+      if (wpDone(p)) {
+        if (!p.finished) { p.finished = true; p.finishedAt = TODAY; p.active = false; p.momAck = false; changed = true; }
+        continue;
+      }
+      if (p.finished) { p.finished = false; p.finishedAt = ''; changed = true; } // 词库被加词/改回来 → 自愈
+      if (!p.active || wpSkipped(p, TODAY)) continue;
+      // 换过词库或换过孩子时，今天那条旧实例已经对不上了（哪怕它已完成），必须按新配置再发一条，
+      // 否则孩子端看到的还是旧词库、当天也练不了新词。
+      const cur = wpTaskFor(p, TODAY);
+      if ((!cur || cur.setId !== p.setId || cur.childId !== p.childId) && wpBatch(p) > 0) { wpMakeTask(p, TODAY); changed = true; }
+    }
+    if (changed && !silent) saveData(DATA);
+    return changed;
+  }
+  // 加练：当天这批做完后主动再来一批（算进轮转进度）
+  function wpExtraBatch(planId) {
+    const p = wpFind(planId);
+    if (!p) return;
+    if (!p.active || wpDone(p)) { toast('这个词库已经全部学完啦 🎉'); render(); return; }
+    const t = wpMakeTask(p, TODAY);
+    p.skips = (p.skips || []).filter(d => d !== TODAY);
+    saveData(DATA);
+    location.hash = 'kid-word-quiz?wt=' + t.id;
+  }
+  // 一批做完 → 计划前进；整本走完 → 挂起等妈妈处理（妈妈端顶部横幅 + 底部 tab 红点）
+  function wpOnTaskDone(wt) {
+    const p = wt && wt.planId ? wpFind(wt.planId) : null;
+    if (!p) return;
+    p.offset = (p.offset || 0) + wtBatchSize(wt);
+    if (wpDone(p)) { p.finished = true; p.finishedAt = TODAY; p.active = false; p.momAck = false; }
+  }
+  function wpPendingMom() {
+    const a = wpList(), r = [];
+    for (let i = 0; i < a.length; i++) if (a[i] && a[i].finished && !a[i].momAck) r.push(a[i]);
+    return r;
+  }
+  function wpToggle(id) {
+    const p = wpFind(id); if (!p) return;
+    if (p.finished) { wpRestart(id); return; }
+    p.active = !p.active;
+    if (p.active) p.skips = (p.skips || []).filter(d => d !== TODAY);
+    saveData(DATA); wpRoll(); render();
+    toast(p.active ? '已继续，明天自动出下一批' : '已停止，不再自动出新的一批（已布置的还在）');
+  }
+  function wpRestart(id) {
+    const p = wpFind(id); if (!p) return;
+    const s = wpSetOf(p);
+    if (!confirm('《' + s.title + '》从头再学一遍？\n已掌握的进度会清零，重新从第 1 个词开始。')) return;
+    p.offset = 0; p.finished = false; p.finishedAt = ''; p.active = true; p.momAck = true;
+    p.skips = (p.skips || []).filter(d => d !== TODAY);
+    saveData(DATA); wpRoll(); render(); toast('已重新开始');
+  }
+  function wpAck(id) {
+    const p = wpFind(id); if (!p) return;
+    p.momAck = true; saveData(DATA); render();
+  }
+  function delWordPlan(id) {
+    const p = wpFind(id); if (!p) return;
+    const s = wpSetOf(p);
+    if (!confirm('删除「' + s.title + '」的轮转计划？\n已掌握的进度会一起清掉，今天没做完的那批也会撤掉。')) return;
+    (DATA.wordTasks || []).filter(t => t.planId === id && !t.done).forEach(t => tombAdd('wordTasks', t.id));
+    DATA.wordTasks = (DATA.wordTasks || []).filter(t => t.planId !== id || t.done);
+    tombAdd('wordPlans', id);
+    DATA.wordPlans = wpList().filter(x => x.id !== id);
+    saveData(DATA); render(); toast('已删除轮转计划');
+  }
+  function openWordPlanModal(id) {
+    const p = wpFind(id); if (!p) return;
+    const modal = document.createElement('div');
+    modal.className = 'modal-mask';
+    modal.onclick = function (e) { if (e.target === modal) modal.remove(); };
+    modal.innerHTML =
+      '<div class="modal">' +
+        '<button class="icon-btn close" onclick="this.closest(\'.modal-mask\').remove()">✕</button>' +
+        '<h3>编辑轮转计划</h3>' +
+        '<div class="field"><label>给谁</label>' +
+          '<select id="wp-child">' + DATA.children.map(function (c) {
+            return '<option value="' + c.id + '"' + (c.id === p.childId ? ' selected' : '') + '>' + c.avatar + ' ' + esc(c.name) + '</option>';
+          }).join('') + '</select></div>' +
+        '<div class="field"><label>词库（换词库会从头开始）</label>' +
+          '<select id="wp-set">' + DATA.wordSets.map(function (x) {
+            return '<option value="' + x.id + '"' + (x.id === p.setId ? ' selected' : '') + '>📚 ' + esc(x.title) + '（' + x.words.length + ' 词）</option>';
+          }).join('') + '</select></div>' +
+        '<div class="field"><label>每天学几个</label>' +
+          '<input id="wp-count" type="number" value="' + p.count + '" min="1" max="20" /></div>' +
+        '<div class="field"><label>每批完成积分</label>' +
+          '<input id="wp-points" type="number" value="' + p.points + '" min="1" max="20" /></div>' +
+        '<p class="text-mute" style="font-size:12px">已掌握 ' + Math.min(p.offset || 0, wpTotal(p)) + '/' + wpTotal(p) + ' 词' + (p.finished ? ' · 🎉 已全部学完' : '') + '，换词库会清零重来</p>' +
+        '<div class="btn-row">' +
+          '<button class="btn-secondary" onclick="this.closest(\'.modal-mask\').remove()">取消</button>' +
+          '<button class="btn-primary" onclick="saveWordPlan(\'' + p.id + '\')">保存</button>' +
+        '</div>' +
+      '</div>';
+    document.getElementById('modal-root').appendChild(modal);
+  }
+  function saveWordPlan(id) {
+    const p = wpFind(id); if (!p) return;
+    const setEl = document.getElementById('wp-set');
+    const childEl = document.getElementById('wp-child');
+    const cntEl = document.getElementById('wp-count');
+    const ptsEl = document.getElementById('wp-points');
+    const newSet = setEl ? setEl.value : p.setId;
+    const newChild = childEl ? childEl.value : p.childId;
+    const count = Math.max(1, Math.min(20, parseInt(cntEl && cntEl.value) || p.count));
+    const points = Math.max(1, Math.min(20, parseInt(ptsEl && ptsEl.value) || p.points));
+    const changedSet = newSet !== p.setId;
+    if (changedSet || newChild !== p.childId) {
+      // 换词库/换人 = 换一套进度，旧的掌握记录没意义了，撤掉今天没做完的那批重新发
+      (DATA.wordTasks || []).filter(t => t.planId === p.id && !t.done).forEach(t => tombAdd('wordTasks', t.id));
+      DATA.wordTasks = (DATA.wordTasks || []).filter(t => t.planId !== p.id || t.done);
+      if (changedSet) { p.offset = 0; p.finished = false; p.finishedAt = ''; p.momAck = true; }
+    }
+    // 已经发出去的批次也跟着改每日词数，不然孩子在练的那批还是老数字
+    (DATA.wordTasks || []).forEach(function (t) {
+      if (t.planId !== p.id || t.done) return;
+      t.count = count; t.points = points; t.setId = newSet; t.childId = newChild;
+    });
+    p.setId = newSet; p.childId = newChild; p.count = count; p.points = points;
+    p.active = true;
+    p.skips = (p.skips || []).filter(d => d !== TODAY);
+    saveData(DATA); wpRoll();
+    const m = document.querySelector('.modal-mask'); if (m) m.remove();
+    render();
+    toast(changedSet ? '已换词库，从第一个词重新开始' : '已保存');
+  }
+
 
   // 推进到下一题 / 下一阶段 / 下一轮 / 完成
   function wqAdvance(wtId) {
@@ -3274,8 +3466,8 @@
       toast(`错了 ${n} 个，再来一轮把它们拿下 💪`);
       return;
     }
-    const n = Math.min(wt.count, wtSet(wt).words.length);   // 全对 → 完成
-    for (let i = 0; i < n; i++) wt.wordState[i] = 3;
+    const start = wt.offset || 0, n = wtBatchSize(wt);      // 全对 → 完成
+    for (let i = start; i < start + n; i++) wt.wordState[i] = 3;
     wt.wq = null;
     saveData(DATA);
     wqFinish(wt);
@@ -3289,7 +3481,7 @@
     if (!wt) { location.hash = 'kid-words'; return ''; }
     const s = wtSet(wt);
     if (wt.done) return viewWordQuizDone(wt, s);
-    if (!s.words.length) return '<div class="page"><div class="empty">这个词库是空的</div></div>';
+    if (!s.words.length || (wt.offset || 0) >= s.words.length) return '<div class="page"><div class="empty">这一批没有可学的词了</div></div>';
 
     const q = wqInit(wt);
     const wi = q.list[q.idx];
@@ -3421,10 +3613,16 @@
       <div class="page">
         <div class="wq-word-card">
           <div style="font-size:52px">🎉</div>
-          <div class="w" style="font-size:20px;margin-top:8px">今日单词全部完成！</div>
-          <div class="cn">${esc(s.title)} × ${wt.count} 个 · +${wt.points} 分</div>
+          <div class="w" style="font-size:20px;margin-top:8px">这一批全部完成！</div>
+          <div class="cn">${esc(s.title)} × ${wtBatchSize(wt)} 个 · +${wt.points} 分</div>
         </div>
-        <p class="wq-hint">坚持每天打卡，词汇量蹭蹭涨 📈</p>
+        ${(() => {
+          const p = wt.planId ? wpFind(wt.planId) : null;
+          if (!p) return '<p class="wq-hint">坚持每天打卡，词汇量蹭蹭涨 📈</p>';
+          if (wpDone(p)) return '<p class="wq-hint">🎉 整本词库都学完了，妈妈会给你安排新的</p>';
+          if (!p.active) return '<p class="wq-hint">这批学完啦，妈妈已暂停自动出下一批</p>';
+          return '<button class="btn-secondary" style="width:100%;margin-top:12px" onclick="wpExtraBatch(\'' + p.id + '\')">🔁 再来一批（+' + wpBatch(p) + ' 词）</button>';
+        })()}
       </div>
       ${kidTabBar('words')}
     `;
@@ -3816,33 +4014,91 @@
   // ---- 妈妈端：单词管理 ----
   function viewMomWords() {
     const todays = DATA.wordTasks.filter(t => t.date === TODAY);
+    const pending = wpPendingMom();
+    const plans = wpList();
     return `
       <div class="topbar"><h1>单词打卡</h1><div class="actions"></div></div>
       <div class="page">
+        ${pending.length ? `<div class="section" style="border:2px solid #FFB300;border-radius:var(--radius-md)">
+          <h3>🎉 词库学完了，等你安排</h3>
+          ${pending.map(p => {
+            const k = DATA.children.find(c => c.id === p.childId);
+            const s = wpSetOf(p);
+            return `<div style="padding:12px;border-radius:var(--radius-md);background:var(--gray-50);margin-bottom:10px">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <b>${k ? k.avatar + ' ' + esc(k.name) : ''}</b><span>📚 ${esc(s.title)}</span>
+                <span style="font-size:11px;padding:2px 8px;border-radius:8px;background:var(--green-50);color:var(--green-600)">${wpTotal(p)} 词全部学完</span>
+              </div>
+              <div class="text-mute" style="font-size:12px;margin:6px 0 10px">${p.finishedAt || TODAY} 完成 · 已经停止自动出下一批了，你来决定接下来学什么</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <button class="icon-btn" style="background:var(--indigo-50);color:var(--indigo-600);font-size:12px;font-weight:600" onclick="openWordPlanModal('${p.id}')">✏️ 换个词库</button>
+                <button class="icon-btn" style="background:var(--amber-50);color:var(--amber-600);font-size:12px;font-weight:600" onclick="wpRestart('${p.id}')">🔁 从头再学</button>
+                <button class="icon-btn" style="background:var(--indigo-50);color:var(--indigo-600);font-size:12px;font-weight:600" onclick="wpAck('${p.id}')">知道了</button>
+                <button class="icon-btn" style="background:#FFEBEE;color:#C62828;font-size:12px;font-weight:600" onclick="delWordPlan('${p.id}')">🗑 删除</button>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>` : ''}
+
+        <div class="section">
+          <h3>🔁 自动轮转 <span class="badge">布置一次，每天自动出下一批</span></h3>
+          ${plans.length ? plans.map(p => {
+            const k = DATA.children.find(c => c.id === p.childId);
+            const s = wpSetOf(p);
+            const tot = wpTotal(p), off = Math.min(p.offset || 0, tot);
+            const pct = tot ? Math.round(off / tot * 100) : 0;
+            const t = wpTaskFor(p, TODAY);
+            const state = p.finished
+              ? '<span style="font-size:11px;padding:2px 8px;border-radius:8px;background:var(--green-50);color:var(--green-600)">🎉 已学完</span>'
+              : (p.active ? '<span style="font-size:11px;padding:2px 8px;border-radius:8px;background:var(--indigo-50);color:var(--indigo-600)">进行中</span>'
+                          : '<span style="font-size:11px;padding:2px 8px;border-radius:8px;background:var(--gray-100);color:var(--gray-600)">⏸ 已停止</span>');
+            let todayTip;
+            if (p.finished) todayTip = '已结束';
+            else if (wpSkipped(p, TODAY)) todayTip = '今日已跳过';
+            else if (t) todayTip = t.done ? '今日已完成 ✅' : '今日进度 ' + wtProgress(t) + '/' + wpBatch(p);
+            else todayTip = '待生成';
+            return `<div style="padding:12px;border-radius:var(--radius-md);background:var(--gray-50);margin-bottom:10px">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <b>${k ? k.avatar + ' ' + esc(k.name) : ''}</b><span>📚 ${esc(s.title)}</span>${state}
+              </div>
+              <div class="text-mute" style="font-size:12px;margin:4px 0 6px">已掌握 ${off}/${tot} 词 · 每天 ${p.count} 词 · 每批 +${p.points} 分 · ${todayTip}</div>
+              <div class="wq-bar"><div class="wq-bar-in" style="width:${pct}%"></div></div>
+              <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+                <button class="icon-btn" style="background:var(--indigo-50);color:var(--indigo-600);font-size:12px;font-weight:600" onclick="openWordPlanModal('${p.id}')">✏️ 编辑</button>
+                <button class="icon-btn" style="background:var(--amber-50);color:var(--amber-600);font-size:12px;font-weight:600" onclick="wpToggle('${p.id}')">${p.finished ? '▶️ 继续' : (p.active ? '⏸ 停止' : '▶️ 继续')}</button>
+                <button class="icon-btn" style="background:#FFEBEE;color:#C62828;font-size:12px;font-weight:600" onclick="delWordPlan('${p.id}')">🗑 删除</button>
+              </div>
+            </div>`;
+          }).join('') : '<div class="text-mute" style="padding:6px 0">还没有轮转计划。在下面「布置今日单词」里选好词库点布置，之后每天自动出下一批。</div>'}
+        </div>
+
         <div class="section">
           <h3>今日单词任务</h3>
           ${todays.length ? todays.map(wt => {
             const k = DATA.children.find(c => c.id === wt.childId);
             const s = wtSet(wt);
+            const p = wt.planId ? wpFind(wt.planId) : null;
+            const n = wtBatchSize(wt);
             return `<div class="task">
-              <div class="title"><div class="name">${k.avatar} ${esc(k.name)}</div>
-              <div class="meta">📚 ${esc(s.title)} · ${wtProgress(wt)}/${wt.count} 词 ${wt.done ? '· ✅ 已完成' : ''}</div></div>
+              <div class="title"><div class="name">${k ? k.avatar + ' ' + esc(k.name) : ''} ${p ? '<span style="font-size:11px;padding:2px 6px;border-radius:8px;background:var(--indigo-50);color:var(--indigo-600);font-weight:500">🔁 轮转</span>' : ''}</div>
+              <div class="meta">📚 ${esc(s.title)} · ${wtProgress(wt)}/${n} 词 ${wt.done ? '· ✅ 已完成' : ''}</div></div>
               <button class="icon-btn" style="background:#FFEBEE;color:#C62828" onclick="delWordTask('${wt.id}')">${ICN.trash}</button>
             </div>`;
           }).join('') : '<div class="empty">今天还没布置单词任务</div>'}
         </div>
 
         <div class="section">
-          <h3>布置今日单词</h3>
+          <h3>布置今日单词 <span class="badge">自动轮转</span></h3>
           <div class="field"><label>给谁</label>
             <select id="wt-child">${DATA.children.map(c => `<option value="${c.id}">${c.avatar} ${esc(c.name)}</option>`).join('')}</select></div>
           <div class="field"><label>词库</label>
             <select id="wt-set">${DATA.wordSets.map(s => `<option value="${s.id}">📚 ${esc(s.title)}（${s.words.length} 词）</option>`).join('')}</select></div>
-          <div class="field"><label>今天学几个</label>
+          <div class="field"><label>每天学几个</label>
             <input id="wt-count" type="number" value="5" min="1" max="20" /></div>
-          <div class="field"><label>完成后积分</label>
+          <div class="field"><label>每批完成积分</label>
             <input id="wt-points" type="number" value="5" min="1" max="20" /></div>
-          <button class="btn-primary" style="width:100%" onclick="assignWordTask()">布置</button>
+          <button class="btn-primary" style="width:100%" onclick="assignWordTask()">布置并开始轮转</button>
+          <p class="text-mute" style="font-size:12px;margin-top:8px">布置后每天自动出下一批，整本学完会在本页提醒你。中途想停、想换词库，在上面的「自动轮转」里操作。</p>
         </div>
 
         <div class="section">
@@ -3941,17 +4197,44 @@
   function assignWordTask() {
     const childId = document.getElementById('wt-child').value;
     const setId = document.getElementById('wt-set').value;
-    const count = parseInt(document.getElementById('wt-count').value) || 5;
-    const points = parseInt(document.getElementById('wt-points').value) || 5;
-    const dup = DATA.wordTasks.find(t => t.childId === childId && t.date === TODAY && t.setId === setId && !t.done);
-    if (dup) { toast('这个娃今天已有该词库的任务'); return; }
-    DATA.wordTasks.push({ id: 'wt' + Date.now(), childId, date: TODAY, setId, count, points, done: false, wordState: {} });
-    saveData(DATA); render(); toast('已布置，孩子端"单词"里能看到');
+    const count = Math.max(1, Math.min(20, parseInt(document.getElementById('wt-count').value) || 5));
+    const points = Math.max(1, Math.min(20, parseInt(document.getElementById('wt-points').value) || 5));
+    if (!setId) { toast('先在下面建一个词库'); return; }
+    if (!Array.isArray(DATA.wordPlans)) DATA.wordPlans = [];
+    // 同一个娃 + 同一个词库只保留一份计划，改配置即可；叠两条会互相打架（每天出两批）
+    let p = null;
+    for (let i = 0; i < DATA.wordPlans.length; i++) {
+      const x = DATA.wordPlans[i];
+      if (x && x.childId === childId && x.setId === setId) { p = x; break; }
+    }
+    if (p) {
+      p.count = count; p.points = points; p.active = true;
+      if (p.finished) { p.finished = false; p.finishedAt = ''; p.momAck = true; p.offset = 0; }
+      p.skips = (p.skips || []).filter(d => d !== TODAY);
+      saveData(DATA); wpRoll(); render();
+      toast('已更新这个词的轮转设置');
+      return;
+    }
+    p = { id: 'wp' + Date.now(), childId: childId, setId: setId, count: count, points: points,
+          offset: 0, active: true, finished: false, finishedAt: '', momAck: false, skips: [], createdAt: TODAY };
+    DATA.wordPlans.push(p);
+    saveData(DATA);
+    wpRoll();
+    render();
+    const s = wpSetOf(p);
+    toast('已开启轮转：' + s.title + '，每天 ' + count + ' 词，学完自动提醒你');
   }
   function delWordTask(id) {
-    if (!confirm('删除这个单词任务？')) return;
+    const wt = (DATA.wordTasks || []).find(t => t.id === id);
+    if (!wt) return;
+    const p = wt.planId ? wpFind(wt.planId) : null;
+    if (p) {
+      if (!confirm('删除今天的这一批？\n轮转计划还在，明天会自动出下一批。\n要彻底停掉，请在上面「🔁 自动轮转」里点停止或删除。')) return;
+    } else if (!confirm('删除这个单词任务？')) return;
     tombAdd('wordTasks', id);
     DATA.wordTasks = DATA.wordTasks.filter(t => t.id !== id);
+    // 记一笔：今天被删过了，别让 wpRoll 下一秒又补回来
+    if (p) { p.skips = (p.skips || []).filter(d => d !== TODAY); p.skips.push(TODAY); }
     saveData(DATA); render();
   }
 
@@ -7536,6 +7819,7 @@
   // 结果妈妈在网页上布置的看视频任务，孩子端 t.kind 是 undefined，退化成普通任务、
   // 点了就直接勾完，根本不放视频。这里启动时对本地数据也补一遍。
   try { DATA = normalizeData(DATA); } catch (e) {}
+  try { wpRoll(true); } catch (e) {}   // 跨天了先把今天那批补出来（silent：启动阶段不触发推送）
   // 学习足迹的收尾钩子。整段包一层：记不上足迹是小事，
   // 万一哪个环境的浏览器 API 缺一块，把启动打断成白屏、全家打不开平台才是大事。
   try {
