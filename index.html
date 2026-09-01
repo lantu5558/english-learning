@@ -2565,7 +2565,8 @@
     if (!c) { location.hash='kid-select'; return ''; }
     const learn = DATA.resources.filter(r => (r.category || 'learn') === 'learn' && resForKid(r, c));
     const fun = DATA.resources.filter(r => r.category === 'fun' && resForKid(r, c));
-    const funUnlocked = kidTasksDone(c);
+    const gate = funGate(c);
+    const funUnlocked = gate.unlocked;
     const recent = DATA.resources.filter(r => resForKid(r, c)).slice(-6).reverse();
     return `
       <div class="topbar">
@@ -2613,11 +2614,11 @@
           <h3>最近添加</h3>
           ${recent.length ? recent.map(r => {
             const locked = (r.category === 'fun') && !funUnlocked;
-            return `<div class="resource" style="${locked?'opacity:.6':''}" onclick="openResource('${r.id}')">
+            return `<div class="resource" style="${locked?'opacity:.6':''}" onclick="${locked?'funLockedToast()':'openResource(\'' + r.id + '\')'}">
               <div class="thumb">${locked ? '🔒' : (ICN[r.type]||ICN.pdf)}</div>
               <div class="info">
                 <div class="name">${esc(r.title)}</div>
-                <div class="meta">${r.category === 'fun' ? (funUnlocked ? '🎉 点开观看' : '完成今日打卡后可看') : (RES_CATS[r.col] ? RES_CATS[r.col].name : '资源')}${r.episodes && r.episodes.length >= 2 ? ` · <span style="color:var(--amber-600)">共${r.episodes.length}集</span>` : ''}</div>
+                <div class="meta">${r.category === 'fun' ? (funUnlocked ? (gate.total ? '🎉 今日打卡 ' + gate.done + '/' + gate.total + '，点开观看' : '🎉 今天没有打卡任务，可直接观看') : '🔒 今日打卡 ' + gate.done + '/' + gate.total + '，完成后解锁') : (RES_CATS[r.col] ? RES_CATS[r.col].name : '资源')}${r.episodes && r.episodes.length >= 2 ? ` · <span style="color:var(--amber-600)">共${r.episodes.length}集</span>` : ''}</div>
               </div>
             </div>`;
           }).join('') : '<div class="empty"><div class="emoji">📦</div>妈妈还没放资源</div>'}
@@ -2654,6 +2655,7 @@
     const col = p.key;
     const cat = RES_CATS[col] || RES_CAT_FALLBACK;
     const all = DATA.resources.filter(r => r.col === col && (isMom || resForKid(r, c)));
+    const gate = isMom ? { total: 0, done: 0, unlocked: true } : funGate(c);
     const list = all.filter(r => SUBJ_FILTER === 'all' || (r.subject || 'science') === SUBJ_FILTER);
     return `
       <div class="topbar">
@@ -2668,8 +2670,8 @@
           ${subjTabBar()}
           <h3>${cat.name} <span class="badge">${list.length} 个</span></h3>
           ${list.length ? list.map(r => `
-            <div class="resource" onclick="openResource('${r.id}')">
-              <div class="thumb">${ICN[r.type]||ICN.pdf}</div>
+            <div class="resource"${(!isMom && (r.category||'learn')==='fun' && !gate.unlocked) ? ' style="opacity:.6"' : ''} onclick="${(!isMom && (r.category||'learn')==='fun' && !gate.unlocked) ? 'funLockedToast()' : 'openResource(\'' + r.id + '\')'}">
+              <div class="thumb">${(!isMom && (r.category||'learn')==='fun' && !gate.unlocked) ? '🔒' : (ICN[r.type]||ICN.pdf)}</div>
               <div class="info">
                 <div class="name">${esc(r.title)}</div>
                 <div class="meta">${typeIcon(r.type)}${r.episodes&&r.episodes.length>=2?` · <span style="color:var(--amber-600)">共${r.episodes.length}集</span>`:''}${resSubCount(r)?`<span class="res-sub-tag">CC 字幕</span>`:''}${r.category==='fun'?'<span class="badge-subj" style="background:var(--purple-50);color:var(--purple-600)">🎁 奖励</span>':''}${isMom && resIsNetdisk(r)?`<span class="res-nd-tag" title="网盘链接，平台里打不开，只能跳转">↗ 网盘</span>`:''}${isMom?whoTag(r):''}</div>
@@ -2688,14 +2690,15 @@
     const isMom = p.role === 'mom';
     const c = isMom ? null : kidCheck();
     const kind = p.kind || 'all'; // learn=知识拓展 / fun=休闲娱乐 / all=两组都显示
-    const funUnlocked = isMom ? true : kidTasksDone(c);
+    const gate = isMom ? { total: 0, done: 0, unlocked: true } : funGate(c);
+    const funUnlocked = gate.unlocked;
     const learnList = DATA.resources.filter(r => r.col === 'video' && (r.category || 'learn') !== 'fun' && (isMom || resForKid(r, c)) && (SUBJ_FILTER === 'all' || (r.subject || 'science') === SUBJ_FILTER));
     const funList = DATA.resources.filter(r => r.col === 'video' && (r.category || 'learn') === 'fun' && (isMom || resForKid(r, c)) && (SUBJ_FILTER === 'all' || (r.subject || 'science') === SUBJ_FILTER));
     const card = (r) => {
       const isFun = (r.category || 'learn') === 'fun';
       const locked = !isMom && isFun && !funUnlocked;
       const multi = r.episodes && r.episodes.length >= 2;
-      return `<div class="resource" style="${locked?'opacity:.6':''}" onclick="openResource('${r.id}')">
+      return `<div class="resource" style="${locked?'opacity:.6':''}" onclick="${locked?'funLockedToast()':'openResource(\'' + r.id + '\')'}">
         <div class="thumb">${locked ? '🔒' : (RES_CATS[r.col] ? RES_CATS[r.col].emoji : '📺')}</div>
         <div class="info">
           <div class="name">${esc(r.title)}</div>
@@ -3953,9 +3956,24 @@
   }
 
   // ========== 星星乐园（转盘 + 小游戏） ==========
+  // 奖励门禁统一入口：今天有打卡任务且全部完成才解锁；今天没布置任务 → 不卡孩子。
+  // 只统计「打卡任务」DATA.tasks，不含「作业」DATA.homeworks（作业不打卡计分）。
+  // 列表渲染与 openResource 必须共用这一个函数，别各写一份 filter，否则迟早漂移。
+  function funGate(c) {
+    const todays = (DATA.tasks || []).filter(t => t.childId === (c && c.id) && t.date === TODAY);
+    const total = todays.length;
+    const done = todays.filter(t => t.done).length;
+    return { total: total, done: done, unlocked: total === 0 || done === total };
+  }
   function kidTasksDone(c) {
-    const todays = DATA.tasks.filter(t => t.childId === c.id && t.date === TODAY);
-    return todays.length === 0 || todays.every(t => t.done);
+    return funGate(c).unlocked;
+  }
+  // 锁定时点击的统一提示：带上打卡进度，家长一眼能看出是「没布置」还是「没做完」
+  function funLockedToast() {
+    const g = funGate(kidCheck());
+    toast(g.total
+      ? ('\ud83d\udd12 \u5148\u5b8c\u6210\u4eca\u5929\u7684\u6253\u5361\u4efb\u52a1\uff08' + g.done + '/' + g.total + '\uff09\uff0c\u518d\u6765\u89e3\u9501\u5427')
+      : '\ud83d\udd12 \u4eca\u5929\u8fd8\u6ca1\u6709\u6253\u5361\u4efb\u52a1\uff0c\u5148\u8ba9\u5988\u5988\u5e03\u7f6e\u5427');
   }
   function awardStars(c, n, title) {
     c.earned = (c.earned || 0) + n;
@@ -6000,9 +6018,7 @@
     if (!r) return;
     // 奖励资源：孩子端需当日打卡全部完成才能看
     if ((r.category || 'learn') === 'fun' && kidCheck()) {
-      const c = kidCheck();
-      const todays = DATA.tasks.filter(t => t.childId === c.id && t.date === TODAY);
-      if (todays.length && !todays.every(t => t.done)) { toast('🔒 先完成今天的打卡任务，再来解锁吧'); return; }
+      if (!kidTasksDone(kidCheck())) { funLockedToast(); return; }
     }
     // 多集/合集：先弹分集选择
     if (r.episodes && r.episodes.length >= 2) { openEpisodePicker(r); return; }
@@ -6176,6 +6192,8 @@
   function playEpisode(id, i) {
     const r = DATA.resources.find(x => x.id === id);
     if (!r || !r.episodes || !r.episodes[i]) return;
+    // 兜底：分集直连也要过奖励门禁，别被单独触发时绕过
+    if ((r.category || 'learn') === 'fun' && kidCheck() && !kidTasksDone(kidCheck())) { funLockedToast(); return; }
     const ep = r.episodes[i];
     const label = ep.title || (r.title + ' 第' + (i + 1) + '集');
     const cur = document.querySelector('.modal-mask');
