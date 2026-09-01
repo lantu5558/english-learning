@@ -1,4 +1,4 @@
-const CACHE = 'lebao-v5';
+const CACHE = 'lebao-v6';
 // 动态计算基准路径，兼容根目录和子目录部署（如 /english-learning/）
 const BASE = self.location.pathname.replace(/sw\.js$/, '');
 const ASSETS = [BASE, BASE + 'index.html', BASE + 'manifest.json', BASE + 'icon.svg'];
