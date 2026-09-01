@@ -24,6 +24,7 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.JavascriptInterface;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 
@@ -90,6 +91,7 @@ public class MainActivity extends AppCompatActivity {
         fullscreenContainer = findViewById(R.id.fullscreen_container);
 
         configWebSettings();
+        web.addJavascriptInterface(new LebaoAppBridge(), "LebaoApp");
         configClients();
         askPermissions();
 
@@ -473,5 +475,16 @@ public class MainActivity extends AppCompatActivity {
             web = null;
         }
         super.onDestroy();
+    }
+
+    /**
+     * JS 桥：网页 window.LebaoApp.setFullscreen(true/false) 控制原生沉浸全屏。
+     * 之前漏注册，导致网页全屏请求静默失败（"没有全屏"）。
+     */
+    private class LebaoAppBridge {
+        @JavascriptInterface
+        public void setFullscreen(boolean on) {
+            runOnUiThread(() -> applyFullscreen(on));
+        }
     }
 }
