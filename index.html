@@ -748,15 +748,15 @@
       { id: 'r8', type: 'audio', subject: 'chinese', title: '成语故事音频 50 集', url: 'https://share.weiyun.com/xxx', category: 'learn' },
       { id: 'r9', type: 'video', subject: 'wuhua', title: '科学小实验：水的三态', url: 'https://share.weiyun.com/xxx', category: 'learn' },
       { id: 'r10', type: 'video', subject: 'english', title: '🎁 奖励：佩奇和乔治的搞笑片段', url: 'https://share.weiyun.com/xxx', category: 'fun' },
-      { id: 'r11', type: 'epub', subject: 'chinese', title: '暗恋橘生淮南', url: 'books/暗恋橘生淮南.epub', category: 'learn' },
-      { id: 'r12', type: 'epub', subject: 'chinese', title: '解忧杂货店', url: 'books/解忧杂货店.epub', category: 'learn' },
-      { id: 'r13', type: 'pdf',  subject: 'chinese', title: '三毛全集1：撒哈拉的故事', url: 'books/三毛全集1撒哈拉的故事.pdf', category: 'learn' },
-      { id: 'r14', type: 'pdf',  subject: 'chinese', title: '小王子（德语版）', url: 'books/小王子(德语版).pdf', category: 'learn' },
-      { id: 'r15', type: 'pdf',  subject: 'chinese', title: '仓央嘉措诗集', url: 'books/仓央嘉措诗集.pdf', category: 'learn' },
-      { id: 'r16', type: 'epub', subject: 'chinese', title: '乌合之众：大众心理研究', url: 'books/乌合之众.epub', category: 'learn' },
-      { id: 'r17', type: 'epub', subject: 'chinese', title: '你是那人间的四月天', url: 'books/你是那人间的四月天.epub', category: 'learn' },
-      { id: 'r18', type: 'epub', subject: 'chinese', title: '唐诗三百首', url: 'books/唐诗三百首.epub', category: 'learn' },
-      { id: 'r19', type: 'epub', subject: 'chinese', title: '封神演义', url: 'books/封神演义.epub', category: 'learn' },
+      { id: 'r11', type: 'epub', subject: 'chinese', title: '暗恋橘生淮南', url: 'books/暗恋橘生淮南.epub', category: 'learn', builtin: true },
+      { id: 'r12', type: 'epub', subject: 'chinese', title: '解忧杂货店', url: 'books/解忧杂货店.epub', category: 'learn', builtin: true },
+      { id: 'r13', type: 'pdf',  subject: 'chinese', title: '三毛全集1：撒哈拉的故事', url: 'books/三毛全集1撒哈拉的故事.pdf', category: 'learn', builtin: true },
+      { id: 'r14', type: 'pdf',  subject: 'chinese', title: '小王子（德语版）', url: 'books/小王子(德语版).pdf', category: 'learn', builtin: true },
+      { id: 'r15', type: 'pdf',  subject: 'chinese', title: '仓央嘉措诗集', url: 'books/仓央嘉措诗集.pdf', category: 'learn', builtin: true },
+      { id: 'r16', type: 'epub', subject: 'chinese', title: '乌合之众：大众心理研究', url: 'books/乌合之众.epub', category: 'learn', builtin: true },
+      { id: 'r17', type: 'epub', subject: 'chinese', title: '你是那人间的四月天', url: 'books/你是那人间的四月天.epub', category: 'learn', builtin: true },
+      { id: 'r18', type: 'epub', subject: 'chinese', title: '唐诗三百首', url: 'books/唐诗三百首.epub', category: 'learn', builtin: true },
+      { id: 'r19', type: 'epub', subject: 'chinese', title: '封神演义', url: 'books/封神演义.epub', category: 'learn', builtin: true },
     ],
     rewards: [
       { id: 'rw1', title: '小猪佩奇 第27集', emoji: '🐷', cost: 50, url: 'https://share.weiyun.com/xxx', cat: 'cartoon' },
@@ -1009,6 +1009,36 @@
     return out;
   }
 
+  // ========== 内置资源补种 ==========
+  // 坑（重要）：DEFAULT_DATA 里的资源只有「新装 / 重置」时才会写进本地（见 loadData），
+  // 家里已经在用的几台设备 localStorage 里早就有自己的数据，后来新加的电子书永远看不见。
+  // 所以这里按 id 补齐：只补带 builtin 标记的内置资源，并且尊重墓碑 —— 妈妈删过的不复活。
+  // 以后再往 DEFAULT_DATA 加书，只要打上 builtin:true，全家设备下次打开就会自动出现。
+  let BUILTIN_SEEDED = 0;
+  function seedBuiltinResources(d) {
+    if (!d) return 0;
+    if (!Array.isArray(d.resources)) d.resources = [];
+    const tombR = (d.tomb && Array.isArray(d.tomb.resources)) ? d.tomb.resources : [];
+    let added = 0;
+    const src = DEFAULT_DATA.resources;
+    for (let i = 0; i < src.length; i++) {
+      const r0 = src[i];
+      if (!r0 || !r0.builtin || !r0.id) continue;           // 只补打了 builtin 标记的
+      let buried = false;
+      for (let j = 0; j < tombR.length; j++) { if (tombR[j] && tombR[j].id === r0.id) { buried = true; break; } }
+      if (buried) continue;                                  // 妈妈删过的：不复活
+      let has = false;
+      for (let k = 0; k < d.resources.length; k++) {
+        if (d.resources[k] && d.resources[k].id === r0.id) { has = true; break; }
+      }
+      if (has) continue;
+      d.resources.push(JSON.parse(JSON.stringify(r0)));
+      added++;
+    }
+    BUILTIN_SEEDED += added;
+    return added;
+  }
+
   function normalizeData(d) {
     if (!d) return d;
     if (!d.wordSets) d.wordSets = JSON.parse(JSON.stringify(DEFAULT_DATA.wordSets));
@@ -1016,6 +1046,7 @@
     if (!d.wordPlans) d.wordPlans = [];
     if (!d.dictations) d.dictations = [];
     if (!d.tomb) d.tomb = {};
+    seedBuiltinResources(d);          // 补种新上架的内置资源（删过的不复活）
     if (!Array.isArray(d.footprints)) d.footprints = [];
     fpGc(d);
     // 老版本改过的密码没有 momPwdTs，补一个最早的标记，让后续合并有得可比
@@ -1577,7 +1608,7 @@
                 <div class="checkbox">${t.done?ICN.check:''}</div>
                 <div class="title">
                   <div class="name">${esc(t.title)}</div>
-                  <div class="meta">${k.avatar} ${esc(k.name)}${t.groupId&&DATA.tasks.filter(x=>x.groupId===t.groupId).length>1?` · 📅 连排${DATA.tasks.filter(x=>x.groupId===t.groupId).length}天`:''}${t.remindAt?` · ⏰ ${t.remindAt}`:''}${t.done&&t.doneAt?` · ✅ ${fmtClock(t.doneAt)} 完成`:''}${t.proof?` · <span class="proof-badge" onclick="viewTaskProof(event,'${t.id}')">${t.proof==='photo'?'📷':'🎙'}${t.proofData?' 凭证✓':' 待交'}</span>`:''}${res?` · 📎 <span style="color:var(--pink-600)" onclick="openTaskRes(event,'${t.id}')">${esc(res.title)}</span>`:''}</div>
+                  <div class="meta">${k.avatar} ${esc(k.name)}${t.groupId&&DATA.tasks.filter(x=>x.groupId===t.groupId).length>1?` · 📅 连排${DATA.tasks.filter(x=>x.groupId===t.groupId).length}天`:''}${t.remindAt?` · ⏰ ${t.remindAt}`:''}${t.done&&t.doneAt?` · ✅ ${fmtClock(t.doneAt)} 完成`:''}${t.proof?` · <span class="proof-badge" onclick="viewTaskProof(event,'${t.id}')">${t.proof==='photo'?'📷':'🎙'}${t.proofData?' 凭证✓':' 待交'}</span>`:''}${t.pageFrom?` · 📖 <span style="color:var(--green-600)">${taskPageLabel(t)}</span>`:''}${res?` · 📎 <span style="color:var(--pink-600)" onclick="openTaskRes(event,'${t.id}')">${esc(res.title)}</span>`:''}</div>
                 </div>
                 <div class="pts">+${t.points}</div>
                 ${momTaskOps(t)}
@@ -1855,8 +1886,8 @@
             <div class="reward">
               <div class="thumb">${r.emoji}</div>
               <div class="info">
-                <div class="name">${esc(r.title)}</div>
-                <div class="threshold">${rc.emoji} ${rc.name} · 兑换花费 <strong>${r.cost}</strong> 积分${r.cat==='promise'?' · 妈妈许诺':''}</div>
+                <div class="name">${esc(r.title)}${(r.eps&&r.eps.length>=2)?`<span class="text-mute" style="font-size:12px"> · 共${r.eps.length}集</span>`:''}</div>
+                <div class="threshold">${rc.emoji} ${rc.name} · 兑换花费 <strong>${r.cost}</strong> 积分${r.cat==='promise'?' · 妈妈许诺':''}${(r.eps&&r.eps.length>=2)?' · 每集各限看 5 次':''}</div>
               </div>
               <button class="icon-btn" onclick="delReward('${r.id}')">${ICN.trash}</button>
             </div>
@@ -2511,8 +2542,12 @@
               extra = t.done ? ''
                 : `<div class="meta" style="color:${strict?'var(--green-600)':'var(--orange-600)'}">${strict ? '🔒 防快进 · 最高 1.5 倍速' : '⚠️ 看完要自己点「我看完了」'}${pg>0&&pg<100?` · 上次看到 ${Math.round(pg)}%`:''}</div>
                    <button class="btn-primary btn-sm" onclick="event.stopPropagation();openTaskVideo('${t.id}')">▶ ${pg>0&&pg<100?'继续观看':'观看视频'}</button>`;
+            } else if (kind === 'read') {
+              const pgl = taskPageLabel(t);
+              extra = (pgl ? `<div class="meta" style="color:var(--green-600)">📖 今天朗读 ${pgl}</div>` : '')
+                    + (res ? `<div class="meta" style="color:var(--pink-600)" onclick="event.stopPropagation();openTaskRes(event,'${t.id}')">📄 看材料：${esc(res.title)}</div>` : '');
             } else if (res) {
-              const label = kind === 'read' ? '📄 看材料' : '📎 看资料';
+              const label = '📎 看资料';
               extra = `<div class="meta" style="color:var(--pink-600)" onclick="event.stopPropagation();openTaskRes(event,'${t.id}')">${label}：${esc(res.title)}</div>`;
             }
             if (t.done && kind === 'video') {
@@ -2800,8 +2835,8 @@
               return `<div class="reward ${can?'':'locked'}">
                 <div class="thumb">${r.emoji}</div>
                 <div class="info">
-                  <div class="name">${esc(r.title)}</div>
-                  <div class="threshold">兑换花费 ${r.cost} 积分 ${can?'':('· 还差 '+(r.cost-c.points)+' 分')}</div>
+                  <div class="name">${esc(r.title)}${(r.eps&&r.eps.length>=2)?`<span class="text-mute" style="font-size:12px"> · 共${r.eps.length}集</span>`:''}</div>
+                  <div class="threshold">兑换花费 ${r.cost} 积分 ${can?'':('· 还差 '+(r.cost-c.points)+' 分')}${(r.eps&&r.eps.length>=2)?' · 一次兑换看全部':''}</div>
                 </div>
                 <button class="btn-primary" style="padding:6px 12px;font-size:12px" ${can?'':'disabled'} onclick="${can?`redeemReward('${r.id}')`:`''`}">${can?('兑换 -'+r.cost):'积分不够'}</button>
               </div>`;
@@ -2812,20 +2847,25 @@
           <h3>我的兑换 <span class="badge">${myRds.length}</span></h3>
           ${myRds.map(r => {
             const rw = DATA.rewards.find(x => x.id === r.rewardId);
+            const eps = rwEpsOf(rw);
             const hasUrl = !!(rw && rw.url);
+            const multi = eps.length >= 2;
             const v = r.views || 0;
             const left = MAX_REWARD_VIEWS - v;
-            const rewatchable = r.cat !== 'promise' && hasUrl && left > 0;
+            // 多集：整条还剩多少集能看（每集各 5 次），全看完了才提示到顶
+            const leftEps = multi ? eps.filter((e, i) => rwEpLeft(r, i) > 0).length : 0;
+            const rewatchable = r.cat !== 'promise' && hasUrl && (multi ? leftEps > 0 : left > 0);
+            const shown = multi ? (' · 共' + eps.length + '集 · 剩' + leftEps + '集可看') : (hasUrl ? (' · 已看 ' + v + '/' + MAX_REWARD_VIEWS) : '');
             return `
             <div class="reward">
               <div class="thumb">${r.emoji}</div>
               <div class="info">
                 <div class="name">${esc(r.rewardTitle)}</div>
-                <div class="threshold">${r.cost} 积分 · ${r.at?fmtClock(r.at):''} · ${r.status==='pending'?'<span style="color:var(--red-600)">待妈妈兑现</span>':'已兑换'}${hasUrl?(' · 已看 '+v+'/'+MAX_REWARD_VIEWS):''}</div>
+                <div class="threshold">${r.cost} 积分 · ${r.at?fmtClock(r.at):''} · ${r.status==='pending'?'<span style="color:var(--red-600)">待妈妈兑现</span>':'已兑换'}${shown}</div>
               </div>
               ${r.status==='pending' ? '' : (rewatchable
-                ? `<button class="btn-primary" style="padding:6px 12px;font-size:12px" onclick="playRedemption('${r.id}')">再观看 ▶ (剩${left})</button>`
-                : (hasUrl ? `<span class="text-mute" style="font-size:12px">已达${MAX_REWARD_VIEWS}次上限</span>` : ''))}
+                ? `<button class="btn-primary" style="padding:6px 12px;font-size:12px" onclick="${multi?`openRedeemEps('${r.id}')`:`playRedemption('${r.id}')`}">${multi?('选集 ▶ '+eps.length+'集'):('再观看 ▶ (剩'+left+')')}</button>`
+                : (hasUrl ? `<span class="text-mute" style="font-size:12px">${multi?'每集都已看满':'已达'+MAX_REWARD_VIEWS+'次上限'}</span>` : ''))}
             </div>`;
           }).join('') || '<div class="empty">还没有兑换记录</div>'}
         </div>
@@ -2951,6 +2991,7 @@
           </label>
           <div id="proof-preview" style="margin-top:10px"></div>
         ` : `
+          ${(t.pageFrom && taskRes(t)) ? `<button class="btn-secondary" style="width:100%;padding:11px 0;margin-bottom:8px" onclick="event.stopPropagation();openTaskRes(event,'${t.id}')">📖 先看课文（${taskPageLabel(t)}）</button>` : ''}
           <button id="rec-btn" class="btn-secondary" style="width:100%;padding:12px 0" onclick="proofRec()">🎙 点我开始朗读录音</button>
           <div id="rec-status" style="text-align:center;font-size:13px;color:var(--gray-600);margin-top:8px"></div>
           <div id="proof-preview" style="margin-top:10px"></div>
@@ -4142,6 +4183,7 @@
           <h3>词库管理 <button class="text-pink" style="font-size:12px" onclick="openWordSetModal()">${ICN.add} 新建词库</button></h3>
           ${DATA.wordSets.map(s => `<div class="task">
             <div class="title"><div class="name">${setLang(s) === 'zh' ? '🇨🇳' : '🔤'} ${esc(s.title)}</div><div class="meta">${s.words.length} 条 · ${setLang(s) === 'zh' ? '语文（读中文）' : '英语（读英文）'}</div></div>
+            <button class="icon-btn" style="background:#E3F2FD;color:#1565C0" onclick="openWordSetEdit('${s.id}')">${ICN.edit}</button>
             <button class="icon-btn" style="background:#FFEBEE;color:#C62828" onclick="delWordSet('${s.id}')">${ICN.trash}</button>
           </div>`).join('')}
         </div>
@@ -4149,6 +4191,103 @@
       ${momTabBar('words')}
     `;
   }
+  // ========== 词条解析 ==========
+  // 老规则 /^(\S+)\s+(.+)$/ 会把短语切断：'a banana 一根香蕉' → w='a', cn='banana 一根香蕉'。
+  // 新规则按优先级切：Tab/CSV（表格复制） > 显式分隔符 > 英文库按中英边界、语文库按空白 > 整行。
+  var WS_CJK = /[\u2E80-\u9FFF\uF900-\uFAFF\uFF00-\uFFEF]/;
+  function wsStripBullet(l) {
+    return l.replace(/^\s*[0-9]+\s*[.、)．]\s*/, '').replace(/^\s*[-*•]\s+/, '');
+  }
+  function wsUnq(x) {
+    x = String(x == null ? '' : x).trim();
+    if (x.length >= 2 && x.charAt(0) === '"' && x.charAt(x.length - 1) === '"') x = x.slice(1, -1);
+    return x.trim();
+  }
+  function wsSplitCsv(l) {
+    // 只处理最常见的带引号 CSV："a banana","一根香蕉"。不带引号的行返回 null 交给后面的规则
+    if (l.indexOf('"') < 0) return null;
+    const out = []; let cur = ''; let inq = false;
+    for (let i = 0; i < l.length; i++) {
+      const c = l.charAt(i);
+      if (c === '"') { inq = !inq; continue; }
+      if (c === ',' && !inq) { out.push(wsUnq(cur)); cur = ''; continue; }
+      cur += c;
+    }
+    out.push(wsUnq(cur));
+    return (out.length >= 2 && out[0]) ? out : null;
+  }
+  function wsParseLine(raw, lang) {
+    let l = String(raw == null ? '' : raw).replace(/\r/g, '').trim();
+    if (!l) return null;
+    l = wsStripBullet(l);
+    if (!l) return null;
+    let parts = null;
+    if (l.indexOf('\t') >= 0) {
+      parts = l.split('\t');
+    } else {
+      parts = wsSplitCsv(l);
+    }
+    if (!parts) {
+      const mm = l.match(/^([^,，;；|]*)[,，;；|]\s*(.+)$/);
+      if (mm) parts = [mm[1], mm[2]];
+    }
+    if (parts) {
+      const w = String(parts[0] || '').trim();
+      const cn = String(parts[1] || '').trim();
+      if (w) return { w: w, cn: cn };
+    }
+    if (lang === 'zh') {
+      // 语文：词语本身不含空格，直接按空白切最稳（「苹果 píng guǒ」「苹果 一种水果」都对）
+      const mz = l.match(/^(\S+)\s+(.+)$/);
+      if (mz) return { w: mz[1], cn: mz[2] };
+      return { w: l, cn: '' };
+    }
+    // 英语：第一个汉字（或全角符号）出现的位置就是分界线，前面整段是英文短语
+    const mc = l.match(WS_CJK);
+    if (mc && mc.index > 0) {
+      const w = l.slice(0, mc.index).trim();
+      const cn = l.slice(mc.index).trim();
+      if (w) return { w: w, cn: cn };
+    }
+    return { w: l, cn: '' };
+  }
+  function wsParseWords(raw, lang) {
+    const out = [];
+    String(raw == null ? '' : raw).split('\n').forEach(function (l) {
+      const o = wsParseLine(l, lang);
+      if (o) out.push(o);
+    });
+    return out;
+  }
+  function wsPreview() {
+    const box = document.getElementById('ws-preview');
+    if (!box) return;
+    const ta = document.getElementById('ws-words');
+    const langEl = document.getElementById('ws-lang');
+    const ws = wsParseWords(ta ? ta.value : '', langEl ? langEl.value : 'en');
+    if (!ws.length) { box.innerHTML = ''; return; }
+    const n = Math.min(8, ws.length);
+    let h = '<div>已识别 <b>' + ws.length + '</b> 条：</div>';
+    for (let i = 0; i < n; i++) {
+      h += '<div>' + esc(ws[i].w) + (ws[i].cn ? ' <span class="text-mute">→ ' + esc(ws[i].cn) + '</span>' : '') + '</div>';
+    }
+    if (ws.length > n) h += '<div class="text-mute">… 还有 ' + (ws.length - n) + ' 条</div>';
+    box.innerHTML = h;
+  }
+  function wsImportFile(inp) {
+    const f = inp && inp.files && inp.files[0];
+    if (!f) return;
+    const rd = new FileReader();
+    rd.onload = function () {
+      const ta = document.getElementById('ws-words');
+      if (ta) { ta.value = String(rd.result || '').replace(/\r/g, ''); wsPreview(); }
+      toast('已读入 ' + f.name);
+      inp.value = '';
+    };
+    rd.onerror = function () { toast('这个文件读不出来，换个 txt 试试'); inp.value = ''; };
+    rd.readAsText(f, 'utf-8');
+  }
+
   function openWordSetModal() {
     const modal = document.createElement('div');
     modal.className = 'modal-mask';
@@ -4160,12 +4299,21 @@
         <div class="field"><label>词库名称</label>
           <input id="ws-title" placeholder="例：三年级上册 Unit 1" /></div>
         <div class="field"><label>朗读语言</label>
-          <select id="ws-lang">
+          <select id="ws-lang" onchange="wsPreview()">
             <option value="en">英语 —— 读英文单词（英语听写用）</option>
             <option value="zh">语文 —— 读中文词语（语文听写用）</option>
           </select></div>
-        <div class="field"><label>词条列表（每行一个：「单词 中文」或只写词语）</label>
-          <textarea id="ws-words" rows="8" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);font-size:14px" placeholder="apple 苹果&#10;banana 香蕉&#10;cat 猫"></textarea></div>
+        <div class="field"><label>词条列表（每行一条，短语也能认）</label>
+          <textarea id="ws-words" rows="8" oninput="wsPreview()" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);font-size:14px" placeholder="apple 苹果&#10;a banana 一根香蕉&#10;look after 照顾"></textarea>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+            <label class="btn-secondary" style="margin:0;font-size:12px;padding:6px 12px;cursor:pointer;display:inline-block">
+              📄 从文件导入
+              <input type="file" id="ws-file" accept=".txt,.csv,text/plain,text/csv" style="display:none" onchange="wsImportFile(this)" />
+            </label>
+            <span class="text-mute" style="font-size:12px">支持 txt / csv，一行一条</span>
+          </div>
+          <div id="ws-preview" class="text-mute" style="font-size:12px;margin-top:10px;line-height:1.8"></div>
+        </div>
         <div class="btn-row">
           <button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">取消</button>
           <button class="btn-primary" onclick="addWordSet()">保存</button>
@@ -4173,20 +4321,77 @@
       </div>
     `;
     document.getElementById('modal-root').appendChild(modal);
+    wsPreview();
   }
   function addWordSet() {
     const title = document.getElementById('ws-title').value.trim();
     const raw = document.getElementById('ws-words').value;
     if (!title) { toast('给词库起个名'); return; }
-    // 兼容两种写法： 「单词 中文」 或 只有「词语」（语文词表常不带释义）
-    const words = raw.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
-      const m = l.match(/^(\S+)\s+(.+)$/);
-      return m ? { w: m[1], cn: m[2] } : { w: l, cn: '' };
-    });
-    if (!words.length) { toast('至少写一行，格式：「单词 中文」或每行一个词语'); return; }
     const langEl = document.getElementById('ws-lang');
+    const words = wsParseWords(raw, langEl ? langEl.value : 'en');
+    if (!words.length) { toast('至少写一行，格式：「单词 中文」或每行一个词语'); return; }
     DATA.wordSets.push({ id: 'ws' + Date.now(), title, words, lang: langEl ? langEl.value : 'en' });
     saveData(DATA); document.querySelector('.modal-mask').remove(); render(); toast(`已保存 ${words.length} 个单词`);
+  }
+  function openWordSetEdit(id) {
+    const ws = DATA.wordSets.find(s => s.id === id);
+    if (!ws) return;
+    const lg = setLang(ws);
+    const txt = (ws.words || []).map(function (w) { return w.w + (w.cn ? ' ' + w.cn : ''); }).join('\n');
+    const modal = document.createElement('div');
+    modal.className = 'modal-mask';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+      <div class="modal">
+        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+        <h3>编辑词库</h3>
+        <div class="field"><label>词库名称</label>
+          <input id="ws-title" value="${esc(ws.title)}" /></div>
+        <div class="field"><label>朗读语言</label>
+          <select id="ws-lang" onchange="wsPreview()">
+            <option value="en"${lg === 'en' ? ' selected' : ''}>英语 —— 读英文单词（英语听写用）</option>
+            <option value="zh"${lg === 'zh' ? ' selected' : ''}>语文 —— 读中文词语（语文听写用）</option>
+          </select></div>
+        <div class="field"><label>词条列表（每行一条，短语也能认）</label>
+          <div class="text-mute" style="font-size:12px;margin-bottom:6px">以前被切坏的短语（比如只剩个 a），打开后直接点保存就能重新整理好</div>
+          <textarea id="ws-words" rows="12" oninput="wsPreview()" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);font-size:14px">${esc(txt)}</textarea>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+            <label class="btn-secondary" style="margin:0;font-size:12px;padding:6px 12px;cursor:pointer;display:inline-block">
+              📄 从文件导入
+              <input type="file" id="ws-file" accept=".txt,.csv,text/plain,text/csv" style="display:none" onchange="wsImportFile(this)" />
+            </label>
+            <span class="text-mute" style="font-size:12px">导入会覆盖下面全部内容</span>
+          </div>
+          <div id="ws-preview" class="text-mute" style="font-size:12px;margin-top:10px;line-height:1.8"></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">取消</button>
+          <button class="btn-primary" onclick="saveWordSetEdit('${ws.id}')">保存</button>
+        </div>
+      </div>
+    `;
+    document.getElementById('modal-root').appendChild(modal);
+    wsPreview();
+  }
+  function saveWordSetEdit(id) {
+    const ws = DATA.wordSets.find(s => s.id === id);
+    if (!ws) return;
+    const tEl = document.getElementById('ws-title');
+    const ta = document.getElementById('ws-words');
+    const langEl = document.getElementById('ws-lang');
+    const title = ((tEl ? tEl.value : '') || '').trim();
+    if (!title) { toast('给词库起个名'); return; }
+    const words = wsParseWords(ta ? ta.value : '', langEl ? langEl.value : setLang(ws));
+    if (!words.length) { toast('至少写一行词条'); return; }
+    // id 必须原样保留：已经布置出去的单词计划靠 setId 找词库，换 id 会全部变成「词库已删除」
+    ws.title = title;
+    ws.lang = langEl ? langEl.value : ws.lang;
+    ws.words = words;
+    saveData(DATA);
+    const m = document.querySelector('.modal-mask');
+    if (m) m.remove();
+    render();
+    toast('已更新，共 ' + words.length + ' 条');
   }
   function delWordSet(id) {
     if (!confirm('删除词库？已布置的任务会显示"词库已删除"')) return;
@@ -4929,6 +5134,24 @@
           </select>
           <input id="t-pdf-url" placeholder="或粘贴 PDF / 网页链接" style="margin-top:8px" />
           <p class="wq-hint" style="text-align:left;margin-top:6px">孩子打卡时会先看到这份材料，边看边朗读。没有就留空，孩子用自己的课本</p>
+          <div id="t-page-area" style="margin-top:10px">
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--gray-700);cursor:pointer">
+              <input type="checkbox" id="t-page-on" onchange="pageAreaToggle()" style="width:16px;height:16px;flex:none" />
+              <span>指定朗读页码（不勾 = 不分页，孩子自己读到哪算哪）</span>
+            </label>
+            <div id="t-page-box" style="display:none;margin-top:8px">
+              <div id="t-page-new-row" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--gray-700)">
+                <span>从第</span><input id="t-page-start" type="number" min="1" max="9999" value="1" style="width:66px;margin:0" oninput="pageAutoPreview()" />
+                <span>页起，每批</span><input id="t-page-size" type="number" min="1" max="99" value="3" style="width:56px;margin:0" oninput="pageAutoPreview()" />
+                <span>页；同一批连读</span><input id="t-page-repeat" type="number" min="1" max="30" value="3" style="width:56px;margin:0" oninput="pageAutoPreview()" /><span>天再换下一批</span>
+              </div>
+              <div id="t-page-edit-row" style="display:none;gap:6px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--gray-700);margin-top:8px">
+                <span>读到第</span><input id="t-page-to" type="number" min="1" max="9999" style="width:66px;margin:0" /><span>页（改这一天的范围）</span>
+              </div>
+              <div id="t-page-preview" class="wq-hint" style="text-align:left;margin-top:6px;color:var(--green-600)"></div>
+              <p class="wq-hint" style="text-align:left;margin-top:6px">页码按这份 PDF 自己的页数算（第 1 页 = 打开时的第一页）。前面有封面目录就往后填起始页。布置后想改某一天读哪几页：妈妈端「📅 之后的安排」里点那天的编辑</p>
+            </div>
+          </div>
         </div>
 
         <!-- 看视频任务 -->
@@ -4992,7 +5215,7 @@
         </div>
         <div class="field" id="f-repeat">
           <label>📅 重复天数</label>
-          <select id="t-repeat" onchange="epAutoPreview()">
+          <select id="t-repeat" onchange="epAutoPreview();pageAutoPreview()">
             <option value="1">1 天（仅起始这天）</option>
             <option value="2">连续 2 天</option>
             <option value="3">连续 3 天</option>
@@ -5090,6 +5313,64 @@
       box.style.color = 'var(--orange-600)';
     }
   }
+  // ---- 跟读排页：每天读哪几页 ----
+  // 规则（2026-09-01 用户定）：每批 size 页，同一批连读 repeat 天巩固，第 repeat+1 天起进下一批。
+  // 第 i 天（0 起）落在第 floor(i/repeat) 批，页范围 = [start + 批号*size, +size-1]。
+  function pagePlan(dayIndex, start, size, repeat) {
+    const s = Math.max(1, parseInt(start) || 1);
+    const z = Math.max(1, parseInt(size) || 1);
+    const r = Math.max(1, parseInt(repeat) || 1);
+    const block = Math.floor(Math.max(0, parseInt(dayIndex) || 0) / r);
+    const from = s + block * z;
+    return { from: from, to: from + z - 1 };
+  }
+  function pageOn() {
+    const b = document.getElementById('t-page-on');
+    return !!(b && b.checked);
+  }
+  function pageAreaToggle() {
+    const box = document.getElementById('t-page-box');
+    if (box) box.style.display = pageOn() ? 'block' : 'none';
+    pageAutoPreview();
+  }
+  // 连续多天时预览每天读到哪几页（照抄视频任务 epAutoPreview 的写法）
+  function pageAutoPreview() {
+    const pv = document.getElementById('t-page-preview');
+    if (!pv) return null;
+    if (!pageOn()) { pv.textContent = ''; return null; }
+    const start = parseInt((document.getElementById('t-page-start') || {}).value) || 1;
+    const size = parseInt((document.getElementById('t-page-size') || {}).value) || 1;
+    const rep = parseInt((document.getElementById('t-page-repeat') || {}).value) || 1;
+    const days = parseInt((document.getElementById('t-repeat') || {}).value) || 1;
+    if (days <= 1) { pv.textContent = '\uD83D\uDCD6 ' + start + '-' + (start + size - 1) + ' 页'; return null; }
+    const blocks = Math.ceil(days / rep);
+    const parts = [];
+    for (let b = 0; b < blocks; b++) {
+      const p = pagePlan(b * rep, start, size, rep);
+      const cnt = Math.min(rep, days - b * rep);
+      parts.push(p.from + '-' + p.to + '页' + (cnt > 1 ? '\u00D7' + cnt + '天' : ''));
+    }
+    pv.textContent = '\uD83D\uDCC5 连续 ' + days + ' 天：' + parts.join(' \u2192 ');
+    return null;
+  }
+  // 读表单里的页码设置。isEdit=true 时直接取「从第几页到第几页」；否则取自动排的参数
+  function readPageForm(isEdit) {
+    if (!pageOn()) return { from: 0, to: 0 };
+    const start = parseInt((document.getElementById('t-page-start') || {}).value) || 1;
+    if (isEdit) {
+      const to = parseInt((document.getElementById('t-page-to') || {}).value) || start;
+      return { from: Math.min(start, to), to: Math.max(start, to) };
+    }
+    const size = parseInt((document.getElementById('t-page-size') || {}).value) || 1;
+    const p = pagePlan(0, start, size, 1);
+    return { from: p.from, to: p.to, size: size, repeat: parseInt((document.getElementById('t-page-repeat') || {}).value) || 1 };
+  }
+  // 卡片上显示的页码文案；老任务没有 pageFrom 就返回空，行为跟以前一模一样
+  function taskPageLabel(t) {
+    if (!t || !t.pageFrom) return '';
+    const to = t.pageTo || t.pageFrom;
+    return t.pageFrom === to ? ('第 ' + t.pageFrom + ' 页') : ('第 ' + t.pageFrom + '-' + to + ' 页');
+  }
   function onTaskPdfChange() {}
 
   // 标题里已经写了集数就不重复追加
@@ -5155,6 +5436,13 @@
 
     // 看视频任务 + 连续多天：每天自动往后排一集（这组合集排完就从头再来）
     let autoEp = false, epTotal = 0, startEp = 0;
+    // 跟读任务 + 指定页码：每批几页 × 连读几天，第 repeat+1 天起进下一批
+    let pgOn = false, pgStart = 1, pgSize = 1, pgRep = 1;
+    if (kind === 'read') {
+      const pf0 = readPageForm(false);
+      pgOn = pf0.from > 0;
+      pgStart = pf0.from || 1; pgSize = pf0.size || 1; pgRep = pf0.repeat || 1;
+    }
     if (kind === 'video' && repeat > 1) {
       const er = resId ? DATA.resources.find(x => x.id === resId) : null;
       epTotal = (er && er.episodes) ? er.episodes.length : 0;
@@ -5167,17 +5455,19 @@
     for (let i = 0; i < repeat; i++) {
       const ei = autoEp ? ((startEp + i) % epTotal) : epIndex;
       if (autoEp) epDays.push(ei + 1);
+      let pf = 0, pt = 0;
+      if (pgOn) { const p = pagePlan(i, pgStart, pgSize, pgRep); pf = p.from; pt = p.to; }
       DATA.tasks.push({ id: 't' + Date.now() + '-' + i, groupId, childId, date: addDays(start, i),
         title: autoEp ? epTitle(title, ei + 1) : title, points,
         done: false, kind, resId, resUrl, subject, proof, proofData: null, remindAt, doneAt: null, epIndex: ei, epNum,
-        videoProgress: 0 });
+        pageFrom: pf, pageTo: pt, videoProgress: 0 });
     }
     saveData(DATA); document.querySelector('.modal-mask').remove(); render();
     const fromTip = start !== TODAY ? ('（从 ' + start.slice(5) + ' 起）') : '';
     if (autoEp && epDays.length) {
       toast('已布置 ' + epDays.length + ' 天：' + epDays.map(n => '第' + n + '集').join(' → ') + fromTip);
     } else {
-      const tip = kind === 'read' ? '朗读任务已布置，孩子边看材料边录音'
+      const tip = kind === 'read' ? (pgOn ? '朗读任务已布置，页码已排好，孩子边看材料边录音' : '朗读任务已布置，孩子边看材料边录音')
         : kind === 'video' ? '看视频任务已布置，看完自动打卡'
         : '已布置';
       toast(repeat > 1 ? (tip + '，连续 ' + repeat + ' 天' + fromTip)
@@ -5248,6 +5538,21 @@
       selSet('t-ep', (typeof t.epIndex === 'number' && t.epIndex >= 0) ? String(t.epIndex) : '-1');
       set('t-epnum', t.epNum || '');
     }
+    // 回填页码：有页码就勾上并展开；编辑单条时只显示「从第几页到第几页」
+    // 注意必须放在 if/else 链之外 —— 朗读任务走的是第一个分支，放里面就回填不到
+    if (t.pageFrom) {
+      const pon = document.getElementById('t-page-on');
+      const pbox = document.getElementById('t-page-box');
+      const prow = document.getElementById('t-page-edit-row');
+      const nrow = document.getElementById('t-page-new-row');
+      if (pon) pon.checked = true;
+      if (pbox) pbox.style.display = 'block';
+      if (prow) prow.style.display = 'flex';
+      if (nrow) nrow.style.display = 'none';
+      set('t-page-start', t.pageFrom);
+      set('t-page-to', t.pageTo || t.pageFrom);
+      pageAutoPreview();
+    }
   }
   function saveTaskEdit(id) {
     const t = DATA.tasks.find(x => x.id === id);
@@ -5268,10 +5573,14 @@
     const box = document.getElementById('t-sync-all');
     const syncAll = !!(box && box.checked) && !!t.groupId;
     const targets = syncAll ? DATA.tasks.filter(x => x.groupId === t.groupId) : [t];
+    const pgf = readPageForm(true);
     targets.forEach(x => {
       x.childId = childId; x.points = points; x.subject = subject; x.remindAt = remindAt;
       x.kind = kind; x.proof = f.proof; x.resId = f.resId; x.resUrl = f.resUrl; x.epNum = f.epNum;
       if (!syncAll) x.epIndex = f.epIndex;   // 整批同步时保留各天排好的集数
+      // 页码跟集数一个道理：整批同步时不覆盖，各天保留自己排好的页。
+      // 想改某一天读哪几页，单独点那天的编辑就行。
+      if (!syncAll) { x.pageFrom = pgf.from; x.pageTo = pgf.to; }
       const epN = (typeof x.epIndex === 'number' && x.epIndex >= 0) ? x.epIndex + 1 : 0;
       x.title = epN ? epTitle(title, epN) : title;
     });
@@ -5847,7 +6156,7 @@
       openBiliPlayer(res.title + ' · 第' + res.epNum + '集', bili);
       return;
     }
-    openResourceLink(res.title, res.type, res.url);
+    openResourceLink(res.title, res.type, res.url, t.pageFrom, t.pageTo);
   }
 
   // ========== 模态：添加资源 ==========
@@ -6309,7 +6618,7 @@
   }
 
   // 统一打开单个资源链接（视频/音频尽量内嵌，不跳转）
-  function openResourceLink(title, type, url) {
+  function openResourceLink(title, type, url, pageFrom, pageTo) {
     // 网盘分享链接（百度/微云/夸克…）：内嵌读不了，先讲清楚再给退路，
     // 别直接跳过去让浏览器默默开始下载（详见 netdiskInfo 上方的说明）
     const nd = netdiskInfo(url);
@@ -6324,7 +6633,7 @@
     // 直接 EPUB 文件链接：内嵌重排阅读，不跳转
     if (isDirectEpub(url)) { openEpubViewer(title, url); return; }
     // 直接 PDF 文件链接（阿里云 OSS 直链）：内嵌预览，不跳转
-    if (isDirectPdf(url)) { openPdfViewer(title, url); return; }
+    if (isDirectPdf(url)) { openPdfViewer(title, url, pageFrom, pageTo); return; }
     // 其他网页（微云分享页、官网课程等）：走安全审核跳转页（白名单拦截）
     openExternal(url, title);
   }
@@ -6891,6 +7200,7 @@
   var PDF_URL = '';          // 当前这份文档的链接，指引里要用
   var PDF_FIX_OPEN = false;  // 「怎么修」那段指引是不是正展开着
   var PDF_TOKEN = 0;         // 每次打开 +1。异步回调靠它判断「这还是不是同一次打开」
+  var PDF_START = 1;         // 打开后停在第几页（跟读任务指定页码时用，默认第 1 页）
 
   /**
    * 把文档占的内存还回去。
@@ -6971,7 +7281,7 @@
     }
     return html;
   }
-  function openPdfViewer(title, url) {
+  function openPdfViewer(title, url, pageFrom, pageTo) {
     fpOpen('read', title, { meta: { type: 'pdf' } });
     var modal = document.createElement('div');
     modal.className = 'modal-mask video-mask pdf-mask';
@@ -6981,6 +7291,7 @@
         <button class="icon-btn close" onclick="pdfClose(this)">✕</button>
         <button class="icon-btn" style="float:right;margin-top:-8px;margin-right:6px;font-size:15px" title="全屏阅读" onclick="pdfFsToggle(this)">⛶</button>
         <h3>${esc(title)}</h3>
+        ${(pageFrom && pageTo) ? `<p class="wq-hint" style="margin-top:2px;text-align:center;color:var(--green-600)">📖 今天朗读第 ${pageFrom}-${pageTo} 页</p>` : ''}
         <div class="pdf-stage" id="pdf-stage">
           <div class="pdf-loading">
             <div class="pdf-spin"></div>
@@ -7002,7 +7313,7 @@
         </div>
       </div>`;
     document.getElementById('modal-root').appendChild(modal);
-    pdfStart(url);
+    pdfStart(url, pageFrom);
   }
 
   function pdfSetProgress(pct) {
@@ -7053,7 +7364,8 @@
       return task.promise;
     });
   }
-  function pdfStart(url) {
+  function pdfStart(url, startPage) {
+    PDF_START = Math.max(1, parseInt(startPage) || 1);   // 跟读任务指定从第几页开始
     pdfDestroy();              // 开新的一份之前，先把上一份占的内存还回去
     var token = PDF_TOKEN;     // 记住这次的编号，异步回调靠它判断「还是不是同一次打开」
     PDF_URL = url;
@@ -7089,7 +7401,7 @@
         try { doc.destroy(); } catch (e) {}
         return;
       }
-      PDF = { doc: doc, num: 1, total: doc.numPages, scale: 1, rendering: false, pending: null };
+      PDF = { doc: doc, num: Math.min(PDF_START, doc.numPages), total: doc.numPages, scale: 1, rendering: false, pending: null };
       var t = document.getElementById('pdf-total');
       if (t) t.textContent = doc.numPages;
       stage.innerHTML = '<div class="pdf-stage-inner"><canvas id="pdf-canvas" class="pdf-canvas"></canvas></div>';
@@ -7549,6 +7861,9 @@
         <div class="field" id="rw-url-field">
           <label>微云链接（视频/音频类需要）</label>
           <input id="rw-url" placeholder="https://share.weiyun.com/xxx" />
+          <label style="margin-top:10px">多分集（可选，一行一集）</label>
+          <textarea id="rw-eps" rows="4" placeholder="第1集 | https://share.weiyun.com/aaa&#10;第2集 | https://share.weiyun.com/bbb&#10;只贴链接也行，一行一条"></textarea>
+          <p class="wq-hint" style="text-align:left;margin-top:6px">一部动画有很多集时，在这里一行贴一集（标题和链接用竖线隔开）。孩子兑换一次就能看全部集数，<b>每集各限看 5 次</b></p>
         </div>
         <p class="text-mute" id="rw-url-note" style="display:none;font-size:12px">「妈妈许诺」类（火锅/肯德基等）孩子兑换后进入待兑现，妈妈在后台确认，不用填链接。</p>
         <div class="field">
@@ -7570,16 +7885,48 @@
     if (cat === 'promise') { if (uf) uf.style.display='none'; if (un) un.style.display='block'; }
     else { if (uf) uf.style.display='block'; if (un) un.style.display='none'; }
   }
+  // 解析多行分集文本：一行一集。支持「标题 | 链接」「标题 链接」「只有链接」三种写法
+  function parseEpsText(txt) {
+    const out = [];
+    String(txt || '').split('\n').forEach(function (line) {
+      const s = String(line || '').trim();
+      if (!s) return;
+      let title = '', url = '';
+      const m = s.split(/\s*[|\uFF5C]\s*/);
+      if (m.length >= 2 && /^https?:\/\//i.test(m[1].trim())) {
+        title = m[0].trim(); url = m.slice(1).join('|').trim();
+      } else {
+        const w = s.split(/\s+/);
+        let hit = -1;
+        for (let i = 0; i < w.length; i++) { if (/^https?:\/\//i.test(w[i])) { hit = i; break; } }
+        if (hit >= 0) { title = w.slice(0, hit).join(' ').trim(); url = w.slice(hit).join(' ').trim(); }
+        else if (/^https?:\/\//i.test(s)) { url = s; }
+      }
+      if (url) out.push({ title: title, url: url });
+    });
+    return out;
+  }
+  // 奖励的分集列表：没配 eps 的老奖励退化成「单集」，行为跟以前一样
+  function rwEpsOf(r) {
+    if (!r) return [];
+    if (r.eps && r.eps.length) return r.eps;
+    return r.url ? [{ title: r.title, url: r.url }] : [];
+  }
   function addReward() {
-    const emoji = document.getElementById('rw-emoji').value || '🎁';
+    const emoji = document.getElementById('rw-emoji').value || '\uD83C\uDF81';
     const title = document.getElementById('rw-title').value.trim();
     const cat = document.getElementById('rw-cat') ? document.getElementById('rw-cat').value : 'cartoon';
     const cost = parseInt(document.getElementById('rw-cost').value) || 100;
     const url = cat === 'promise' ? '' : document.getElementById('rw-url').value.trim();
+    const eps = cat === 'promise' ? [] : parseEpsText((document.getElementById('rw-eps') || {}).value || '');
     if (!title) { toast('标题要填'); return; }
-    if (cat !== 'promise' && !url) { toast('视频类奖励要填微云链接'); return; }
-    DATA.rewards.push({ id: 'rw'+Date.now(), title, emoji, cost, url, cat });
-    saveData(DATA); document.querySelector('.modal-mask').remove(); render(); toast('已添加');
+    if (cat !== 'promise' && !url && !eps.length) { toast('视频类奖励要填微云链接或分集'); return; }
+    if (eps.length === 1 && !url) { toast('只有 1 集就直接填上面的链接'); return; }
+    const rw = { id: 'rw'+Date.now(), title, emoji, cost, url, cat };
+    if (eps.length >= 2) { rw.eps = eps; if (!url) rw.url = eps[0].url; }
+    DATA.rewards.push(rw);
+    saveData(DATA); document.querySelector('.modal-mask').remove(); render();
+    toast(eps.length >= 2 ? ('已添加，共 ' + eps.length + ' 集') : '已添加');
   }
   function delReward(id) {
     if (!confirm('确认删除？')) return;
@@ -7605,6 +7952,59 @@
     saveData(DATA); render();
     openResourceLink(r.title, 'video', r.url);
   }
+  // 多集奖励：一次兑换，全部集数都能看；每集各算 MAX_REWARD_VIEWS 次，互不影响
+  // 老兑换记录没有 epViews：单集沿用原来的 views，不会把已看次数清零
+  function rwEpViewed(rd, i) {
+    if (!rd) return 0;
+    if (rd.epViews && typeof rd.epViews[i] === 'number') return rd.epViews[i];
+    return i === 0 ? (rd.views || 0) : 0;
+  }
+  function rwEpLeft(rd, i) { return Math.max(0, MAX_REWARD_VIEWS - rwEpViewed(rd, i)); }
+  function openRedeemEps(rdId) {
+    const c = kidCheck(); if (!c) return;
+    const rd = (DATA.redemptions || []).find(x => x.id === rdId); if (!rd) return;
+    const r = DATA.rewards.find(x => x.id === rd.rewardId); if (!r) return;
+    const eps = rwEpsOf(r);
+    if (!eps.length) { toast('这条奖励没有可播放的资源'); return; }
+    const modal = document.createElement('div');
+    modal.className = 'modal-mask video-mask';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+      <div class="modal video-modal">
+        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+        <h3>${esc(r.title)} <span class="text-mute" style="font-size:12px">\u00B7 \u5171 ${eps.length} \u96C6</span></h3>
+        <div class="episode-list">
+          ${eps.map((ep, i) => {
+            const left = rwEpLeft(rd, i);
+            return `<div class="episode-item" onclick="playRedemptionEp('${rd.id}',${i})">
+              <span class="ep-num">${i + 1}</span>
+              <span class="ep-title">${esc(ep.title || ('\u7B2C' + (i + 1) + '\u96C6'))}</span>
+              <span class="ep-play" id="rwep-left-${i}">${left > 0 ? (ICN.play + ' \u5269' + left) : '\u5DF2\u770B\u5B8C'}</span>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    document.getElementById('modal-root').appendChild(modal);
+  }
+  function playRedemptionEp(rdId, i) {
+    const c = kidCheck(); if (!c) return;
+    const rd = (DATA.redemptions || []).find(x => x.id === rdId); if (!rd) return;
+    if (rd.childId !== c.id) return;   // 只能看自己兑换的
+    const r = DATA.rewards.find(x => x.id === rd.rewardId); if (!r) return;
+    const eps = rwEpsOf(r);
+    const ep = eps[i];
+    if (!ep || !ep.url) { toast('这一集没有可播放的链接'); return; }
+    if (rwEpLeft(rd, i) <= 0) { toast('这一集已看满 ' + MAX_REWARD_VIEWS + ' 次'); return; }
+    if (!rd.epViews) rd.epViews = {};
+    rd.epViews[i] = rwEpViewed(rd, i) + 1;
+    rd.views = (rd.views || 0) + 1;
+    saveData(DATA);
+    // 就地刷新这一集的剩余次数，孩子不用关掉面板才知道还剩几次
+    const el = document.getElementById('rwep-left-' + i);
+    if (el) { const l = rwEpLeft(rd, i); el.textContent = l > 0 ? (ICN.play + ' \u5269' + l) : '\u5DF2\u770B\u5B8C'; }
+    openResourceLink(ep.title || (r.title + ' \u7B2C' + (i + 1) + '\u96C6'), 'video', ep.url);
+  }
+
   // 孩子用积分兑换奖励：扣积分 + 记录；视频类直接打开(记第1次观看)，妈妈许诺类进入待兑现
   function redeemReward(id) {
     const c = kidCheck(); if (!c) return;
@@ -7617,6 +8017,7 @@
     DATA.pointsHistory.unshift({ id: 'h'+Date.now(), childId: c.id, date: TODAY, title: '兑换：'+r.title, points: -r.cost, at: Date.now() });
     saveData(DATA); render();
     if (isPromise) toast('已申请！等妈妈带你去 ' + r.emoji);
+    else if (rwEpsOf(r).length >= 2) { saveData(DATA); render(); openRedeemEps(rd.id); }
     else playRedemption(rd.id);
   }
   // 妈妈后台：标记许诺类奖励已兑现
@@ -7819,6 +8220,8 @@
   // 结果妈妈在网页上布置的看视频任务，孩子端 t.kind 是 undefined，退化成普通任务、
   // 点了就直接勾完，根本不放视频。这里启动时对本地数据也补一遍。
   try { DATA = normalizeData(DATA); } catch (e) {}
+  // 补种出来的新书要落库并推一次云端：只留在本机内存里的话，妈妈换台设备又看不见了。
+  if (BUILTIN_SEEDED > 0) { try { saveData(DATA); } catch (e) {} }
   try { wpRoll(true); } catch (e) {}   // 跨天了先把今天那批补出来（silent：启动阶段不触发推送）
   // 学习足迹的收尾钩子。整段包一层：记不上足迹是小事，
   // 万一哪个环境的浏览器 API 缺一块，把启动打断成白屏、全家打不开平台才是大事。
