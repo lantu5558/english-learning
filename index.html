@@ -380,6 +380,11 @@
     .wk-h { font-size: 11px; font-weight: 600; color: var(--gray-600); margin-bottom: 4px; }
     .wk-h .wk-d { font-weight: 400; color: var(--gray-600); }
     .wk-empty { font-size: 11px; color: var(--gray-600); text-align: center; padding-top: 8px; }
+    .chip.disabled { opacity: .4; pointer-events: none; }
+    .week-label { font-size: 13px; color: var(--gray-600); font-weight: 600; margin-bottom: 8px; }
+    .sched-legend { display: flex; gap: 10px; flex-wrap: wrap; margin: 0 0 12px; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 10px; font-size: 13px; font-weight: 600; }
+    .c-child { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 11px; font-weight: 600; margin-right: 6px; }
     .month-list { display: flex; flex-direction: column; gap: 8px; }
     .mo-day { background: var(--gray-50); border-radius: var(--radius-sm); padding: 8px 10px; }
     .mo-h { font-size: 12px; font-weight: 600; color: var(--gray-600); margin-bottom: 4px; }
@@ -1649,13 +1654,16 @@
     return (DATA.schedules || []).filter(sc => sc.childId === c.id && sc.day === wd && schedOn(sc, dateStr))
       .sort((a, b) => (a.start || '').localeCompare(b.start || ''));
   }
-  function courseCard(sc, editable, date) {
-    const col = sc.color || 'pink';
+  function courseCard(sc, editable, date, child) {
+    const kids = DATA.children || [];
+    const isFirst = child && child.id === (kids[0] || {}).id;
+    const col = child ? (isFirst ? 'pink' : 'blue') : (sc.color || 'pink');
+    const badge = child ? `<span class="c-child" style="background:${isFirst ? 'var(--pink-50)' : 'var(--blue-50)'};color:${isFirst ? 'var(--pink-600)' : 'var(--blue-600)'}">${child.avatar} ${esc(child.name)}</span>` : '';
     return `
       <div class="course" style="border-left:4px solid var(--${col}-400, var(--pink-400))">
         <div class="c-time">🕒 ${esc(sc.start)}${sc.end ? '-' + esc(sc.end) : ''}</div>
         <div class="c-title">${esc(sc.title)}</div>
-        <div class="c-meta">${sc.place ? '📍' + esc(sc.place) + ' ' : ''}${sc.teacher ? '👩‍🏫' + esc(sc.teacher) : ''}</div>
+        <div class="c-meta">${badge}${sc.place ? '📍' + esc(sc.place) + ' ' : ''}${sc.teacher ? '👩‍🏫' + esc(sc.teacher) : ''}</div>
         ${editable ? `<div class="c-ops"><button class="icon-btn" onclick="event.stopPropagation();openScheduleModal('${sc.id}')">${ICN.edit}</button><button class="icon-btn danger" onclick="event.stopPropagation();delOccModal('${sc.id}', '${date || ''}')">${ICN.trash}</button></div>` : ''}
       </div>`;
   }
@@ -1697,20 +1705,45 @@
         }).join('') : '<div class="kc-empty">暂无任务</div>'}
       </div>`;
   }
-  let schedTab = 'week';   // week | month | next
+  let schedWeekOff = 0;    // 0=本周, 正=未来周, 负=过去周
   let schedChild = 'all';  // all | c1 | c2
-  function schedSetTab(v) { schedTab = v; render(); }
+  function schedWeekMon(off) { return mondayOf(addDays(TODAY, (off === undefined ? 0 : off) * 7)); }
+  function schedSemRange() {
+    const scs = DATA.schedules || [];
+    let start = null, end = null;
+    for (const sc of scs) {
+      if (sc.from) { const m = mondayOf(sc.from); if (start === null || m < start) start = m; }
+      if (sc.to) { const m = mondayOf(sc.to); if (end === null || m > end) end = m; }
+    }
+    return { start, end };
+  }
+  function schedSemMin() { const r = schedSemRange(); if (!r.start) return -52; return Math.round((new Date(r.start + 'T00:00:00') - new Date(schedWeekMon(0) + 'T00:00:00')) / 604800000); }
+  function schedSemMax() { const r = schedSemRange(); if (!r.end) return 52; return Math.round((new Date(r.end + 'T00:00:00') - new Date(schedWeekMon(0) + 'T00:00:00')) / 604800000); }
+  function schedWeekStep(n) {
+    let off = schedWeekOff + n;
+    if (off < schedSemMin()) off = schedSemMin();
+    if (off > schedSemMax()) off = schedSemMax();
+    schedWeekOff = off; render();
+  }
+  function schedWeekReset() { schedWeekOff = 0; render(); }
+  function schedWeekCur() { return schedWeekOff; }
   function schedSetChild(v) { schedChild = v; render(); }
+  function schedLegend(childList) {
+    if (!childList || childList.length < 2) return '';
+    const kids = DATA.children || [];
+    const isFirst = id => id === (kids[0] || {}).id;
+    return `<div class="sched-legend">${childList.map(c => `<span class="legend-item" style="border-left:3px solid ${isFirst(c.id) ? 'var(--pink-400)' : 'var(--blue-400)'};background:${isFirst(c.id) ? 'var(--pink-50)' : 'var(--blue-50)'}">${c.avatar} ${esc(c.name)}</span>`).join('')}</div>`;
+  }
   const SCHED_CAL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>';
   function schedWeekGrid(childList, editable) {
-    const mon = mondayOf(TODAY);
+    const mon = schedWeekMon(schedWeekOff);
     return [0,1,2,3,4,5,6].map(i => {
       const day = addDays(mon, i);
-      const cs = childList.flatMap(c => todayCoursesOn(c, day));
+      const cs = childList.flatMap(c => todayCoursesOn(c, day).map(sc => ({ sc, c })));
       return `
         <div class="wk-day${day === TODAY ? ' today' : ''}">
           <div class="wk-h">周${'一二三四五六日'[i]}${day === TODAY ? ' · 今天' : ''}<br><span class="wk-d">${day.slice(5)}</span></div>
-          ${cs.length ? cs.map(sc => courseCard(sc, editable, day)).join('') : '<div class="wk-empty">—</div>'}
+          ${cs.length ? cs.map(({sc, c}) => courseCard(sc, editable, day, c)).join('') : '<div class="wk-empty">—</div>'}
         </div>`;
     }).join('');
   }
@@ -1720,7 +1753,7 @@
 
   // 日历格月视图：7列(Sun-Sat)，每天分左(姐姐)/右(弟弟)
   function schedMonthGrid(childList, editable) {
-    const base = schedTab === 'next' ? addMonths(TODAY, 1) : TODAY;
+    const base = TODAY;
     const first = monthFirst(base);
     const y = +first.slice(0, 4), m = +first.slice(5, 7);
     const dim = new Date(y, m, 0).getDate();
@@ -1764,8 +1797,11 @@
       </div>`;
   }
   function schedBody(childList, editable) {
-    if (schedTab === 'week') return `<div class="section"><div class="week-grid">${schedWeekGrid(childList, editable)}</div></div>`;
-    return `<div class="section">${schedMonthList(childList, editable)}</div>`;
+    const mon = schedWeekMon(schedWeekOff);
+    const sun = addDays(mon, 6);
+    const label = mon.slice(5).replace('-', '/') + ' – ' + sun.slice(5).replace('-', '/');
+    const legend = schedLegend(childList);
+    return `<div class="section"><div class="week-label">📆 本周区间 ${label}</div>${legend}<div class="week-grid">${schedWeekGrid(childList, editable)}</div></div>`;
   }
   function viewMomSchedule() {
     if (!sessionStorage.getItem('mom-auth')) { location.hash = 'mom-pin'; return ''; }
@@ -1782,7 +1818,9 @@
           ${[{ v: 'all', t: '全部' }].concat(kids.map(c => ({ v: c.id, t: c.avatar + ' ' + c.name }))).map(o => `<div class="chip ${schedChild === o.v ? 'on' : ''}" onclick="schedSetChild('${o.v}')">${o.t}</div>`).join('')}
         </div>
         <div class="chip-row">
-          ${[{ v: 'week', t: '本周' }, { v: 'month', t: '本月' }, { v: 'next', t: '下月' }].map(o => `<div class="chip ${schedTab === o.v ? 'on' : ''}" onclick="schedSetTab('${o.v}')">${o.t}</div>`).join('')}
+          <div class="chip ${schedWeekOff <= schedSemMin() ? 'disabled' : ''}" onclick="${schedWeekOff > schedSemMin() ? 'schedWeekStep(-1)' : ''}">‹ 上一周</div>
+          <div class="chip ${schedWeekOff === 0 ? 'on' : ''}" onclick="schedWeekReset()">本周</div>
+          <div class="chip ${schedWeekOff >= schedSemMax() ? 'disabled' : ''}" onclick="${schedWeekOff < schedSemMax() ? 'schedWeekStep(1)' : ''}">下一周 ›</div>
         </div>
         ${schedBody(childList, true)}
         <div class="section">
@@ -1815,7 +1853,9 @@
       </div>
       <div class="page">
         <div class="chip-row">
-          ${[{ v: 'week', t: '本周' }, { v: 'month', t: '本月' }, { v: 'next', t: '下月' }].map(o => `<div class="chip ${schedTab === o.v ? 'on' : ''}" onclick="schedSetTab('${o.v}')">${o.t}</div>`).join('')}
+          <div class="chip ${schedWeekOff <= schedSemMin() ? 'disabled' : ''}" onclick="${schedWeekOff > schedSemMin() ? 'schedWeekStep(-1)' : ''}">‹ 上一周</div>
+          <div class="chip ${schedWeekOff === 0 ? 'on' : ''}" onclick="schedWeekReset()">本周</div>
+          <div class="chip ${schedWeekOff >= schedSemMax() ? 'disabled' : ''}" onclick="${schedWeekOff < schedSemMax() ? 'schedWeekStep(1)' : ''}">下一周 ›</div>
         </div>
         ${schedBody([c], false)}
         <p class="wq-hint">要改课程找妈妈哦～</p>
@@ -2003,15 +2043,12 @@
     const tabs = [
       { id:'today', icon: ICN.home, label:'今日', hash:'mom-today' },
       { id:'schedule', icon: SCHED_CAL, label:'课表', hash:'mom-schedule' },
-      { id:'words', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16M6 16l3-9 3 9M7.2 13.5h3.6M14 16l2-9 2 9M15 13.5h2"/></svg>', label:'单词', hash:'mom-words' },
       { id:'log', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/></svg>', label:'记录', hash:'mom-log' },
       { id:'resources', icon: ICN.book, label:'资源', hash:'mom-resources' },
       { id:'rewards', icon: ICN.gift, label:'奖励', hash:'mom-rewards' },
       { id:'settings', icon: ICN.sett, label:'设置', hash:'mom-settings' },
     ];
-    // 词库学完待处理 → 单词 tab 挂红点，不然妈妈根本不知道要来看
-    const wpDot = (function () { try { return wpPendingMom().length; } catch (e) { return 0; } })();
-    return `<div class="tabbar">${tabs.map(t => `<div class="tab ${active===t.id?'active':''}" onclick="location.hash='${t.hash}'">${t.icon}<span>${t.label}</span>${(t.id === 'words' && wpDot && active !== 'words') ? '<i class="dot"></i>' : ''}</div>`).join('')}</div>`;
+    return `<div class="tabbar">${tabs.map(t => `<div class="tab ${active===t.id?'active':''}" onclick="location.hash='${t.hash}'">${t.icon}<span>${t.label}</span></div>`).join('')}</div>`;
   }
 
   // ========== 妈妈后台 - 学习记录（近 7 天）==========
@@ -2168,19 +2205,9 @@
           </div>
         </div>
         <div class="section">
-          <h3>全部资源</h3>
-          ${DATA.resources.map(r => {
-            const s = SUBJECTS[r.subject] || SUBJECT_FALLBACK;
-            return `<div class="resource">
-              <div class="thumb">${ICN[r.type]||ICN.pdf}</div>
-              <div class="info">
-                <div class="name">${esc(r.title)}</div>
-                <div class="meta"><span class="badge-subj" style="background:${'var(--'+s.color+'-50)'};color:var(--${s.color}-600)">${s.emoji} ${s.name}</span>${(r.category||'learn')==='fun'?'<span class="badge-subj" style="background:var(--purple-50);color:var(--purple-600)">🎁 奖励</span>':''}${r.episodes&&r.episodes.length>=2?`<span class="badge-subj" style="background:var(--amber-50);color:var(--amber-600)">▶ 共${r.episodes.length}集</span>`:''}${whoTag(r)}</div>
-              </div>
-              <button class="icon-btn" onclick="event.stopPropagation();openResourceModal(null,'${r.id}')" title="编辑">${ICN.edit}</button>
-              <button class="icon-btn" onclick="delResource('${r.id}')" title="删除">${ICN.trash}</button>
-            </div>`;
-          }).join('')}
+          <h3>单词库 <button class="text-pink" style="font-size:12px" onclick="location.hash='mom-words'">管理入口 »</button></h3>
+          <button class="btn-primary" style="width:100%" onclick="location.hash='mom-words'">📚 打开单词库（词库 / 每日单词 / 自动轮转）</button>
+          <p class="text-mute" style="font-size:12px;margin-top:8px">单词打卡任务会自动出现在孩子的「任务」页，这里只管理词库和每日轮转计划。</p>
         </div>
       </div>
       ${momTabBar('resources')}
