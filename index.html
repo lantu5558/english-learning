@@ -1073,7 +1073,7 @@
       if (!t.kind) {
         const r = (t.resId && d.resources) ? d.resources.find(x => x.id === t.resId) : null;
         const rv = r || (t.resUrl ? { type: /\.(mp4|webm|m4v|mov|m3u8)$/i.test(t.resUrl) ? 'video' : '' } : null);
-        t.kind = (t.proof === 'audio') ? 'read' : (rv && rv.type === 'video' && !t.proof ? 'video' : 'normal');
+        if (t.kind !== 'follow') t.kind = (t.proof === 'audio') ? 'read' : (rv && rv.type === 'video' && !t.proof ? 'video' : 'normal');
       }
       if (!('proof' in t)) t.proof = '';
       if (!('remindAt' in t)) t.remindAt = '';
@@ -1951,6 +1951,17 @@
           </div>
         </div>
         <div class="section">
+          <h3>🎤 跟读评分</h3>
+          <p class="text-mute" style="font-size:12px;margin-bottom:8px">填讯飞开放平台的密钥，孩子跟读后就能立刻出分。<b>只存在这台设备里</b>，不参与家庭同步。</p>
+          <div class="task" style="cursor:default">
+            <div class="title">
+              <div class="name">${XF.ok() ? '🟢 已配置' : '🟡 还没配置'}</div>
+              <div class="meta">${XF.ok() ? ('AppID ' + esc(String(XF.get().appid || ''))) : '点了才能布置逐句跟读任务'}</div>
+            </div>
+          </div>
+          <button class="btn-secondary mt-8" onclick="openXfSettings()">${XF.ok() ? '修改密钥' : '填写密钥'}</button>
+        </div>
+        <div class="section">
           <h3>☁️ 云端同步</h3>
           ${SYNC.status === 'off' ? `
             <p class="text-mute" style="font-size:12px;margin-bottom:8px">全家设备填同一个「家庭同步码」，任务、打卡、积分、凭证每 5 秒自动互通。<br>每台设备（手机/Pad/学习机）都要开启一次。</p>
@@ -2536,7 +2547,8 @@
             const res = taskRes(t);
             const kind = t.kind || 'normal';
             const ktag = kind === 'video' ? '<span class="kind-tag kt-video">📺 看视频</span>'
-                       : kind === 'read' ? '<span class="kind-tag kt-read">🎤 朗读</span>' : '';
+                       : kind === 'read' ? '<span class="kind-tag kt-read">🎤 朗读</span>'
+                       : kind === 'follow' ? '<span class="kind-tag kt-read">🎤 逐句跟读</span>' : '';
             let extra = '';
             if (kind === 'video') {
               const strict = !!(res && isDirectVideo(res.url));
@@ -2548,6 +2560,14 @@
               const pgl = taskPageLabel(t);
               extra = (pgl ? `<div class="meta" style="color:var(--green-600)">📖 今天朗读 ${pgl}</div>` : '')
                     + (res ? `<div class="meta" style="color:var(--pink-600)" onclick="event.stopPropagation();openTaskRes(event,'${t.id}')">📄 看材料：${esc(res.title)}</div>` : '');
+            } else if (kind === 'follow') {
+              const fo2 = t.follow || {};
+              const sn = (fo2.sents || []).length;
+              const sd = (fo2.scores || []).filter(function (x) { return x != null; }).length;
+              extra = t.done
+                ? `<div class="meta" style="color:var(--green-600)">✅ ${sn} 句跟读已完成</div>`
+                : `<div class="meta" style="color:var(--pink-600)">🎤 共 ${sn} 句 · 已读 ${sd} 句</div>
+                   <button class="btn-primary btn-sm" onclick="event.stopPropagation();openFollow('${t.id}')">${sd ? '继续跟读' : '开始跟读'}</button>`;
             } else if (res) {
               const label = '📎 看资料';
               extra = `<div class="meta" style="color:var(--pink-600)" onclick="event.stopPropagation();openTaskRes(event,'${t.id}')">${label}：${esc(res.title)}</div>`;
@@ -2901,6 +2921,7 @@
     const isKid = kid && t.childId === kid.id;
     // 看视频任务：孩子点卡片 = 打开播放器，不能直接勾完（看完才自动打卡）
     if (isKid && !t.done && (t.kind || 'normal') === 'video') { openTaskVideo(id); return; }
+    if (isKid && !t.done && (t.kind || 'normal') === 'follow') { openFollow(id); return; }
     if (t.proof) {
       if (isKid) {
         if (t.done) { if (t.proofData) openProofView(t); return; } // 已打卡只能回看凭证，不能取消
@@ -5161,6 +5182,7 @@
             <div class="kind-pill on" id="kp-normal" onclick="setTaskKind('normal')">✅ 普通任务<span>勾选 / 拍照打卡</span></div>
             <div class="kind-pill" id="kp-read" onclick="setTaskKind('read')">🎤 朗读任务<span>录音 + 可挂材料</span></div>
             <div class="kind-pill" id="kp-video" onclick="setTaskKind('video')">📺 看视频<span>看完自动打卡</span></div>
+            <div class="kind-pill" id="kp-follow" onclick="setTaskKind('follow')">🎤 逐句跟读<span>听示范 · 录音 · 打分</span></div>
           </div>
         </div>
         <div class="field">
@@ -5206,6 +5228,22 @@
               <p class="wq-hint" style="text-align:left;margin-top:6px">页码按这份 PDF 自己的页数算（第 1 页 = 打开时的第一页）。前面有封面目录就往后填起始页。布置后想改某一天读哪几页：妈妈端「📅 之后的安排」里点那天的编辑</p>
             </div>
           </div>
+        </div>
+
+        <!-- 逐句跟读任务：从内置素材库挑句子 -->
+        <div class="field" id="f-follow" style="display:none">
+          <label>跟读内容（课本原文）</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <select id="t-fl-unit" onchange="flRenderList()" style="flex:1"></select>
+            <button type="button" class="btn-secondary btn-sm" onclick="flPickAll(true)">全选</button>
+            <button type="button" class="btn-secondary btn-sm" onclick="flPickAll(false)">清空</button>
+          </div>
+          <div id="t-fl-list" style="max-height:210px;overflow:auto;margin-top:8px;border:0.5px solid var(--border-soft);border-radius:12px;padding:6px"></div>
+          <div id="t-fl-count" class="wq-hint" style="text-align:left;margin-top:6px"></div>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;color:var(--gray-700);flex-wrap:wrap">
+            <span>读到</span><input id="t-fl-pass" type="number" min="50" max="95" value="75" style="width:62px;margin:0" /><span>分算过，最多重读</span><input id="t-fl-retry" type="number" min="1" max="10" value="3" style="width:52px;margin:0" /><span>次</span>
+          </div>
+          <p class="wq-hint" style="text-align:left;margin-top:6px">孩子先听一遍标准示范，再录音跟读，读完立刻出分；没到达标线可以重读，次数用满也算过，不会卡住。示范音已经做好，妈妈只要勾句子。</p>
         </div>
 
         <!-- 看视频任务 -->
@@ -5307,20 +5345,22 @@
     normal: '勾选 / 拍照打卡，可挂一份资料',
     read:   '录音打卡，孩子边看材料边朗读',
     video:  '看完视频自动打卡，防快进',
+    follow: '一句一句跟读，读完立刻出分',
   };
   function setTaskKind(k, silent) {
     TASK_KIND = k;
-    ['normal', 'read', 'video'].forEach(x => {
+    ['normal', 'read', 'video', 'follow'].forEach(x => {
       const el = document.getElementById('kp-' + x);
       if (el) el.classList.toggle('on', x === k);
     });
     const show = (id, on) => { const e = document.getElementById(id); if (e) e.style.display = on ? 'block' : 'none'; };
     show('f-read', k === 'read');
+    show('f-follow', k === 'follow');
     show('f-video', k === 'video');
     show('f-proof', k === 'normal');
     show('f-res', k === 'normal');
     const t = document.getElementById('t-title');
-    const ph = { normal: '例：口算 20 题', read: '例：英语跟读 10 分钟', video: '例：看《书本里的旅行》第3集' };
+    const ph = { normal: '例：口算 20 题', read: '例：英语跟读 10 分钟', video: '例：看《书本里的旅行》第3集', follow: '例：Unit 3 课文跟读 10 句' };
     if (!silent) {
       if (t && !t.value) t.placeholder = ph[k] || '';
       if (k === 'video') onTaskVidChange();
@@ -5497,6 +5537,12 @@
       pgOn = pf0.from > 0;
       pgStart = pf0.from || 1; pgSize = pf0.size || 1; pgRep = pf0.repeat || 1;
     }
+    let fo = null;
+    if (kind === 'follow') {
+      const ff = readFollowForm();
+      if (ff.err) { toast(ff.err); return; }
+      fo = { lib: TB_LIB.id, unit: ff.unit, sents: ff.sents, pass: ff.pass, retry: ff.retry };
+    }
     if (kind === 'video' && repeat > 1) {
       const er = resId ? DATA.resources.find(x => x.id === resId) : null;
       epTotal = (er && er.episodes) ? er.episodes.length : 0;
@@ -5514,7 +5560,7 @@
       DATA.tasks.push({ id: 't' + Date.now() + '-' + i, groupId, childId, date: addDays(start, i),
         title: autoEp ? epTitle(title, ei + 1) : title, points,
         done: false, kind, resId, resUrl, subject, proof, proofData: null, remindAt, doneAt: null, epIndex: ei, epNum,
-        pageFrom: pf, pageTo: pt, videoProgress: 0 });
+        pageFrom: pf, pageTo: pt, videoProgress: 0, follow: fo ? { lib: fo.lib, unit: fo.unit, sents: fo.sents.slice(), pass: fo.pass, retry: fo.retry, scores: [] } : null });
     }
     saveData(DATA); document.querySelector('.modal-mask').remove(); render();
     const fromTip = start !== TODAY ? ('（从 ' + start.slice(5) + ' 起）') : '';
@@ -5523,6 +5569,7 @@
     } else {
       const tip = kind === 'read' ? (pgOn ? '朗读任务已布置，页码已排好，孩子边看材料边录音' : '朗读任务已布置，孩子边看材料边录音')
         : kind === 'video' ? '看视频任务已布置，看完自动打卡'
+        : kind === 'follow' ? ('跟读任务已布置，共 ' + (fo ? fo.sents.length : 0) + ' 句，孩子听完示范就能录')
         : '已布置';
       toast(repeat > 1 ? (tip + '，连续 ' + repeat + ' 天' + fromTip)
                         : (tip + (start !== TODAY ? '，从 ' + start.slice(5) + ' 开始' : '')));
@@ -5536,6 +5583,8 @@
       resId = (document.getElementById('t-pdf') || {}).value || '';
       resUrl = ((document.getElementById('t-pdf-url') || {}).value || '').trim();
       if (resId && resUrl) return { err: '材料二选一：选了资源库就不用再贴链接' };
+    } else if (kind === 'follow') {
+      proof = '';        // 跟读任务走逐句打分，不用凭证
     } else if (kind === 'video') {
       proof = '';        // 看视频任务不设凭证，看完自动打卡
       resId = (document.getElementById('t-vid') || {}).value || '';
@@ -5581,6 +5630,8 @@
     setTaskKind(kind, true);
     if (kind === 'read') {
       set('t-pdf', t.resId || ''); set('t-pdf-url', t.resUrl || '');
+    } else if (kind === 'follow') {
+      fillFollowForm(t.follow);
     } else if (kind === 'video') {
       set('t-vid', t.resId || ''); set('t-vid-url', t.resUrl || '');
       onTaskVidChange();
@@ -5624,6 +5675,12 @@
     if (dateChanged && start < TODAY) { toast('起始日期不能早于今天'); return; }
     const f = readTaskForm(kind);
     if (f.err) { toast(f.err); return; }
+    let foEdit = null;
+    if (kind === 'follow') {
+      const ff = readFollowForm();
+      if (ff.err) { toast(ff.err); return; }
+      foEdit = { lib: TB_LIB.id, unit: ff.unit, sents: ff.sents, pass: ff.pass, retry: ff.retry };
+    }
     const box = document.getElementById('t-sync-all');
     const syncAll = !!(box && box.checked) && !!t.groupId;
     const targets = syncAll ? DATA.tasks.filter(x => x.groupId === t.groupId) : [t];
@@ -5631,6 +5688,7 @@
     targets.forEach(x => {
       x.childId = childId; x.points = points; x.subject = subject; x.remindAt = remindAt;
       x.kind = kind; x.proof = f.proof; x.resId = f.resId; x.resUrl = f.resUrl; x.epNum = f.epNum;
+      if (foEdit) x.follow = { lib: foEdit.lib, unit: foEdit.unit, sents: foEdit.sents.slice(), pass: foEdit.pass, retry: foEdit.retry, scores: (x.follow && x.follow.scores) || [] };
       if (!syncAll) x.epIndex = f.epIndex;   // 整批同步时保留各天排好的集数
       // 页码跟集数一个道理：整批同步时不覆盖，各天保留自己排好的页。
       // 想改某一天读哪几页，单独点那天的编辑就行。
@@ -5669,6 +5727,503 @@
     tombAdd('tasks', id);
     return back;
   }
+  // ==================== 逐句跟读：示范朗读 + 录音 + AI 打分 ====================
+  // 素材库：沪教牛津版·英语·四年级上册（2026秋）272 句；示范音托管在同域 GitHub Pages
+  // 打分走讯飞语音评测（流式版），WebSocket 原生支持跨域，所以纯静态页面能直连，不需要后端。
+  const TB_LIB = {"id":"tb4a","book":"沪教牛津版·英语·四年级上册（2026秋）","voice":"x4_enus_alvin_education","speed":45,"base":"https://lantu5558.github.io/english-learning/audio/4a/","units":[{"unit":1,"pages":"6-14","bigQuestion":"Where do people live?","grammar":"Where do ... live? ... live ...","words":["city","building","flat","street","country","farm","house"],"sents":[{"t":"Where do people live?","f":"u1_01.mp3"},{"t":"Where’s your home?","f":"u1_02.mp3"},{"t":"There are a lot of people, streets and big buildings in cities.","f":"u1_03.mp3"},{"t":"Many people live in flats.","f":"u1_04.mp3"},{"t":"People live in all kinds of homes.","f":"u1_05.mp3"},{"t":"Some live in flats and some live in houses.","f":"u1_06.mp3"},{"t":"Some homes are big, and some are small.","f":"u1_07.mp3"},{"t":"Shenzhen is a big city.","f":"u1_08.mp3"},{"t":"In the country, there are farms.","f":"u1_09.mp3"},{"t":"People live in houses.","f":"u1_10.mp3"},{"t":"Homes are in neighbourhoods.","f":"u1_11.mp3"},{"t":"Where do Ningning and Kate live?","f":"u1_12.mp3"},{"t":"Some homes are in cities, and some are in the country.","f":"u1_13.mp3"},{"t":"I live in a city.","f":"u1_14.mp3"},{"t":"I like it.","f":"u1_15.mp3"},{"t":"People live in the country.","f":"u1_16.mp3"},{"t":"Where does Jenna live?","f":"u1_17.mp3"},{"t":"Jenna’s house is in the country.","f":"u1_18.mp3"},{"t":"People live in cities.","f":"u1_19.mp3"},{"t":"Where does Billy live?","f":"u1_20.mp3"},{"t":"Billy’s house is in a city.","f":"u1_21.mp3"},{"t":"Which place do you like?","f":"u1_22.mp3"},{"t":"What is around your home?","f":"u1_23.mp3"},{"t":"There are many fruit trees.","f":"u1_24.mp3"},{"t":"There is a farm near my home.","f":"u1_25.mp3"},{"t":"I love it.","f":"u1_26.mp3"}]},{"unit":2,"pages":"16-24","bigQuestion":"Where do animals live?","grammar":"Where’s / Where are ...? It’s / They’re ...","words":["eagle","owl","honeybee"],"sents":[{"t":"Where do animals live?","f":"u2_01.mp3"},{"t":"What animals do you see?","f":"u2_02.mp3"},{"t":"Where can you see animals?","f":"u2_03.mp3"},{"t":"They eat rabbits, frogs and birds.","f":"u2_04.mp3"},{"t":"Owls come out at night.","f":"u2_05.mp3"},{"t":"They eat mice and snakes.","f":"u2_06.mp3"},{"t":"Eagles live in big nests.","f":"u2_07.mp3"},{"t":"Where are their nests?","f":"u2_08.mp3"},{"t":"They are in the trees.","f":"u2_09.mp3"},{"t":"Where do owls live?","f":"u2_10.mp3"},{"t":"They live in tree holes.","f":"u2_11.mp3"},{"t":"They are safe there.","f":"u2_12.mp3"},{"t":"Honeybees live in a hive.","f":"u2_13.mp3"},{"t":"There, they make honey.","f":"u2_14.mp3"},{"t":"They have food in winter.","f":"u2_15.mp3"},{"t":"Honeybees have five eyes.","f":"u2_16.mp3"},{"t":"Where do some other animals live?","f":"u2_17.mp3"},{"t":"Where is the eagle?","f":"u2_18.mp3"},{"t":"Is it in the tree?","f":"u2_19.mp3"},{"t":"No, it isn’t.","f":"u2_20.mp3"},{"t":"Are they in the hive?","f":"u2_21.mp3"},{"t":"Yes, they are.","f":"u2_22.mp3"},{"t":"They’re in the hive!","f":"u2_23.mp3"},{"t":"Where’s the frog?","f":"u2_24.mp3"},{"t":"Where’s the eagle?","f":"u2_25.mp3"},{"t":"It’s under the tree.","f":"u2_26.mp3"},{"t":"Where are the baby eagles?","f":"u2_27.mp3"},{"t":"They’re in the nest.","f":"u2_28.mp3"},{"t":"Can you talk about these animals’ homes?","f":"u2_29.mp3"},{"t":"Why do these animals live in these places?","f":"u2_30.mp3"},{"t":"What animals do you like?","f":"u2_31.mp3"},{"t":"Where do they live?","f":"u2_32.mp3"},{"t":"What do they look like?","f":"u2_33.mp3"},{"t":"Where do the birds live?","f":"u2_34.mp3"},{"t":"They live in the nest.","f":"u2_35.mp3"}]},{"unit":3,"pages":"26-34","bigQuestion":"How do we use numbers?","grammar":"How many ... do we have? We have ... ... don’t have ...","words":["odd numbers","even numbers","plus","minus","equal","answer"],"sents":[{"t":"How do we use numbers?","f":"u3_01.mp3"},{"t":"A Numbers in Maths What do you know about numbers?","f":"u3_02.mp3"},{"t":"Ten hat s!","f":"u3_03.mp3"},{"t":"Tanya loves hats.","f":"u3_04.mp3"},{"t":"She has ten hats.","f":"u3_05.mp3"},{"t":"There are three hats for rainy days and seven hats for sunny days.","f":"u3_06.mp3"},{"t":"He has seven T-shirts.","f":"u3_07.mp3"},{"t":"The even numbers are blue, and the odd numbers are red.","f":"u3_08.mp3"},{"t":"We use numbers every day.","f":"u3_09.mp3"},{"t":"They help us count things.","f":"u3_10.mp3"},{"t":"You have five orange pencils.","f":"u3_11.mp3"},{"t":"I have six green pencils.","f":"u3_12.mp3"},{"t":"How many pencils do we have?","f":"u3_13.mp3"},{"t":"We have eleven pencils.","f":"u3_14.mp3"},{"t":"You have five apples.","f":"u3_15.mp3"},{"t":"Your sister comes and eats one apple.","f":"u3_16.mp3"},{"t":"Now how many apples do you have?","f":"u3_17.mp3"},{"t":"I have four apples now.","f":"u3_18.mp3"},{"t":"What do you learn about numbers?","f":"u3_19.mp3"},{"t":"When do we use numbers in our daily lives?","f":"u3_20.mp3"},{"t":"Plus Minus B There are odd and even numbers.","f":"u3_21.mp3"},{"t":"We want ten apples for the party.","f":"u3_22.mp3"},{"t":"How many apples do we have?","f":"u3_23.mp3"},{"t":"I don’t have ten apples.","f":"u3_24.mp3"},{"t":"I have four apples.","f":"u3_25.mp3"},{"t":"So together we have ten!","f":"u3_26.mp3"},{"t":"We have ten apples.","f":"u3_27.mp3"},{"t":"They don’t have ten apples.","f":"u3_28.mp3"},{"t":"They have two.","f":"u3_29.mp3"},{"t":"I have three books.","f":"u3_30.mp3"},{"t":"How do numbers help us?","f":"u3_31.mp3"},{"t":"What do Lanlan and Junjun put in the salad?","f":"u3_32.mp3"},{"t":"Today is Mingming’s birthday.","f":"u3_33.mp3"},{"t":"There are people at the party.","f":"u3_34.mp3"},{"t":"How old is Mingming?","f":"u3_35.mp3"}]},{"unit":4,"pages":"36-44","bigQuestion":"What do we buy?","grammar":"What would you like? I’d like ... How much is / are ...? It’s / They’re ... yuan.","words":["supermarket","a bag of rice","a box of eggs","a bottle of juice"],"sents":[{"t":"What do we buy?","f":"u4_01.mp3"},{"t":"I buy a bottle of water.","f":"u4_02.mp3"},{"t":"Now I can fly my kite in the park with my friends.","f":"u4_03.mp3"},{"t":"The shop sells kites.","f":"u4_04.mp3"},{"t":"I don’t have a kite.","f":"u4_05.mp3"},{"t":"We need to buy some food.","f":"u4_06.mp3"},{"t":"Let’s play a game.","f":"u4_07.mp3"},{"t":"We have 60 yuan.","f":"u4_08.mp3"},{"t":"Here’s the shopping list for each team.","f":"u4_09.mp3"},{"t":"The faster team can buy some candy.","f":"u4_10.mp3"},{"t":"We need some bread and a box of eggs.","f":"u4_11.mp3"},{"t":"Here they are.","f":"u4_12.mp3"},{"t":"How much are the eggs?","f":"u4_13.mp3"},{"t":"And the bread is 12 yuan.","f":"u4_14.mp3"},{"t":"We need some apples.","f":"u4_15.mp3"},{"t":"And some carrots.","f":"u4_16.mp3"},{"t":"How much are they?","f":"u4_17.mp3"},{"t":"This bag of apples is 12 yuan.","f":"u4_18.mp3"},{"t":"This bag of carrots is 5 yuan.","f":"u4_19.mp3"},{"t":"Oh no, Dad!","f":"u4_20.mp3"},{"t":"We win, Mum!","f":"u4_21.mp3"},{"t":"We still have 16 yuan.","f":"u4_22.mp3"},{"t":"I’d like a bar of chocolate.","f":"u4_23.mp3"},{"t":"I can share it with you all.","f":"u4_24.mp3"},{"t":"What do they buy in the supermarket?","f":"u4_25.mp3"},{"t":"What do you usually buy in the supermarket?","f":"u4_26.mp3"},{"t":"How much money do they have?","f":"u4_27.mp3"},{"t":"What do they need?","f":"u4_28.mp3"},{"t":"Chen Lei’s family need to buy some food in the supermarket.","f":"u4_29.mp3"},{"t":"They play a game.","f":"u4_30.mp3"},{"t":"What would you like?","f":"u4_31.mp3"},{"t":"How much is it?","f":"u4_32.mp3"},{"t":"It’s ten yuan.","f":"u4_33.mp3"},{"t":"How much are the tomatoes?","f":"u4_34.mp3"},{"t":"They’re fifteen yuan.","f":"u4_35.mp3"},{"t":"How many 2 5 1 What would you like?","f":"u4_36.mp3"},{"t":"I’d like some apples.","f":"u4_37.mp3"},{"t":"How much is a bottle of water?","f":"u4_38.mp3"},{"t":"It’s two yuan.","f":"u4_39.mp3"},{"t":"What do Chen Lei’s family buy?","f":"u4_40.mp3"},{"t":"What do you usually buy when you go shopping?","f":"u4_41.mp3"},{"t":"Here you are.","f":"u4_42.mp3"},{"t":"Let me see.","f":"u4_43.mp3"}]},{"unit":5,"pages":"46-54","bigQuestion":"How are the seasons different?","grammar":"It gets / snows ... It doesn’t get / snow ...","words":["spring","warm","summer","hot","autumn","cool","winter","cold"],"sents":[{"t":"How are the seasons different?","f":"u5_01.mp3"},{"t":"It’s warm and rainy.","f":"u5_02.mp3"},{"t":"Can you see the red apples on the tree?","f":"u5_03.mp3"},{"t":"There are four seasons in a year: spring, summer, autumn and winter.","f":"u5_04.mp3"},{"t":"Summer days are long and hot.","f":"u5_05.mp3"},{"t":"Plants grow in spring.","f":"u5_06.mp3"},{"t":"It gets warm.","f":"u5_07.mp3"},{"t":"It usually rains a lot.","f":"u5_08.mp3"},{"t":"The rain helps plants grow.","f":"u5_09.mp3"},{"t":"Summer comes after spring.","f":"u5_10.mp3"},{"t":"It gets hot.","f":"u5_11.mp3"},{"t":"The days are long and the nights are short.","f":"u5_12.mp3"},{"t":"The sun helps fruit and flowers grow.","f":"u5_13.mp3"},{"t":"Winter days are short and cold.","f":"u5_14.mp3"},{"t":"Leaves fall in autumn.","f":"u5_15.mp3"},{"t":"Winter comes after autumn.","f":"u5_16.mp3"},{"t":"The days are short and the nights are long.","f":"u5_17.mp3"},{"t":"It gets cold and it often snows!","f":"u5_18.mp3"},{"t":"Many trees don’t have leaves.","f":"u5_19.mp3"},{"t":"It gets cool.","f":"u5_20.mp3"},{"t":"Then it’s spring!","f":"u5_21.mp3"},{"t":"The seasons begin again.","f":"u5_22.mp3"},{"t":"How do things change in each season?","f":"u5_23.mp3"},{"t":"In winter, many trees don’t have leaves.","f":"u5_24.mp3"},{"t":"In autumn, leaves turn red, yellow and orange.","f":"u5_25.mp3"},{"t":"In spring, the rain helps plants grow.","f":"u5_26.mp3"},{"t":"What is each season like in your city?","f":"u5_27.mp3"},{"t":"Winter B Summer is my favourite season.","f":"u5_28.mp3"},{"t":"It gets hot in summer.","f":"u5_29.mp3"},{"t":"Days are long, and nights are short.","f":"u5_30.mp3"},{"t":"I like summer.","f":"u5_31.mp3"},{"t":"But it’s so hot!","f":"u5_32.mp3"},{"t":"It doesn’t snow in summer.","f":"u5_33.mp3"},{"t":"Let’s wait until winter!","f":"u5_34.mp3"},{"t":"Days are short, and nights are long.","f":"u5_35.mp3"},{"t":"It gets so cold.","f":"u5_36.mp3"},{"t":"It doesn’t get cold.","f":"u5_37.mp3"},{"t":"It snows in winter.","f":"u5_38.mp3"},{"t":"We can see a lot of honeybees outside.","f":"u5_39.mp3"},{"t":"What do they see in each season?","f":"u5_40.mp3"},{"t":"What do you like doing in each season?","f":"u5_41.mp3"},{"t":"We love the four seasons!!","f":"u5_42.mp3"},{"t":"They see small green leaves on the trees.","f":"u5_43.mp3"},{"t":"What’s your favourite season?","f":"u5_44.mp3"},{"t":"What do you do in spring?","f":"u5_45.mp3"},{"t":"It gets warm in spring.","f":"u5_46.mp3"},{"t":"I often go to the park.","f":"u5_47.mp3"}]},{"unit":6,"pages":"56-64","bigQuestion":"What’s amazing about plants?","grammar":"It has ... It doesn’t have ...","words":["flower","fruit","leaf","soil"],"sents":[{"t":"What’s amazing about plants?","f":"u6_01.mp3"},{"t":"I have some small black sunflower seeds.","f":"u6_02.mp3"},{"t":"I put a seed in the soil.","f":"u6_03.mp3"},{"t":"Mum waters it.","f":"u6_04.mp3"},{"t":"But I can’t see the roots.","f":"u6_05.mp3"},{"t":"They grow down.","f":"u6_06.mp3"},{"t":"Now my sunflower is tall with a big yellow flower.","f":"u6_07.mp3"},{"t":"The flower is round.","f":"u6_08.mp3"},{"t":"People can make oil from the seeds.","f":"u6_09.mp3"},{"t":"Sunflowers are amazing!","f":"u6_10.mp3"},{"t":"What’s amazing about sunflowers?","f":"u6_11.mp3"},{"t":"How do other plants grow?","f":"u6_12.mp3"},{"t":"I put a sunflower seed in the soil.","f":"u6_13.mp3"},{"t":"The plant grows.","f":"u6_14.mp3"},{"t":"It has some roots.","f":"u6_15.mp3"},{"t":"It doesn’t have a flower.","f":"u6_16.mp3"},{"t":"Here is a little brown seed.","f":"u6_17.mp3"},{"t":"I’ll plant it in this row.","f":"u6_18.mp3"},{"t":"It doesn’t have roots or leaves.","f":"u6_19.mp3"},{"t":"But I can watch it grow!","f":"u6_20.mp3"},{"t":"The plant is big and strong.","f":"u6_21.mp3"},{"t":"And now it has green leaves.","f":"u6_22.mp3"},{"t":"The flowers are very small.","f":"u6_23.mp3"},{"t":"And they make little seeds.","f":"u6_24.mp3"},{"t":"In spring, it gets warm.","f":"u6_25.mp3"},{"t":"The tree has many flowers.","f":"u6_26.mp3"},{"t":"What is in the school garden?","f":"u6_27.mp3"},{"t":"What do the plants look like?","f":"u6_28.mp3"},{"t":"What other plants do you know?","f":"u6_29.mp3"},{"t":"What is amazing about them?","f":"u6_30.mp3"},{"t":"I put the seed in the soil.","f":"u6_31.mp3"}]},{"unit":7,"pages":"66-74","bigQuestion":"How do we keep safe on the road?","grammar":"Wait ... Don’t play ...","words":["green light","red light","wait","cross"],"sents":[{"t":"How do we keep safe on the road?on the road?","f":"u7_01.mp3"},{"t":"First, look left and right.","f":"u7_02.mp3"},{"t":"Please don’t run.","f":"u7_03.mp3"},{"t":"Let’s cross the road.","f":"u7_04.mp3"},{"t":"What should we do first?","f":"u7_05.mp3"},{"t":"Yaoyao: It’s safe to cross.","f":"u7_06.mp3"},{"t":"Qiqi: I like walking to school.","f":"u7_07.mp3"},{"t":"Yaoyao: I don’t like walking.","f":"u7_08.mp3"},{"t":"Can I ride a bike to school?","f":"u7_09.mp3"},{"t":"The light is green.","f":"u7_10.mp3"},{"t":"No, sorry, kids.","f":"u7_11.mp3"},{"t":"We can’t skate on the road.","f":"u7_12.mp3"},{"t":"It’s not safe.","f":"u7_13.mp3"},{"t":"How do the children keep safe on the road?","f":"u7_14.mp3"},{"t":"What other road safety rules do you know?","f":"u7_15.mp3"},{"t":"Can I skate to school?","f":"u7_16.mp3"},{"t":"No, you can’t.","f":"u7_17.mp3"},{"t":"I see a red light.","f":"u7_18.mp3"},{"t":"What does it mean?","f":"u7_19.mp3"},{"t":"Until it turns green.","f":"u7_20.mp3"},{"t":"Now the light is green.","f":"u7_21.mp3"},{"t":"It’s OK to go.","f":"u7_22.mp3"},{"t":"But don’t walk too slow.","f":"u7_23.mp3"},{"t":"What should we do on the road?","f":"u7_24.mp3"},{"t":"Don’t play on the road.","f":"u7_25.mp3"},{"t":"What can you learn from the quiz?","f":"u7_26.mp3"},{"t":"Why are road safety rules important?","f":"u7_27.mp3"},{"t":"A Children under 12 years old can’t ride on the road.","f":"u7_28.mp3"}]},{"unit":8,"pages":"76-84","bigQuestion":"What do our grandparents do?","grammar":"Review","words":["go shopping","go for a walk","use the internet","do exercise","do housework","do gardening"],"sents":[{"t":"What do our grandparents do?","f":"u8_01.mp3"},{"t":"They do exercise there.","f":"u8_02.mp3"},{"t":"They can cook nice food.","f":"u8_03.mp3"},{"t":"They often sing with their friends.","f":"u8_04.mp3"},{"t":"It’s Sunday morning.","f":"u8_05.mp3"},{"t":"Every morning, they go for a walk in the park.","f":"u8_06.mp3"},{"t":"They often do tai chi with their friends there.","f":"u8_07.mp3"},{"t":"He has lots of plants.","f":"u8_08.mp3"},{"t":"They look great.","f":"u8_09.mp3"},{"t":"What do Junjun’s grandparents do every day?","f":"u8_10.mp3"},{"t":"Lots of people watch it.","f":"u8_11.mp3"},{"t":"What are your grandparents’ lives like?","f":"u8_12.mp3"},{"t":"Think and talk.","f":"u8_13.mp3"},{"t":"Junjun do with his grandparents?","f":"u8_14.mp3"},{"t":"In winter, it gets cold.","f":"u8_15.mp3"},{"t":"I visit my grandparents’ farm.","f":"u8_16.mp3"},{"t":"In spring, it’s warm and sunny.","f":"u8_17.mp3"},{"t":"We walk in the park.","f":"u8_18.mp3"},{"t":"In summer, it gets hot.","f":"u8_19.mp3"},{"t":"We stay at home a lot.","f":"u8_20.mp3"},{"t":"In autumn, the leaves change colour.","f":"u8_21.mp3"},{"t":"We go for a long bike ride.","f":"u8_22.mp3"},{"t":"What do I do with my grandparents?","f":"u8_23.mp3"},{"t":"You do a lot of things with your grandparents.","f":"u8_24.mp3"},{"t":"It gets warm in spring.","f":"u8_25.mp3"},{"t":"What hobbies do your grandparents have?","f":"u8_26.mp3"},{"t":"What do your grandparents like doing?","f":"u8_27.mp3"}]}]};
+
+  // 讯飞密钥：只存本机 localStorage，不进 DATA（不参与家庭同步、不写进公开仓库）
+  const XF_KEY = 'xf_ise_cfg';
+  const XF = {
+    get() { try { return JSON.parse(localStorage.getItem(XF_KEY) || '{}'); } catch (e) { return {}; } },
+    save(o) { localStorage.setItem(XF_KEY, JSON.stringify(o || {})); },
+    ok() { const c = XF.get(); return !!(c.appid && c.key && c.secret); },
+    async url(host, path) {
+      const c = XF.get();
+      const date = new Date().toUTCString();
+      const origin = 'host: ' + host + '\ndate: ' + date + '\nGET ' + path + ' HTTP/1.1';
+      const enc = new TextEncoder();
+      const km = await crypto.subtle.importKey('raw', enc.encode(c.secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+      const sg = new Uint8Array(await crypto.subtle.sign('HMAC', km, enc.encode(origin)));
+      let bin = ''; for (let i = 0; i < sg.length; i++) bin += String.fromCharCode(sg[i]);
+      const ao = 'api_key="' + c.key + '", algorithm="hmac-sha256", headers="host date request-line", signature="' + btoa(bin) + '"';
+      const auth = btoa(unescape(encodeURIComponent(ao)));
+      return 'wss://' + host + path + '?authorization=' + encodeURIComponent(auth) + '&date=' + encodeURIComponent(date) + '&host=' + encodeURIComponent(host);
+    }
+  };
+  function b64bin(s) { const b = atob(s); const u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
+  function b64str(s) { try { return new TextDecoder('utf-8').decode(b64bin(s)); } catch (e) { return atob(s); } }
+  function binB64(u) { let b = ''; for (let i = 0; i < u.length; i++) b += String.fromCharCode(u[i]); return btoa(b); }
+
+  // 评测一次：refText 是要读的句子，pcm 是 Int16Array（16k/16bit/单声道）
+  function iseEval(refText, pcm) {
+    const c = XF.get();
+    const biz = {
+      sub: 'ise', ent: 'en_vip', category: 'read_sentence', cmd: 'ssb', ttp_skip: true,
+      aue: 'raw', auf: 'audio/L16;rate=16000', tte: 'utf-8',
+      text: '\uFEFF' + '[content]' + refText + '[/content]',
+      rst: 'entirety', rstcd: 'utf8', ise_unite: '1',
+      extra_ability: 'multi_dimension;syll_phone_err_msg', group: 'pupil'
+    };
+    return XF.url('ise-api.xfyun.cn', '/v2/open-ise').then(function (url) {
+      return new Promise(function (res, rej) {
+        let ws = null, buf = [], settled = false;
+        const to = setTimeout(function () { fin(new Error('评分超时，再读一次')); }, 30000);
+        function fin(err, val) { if (settled) return; settled = true; clearTimeout(to); try { if (ws) ws.close(); } catch (e) {} err ? rej(err) : res(val); }
+        try { ws = new WebSocket(url); } catch (e) { return fin(e); }
+        ws.onopen = function () {
+          ws.send(JSON.stringify({ common: { app_id: c.appid }, business: biz, data: { status: 0 } }));
+          const FR = 1280, n = Math.max(1, Math.ceil(pcm.byteLength / FR));
+          let i = 0;
+          const tm = setInterval(function () {
+            if (i >= n) { clearInterval(tm); return; }
+            const len = Math.min(FR, pcm.byteLength - i * FR);
+            const part = new Uint8Array(pcm.buffer, pcm.byteOffset + i * FR, len);
+            ws.send(JSON.stringify({
+              business: { cmd: 'auw', aus: i === 0 ? 1 : (i === n - 1 ? 4 : 2) },
+              data: { status: i === n - 1 ? 2 : 1, data: binB64(part) }
+            }));
+            i++;
+          }, 40);
+        };
+        ws.onmessage = function (ev) {
+          let r; try { r = JSON.parse(ev.data); } catch (e) { return fin(new Error('返回格式异常')); }
+          if (r.code !== 0) return fin(new Error('评分失败 ' + r.code + '：' + (r.message || '')));
+          const d = r.data || {};
+          if (d.data) buf.push(b64str(d.data));
+          if (d.status === 2) fin(null, buf.join(''));
+        };
+        ws.onerror = function () { fin(new Error('连不上评分服务，检查一下网络')); };
+        ws.onclose = function () { if (!settled) fin(new Error('连接被关掉了')); };
+      });
+    });
+  }
+
+  function iseAttr(xml, tag, name) {
+    const m = new RegExp('<' + tag + '\\b[^>]*\\b' + name + '="([^"]*)"').exec(xml);
+    return m ? m[1] : null;
+  }
+  function iseParse(xml) {
+    const f = function (v) { if (v == null) return null; const n = parseFloat(v); return isNaN(n) ? null : n; };
+    let total = f(iseAttr(xml, 'read_chapter', 'total_score'));
+    if (total == null) total = f(iseAttr(xml, 'read_sentence', 'total_score'));
+    if (total == null) { const fm = /total_score="([\d.]+)"/.exec(xml); total = fm ? parseFloat(fm[1]) : 0; }
+    const words = [];
+    const re = /<word\b([^>]*?)\/?>/g; let m;
+    while ((m = re.exec(xml))) {
+      const c = /content="([^"]*)"/.exec(m[1]);
+      const t = /total_score="([\d.]+)"/.exec(m[1]);
+      const d = /dp_message="(\d+)"/.exec(m[1]);
+      if (c) words.push({ w: c[1], score: t ? parseFloat(t[1]) : null, dp: d ? parseInt(d[1], 10) : 0 });
+    }
+    return {
+      total: total || 0,
+      accuracy: f(iseAttr(xml, 'sentence', 'accuracy_score')),
+      fluency: f(iseAttr(xml, 'sentence', 'fluency_score')),
+      standard: f(iseAttr(xml, 'sentence', 'standard_score')),
+      integrity: f(iseAttr(xml, 'sentence', 'integrity_score')),
+      words: words
+    };
+  }
+
+  // 手机录的是 webm/opus，讯飞要 16k/16bit/单声道 PCM，这里做解码 + 重采样
+  function recToPcm16k(blob) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    if (!AC || !OAC) return Promise.reject(new Error('这个设备不支持录音处理'));
+    return blob.arrayBuffer().then(function (ab) {
+      const ac = new AC();
+      return new Promise(function (res, rej) {
+        const p = ac.decodeAudioData(ab, res, rej);
+        if (p && p.then) p.then(res, rej);
+      }).then(function (buf) {
+        const rate = 16000;
+        const len = Math.max(1, Math.ceil(buf.duration * rate));
+        const off = new OAC(1, len, rate);
+        const src = off.createBufferSource(); src.buffer = buf; src.connect(off.destination); src.start();
+        return off.startRendering().then(function (rb) {
+          try { ac.close(); } catch (e) {}
+          const ch = rb.getChannelData(0);
+          const out = new Int16Array(ch.length);
+          for (let i = 0; i < ch.length; i++) { const s = Math.max(-1, Math.min(1, ch[i])); out[i] = s < 0 ? s * 0x8000 : s * 0x7FFF; }
+          return out;
+        });
+      }).catch(function (e) { try { ac.close(); } catch (_) {} throw new Error('这段录音没听清，再读一次'); });
+    });
+  }
+
+  // ---------------- 孩子端：跟读界面 ----------------
+  let FOLLOW = null, FL_REC = null, FL_DEMO = null, FL_TIMER = null;
+  function flStopDemo() { if (FL_DEMO) { try { FL_DEMO.pause(); } catch (e) {} FL_DEMO = null; } }
+  function flDemoUrl(f) { const L = TB_LIB; return (L && L.base ? L.base : '') + f; }
+
+  function openFollow(taskId) {
+    const t = DATA.tasks.find(function (x) { return x.id === taskId; });
+    if (!t || !t.follow) return;
+    if (!XF.ok()) { toast('妈妈还没配置跟读评分，请到妈妈端「设置」里填讯飞密钥'); return; }
+    const fo = t.follow;
+    const sents = fo.sents || [];
+    if (!sents.length) { toast('这个跟读任务没有内容'); return; }
+    FOLLOW = {
+      id: taskId, sents: sents, idx: 0, pass: fo.pass || 75, retry: fo.retry || 3,
+      scores: (fo.scores || []).slice(), tries: 0, state: 'idle', result: null, err: ''
+    };
+    while (FOLLOW.idx < sents.length && FOLLOW.scores[FOLLOW.idx] != null) FOLLOW.idx++;
+    const old = document.getElementById('fl-modal'); if (old) old.remove();
+    const modal = document.createElement('div');
+    modal.className = 'modal-mask'; modal.id = 'fl-modal';
+    modal.onclick = function (e) { if (e.target === modal) flClose(); };
+    document.getElementById('modal-root').appendChild(modal);
+    flRender();
+  }
+  function flClose() {
+    flStopDemo();
+    if (FL_REC && FL_REC.mr && FL_REC.mr.state === 'recording') { try { FL_REC.mr.stop(); } catch (e) {} }
+    if (FL_REC && FL_REC.stream) { try { FL_REC.stream.getTracks().forEach(function (x) { x.stop(); }); } catch (e) {} }
+    if (FL_TIMER) { clearTimeout(FL_TIMER); FL_TIMER = null; }
+    FL_REC = null; FOLLOW = null;
+    const m = document.getElementById('fl-modal'); if (m) m.remove();
+    render();
+  }
+
+  function flScoreColor(v, pass) { return v >= pass ? 'var(--green-600)' : (v >= pass - 15 ? 'var(--amber-600)' : 'var(--pink-600)'); }
+
+  function flRender() {
+    const m = document.getElementById('fl-modal');
+    if (!m || !FOLLOW) return;
+    const F = FOLLOW, n = F.sents.length;
+    const doneN = F.scores.filter(function (x) { return x != null; }).length;
+    const pct = n ? Math.round(doneN / n * 100) : 0;
+    if (F.idx >= n) return flRenderDone(m, pct);
+    const s = F.sents[F.idx];
+    const R = F.result;
+    const rec = F.state === 'recording';
+    let wordsHtml = '';
+    if (R && R.words && R.words.length) {
+      wordsHtml = '<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px">' + R.words.map(function (w) {
+        const bad = (w.score != null && w.score < 70) || w.dp !== 0;
+        return '<span style="padding:3px 9px;border-radius:10px;font-size:13px;background:' + (bad ? 'var(--pink-50)' : 'var(--green-50)') + ';color:' + (bad ? 'var(--pink-600)' : 'var(--gray-700))') + '">' + esc(w.w) + (w.score != null ? ' ' + Math.round(w.score) : '') + '</span>';
+      }).join('') + '</div>';
+    }
+    let actHtml = '';
+    if (F.state === 'scoring') {
+      actHtml = '<div style="text-align:center;padding:14px 0;color:var(--gray-600)">⏳ 正在评分…</div>';
+    } else if (R) {
+      const ok = R.total >= F.pass;
+      const left = F.retry - F.tries;
+      actHtml =
+        '<div style="text-align:center;padding:10px 0">' +
+          '<div style="font-size:40px;font-weight:700;color:' + flScoreColor(R.total, F.pass) + ';line-height:1.1">' + R.total.toFixed(1) + '</div>' +
+          '<div style="font-size:13px;color:' + flScoreColor(R.total, F.pass) + ';margin-top:2px">' + (ok ? '✅ 达标啦' : '💪 再试一次会更好') + '</div>' +
+          '<div style="display:flex;justify-content:center;gap:14px;font-size:12px;color:var(--gray-600);margin-top:8px">' +
+            (R.accuracy != null ? '<span>准确度 ' + R.accuracy.toFixed(0) + '</span>' : '') +
+            (R.fluency != null ? '<span>流利度 ' + R.fluency.toFixed(0) + '</span>' : '') +
+            (R.standard != null ? '<span>标准度 ' + R.standard.toFixed(0) + '</span>' : '') +
+          '</div>' + wordsHtml +
+          '<div style="display:flex;gap:8px;margin-top:12px">' +
+            (ok ? '' : '<button class="btn-secondary" style="flex:1" onclick="flRetry()">🔁 再读一次' + (left > 0 ? '（还能 ' + left + ' 次）' : '') + '</button>') +
+            '<button class="btn-primary" style="flex:1" onclick="flNext()">' + (F.idx >= n - 1 ? '完成 🎉' : '下一句 →') + '</button>' +
+          '</div>' +
+        '</div>';
+    }
+    if (F.err) {
+      actHtml = '<div style="text-align:center;padding:10px 0;color:var(--pink-600);font-size:13px">' + esc(F.err) +
+        '<div style="margin-top:8px"><button class="btn-secondary" onclick="flRetry()">🔁 重新录</button></div></div>';
+    }
+    m.innerHTML =
+      '<div class="modal" style="max-height:92vh;overflow:auto">' +
+        '<button class="icon-btn close" onclick="flClose()">✕</button>' +
+        '<h3>🎤 逐句跟读</h3>' +
+        '<div style="display:flex;align-items:center;gap:8px;margin:6px 0 10px">' +
+          '<div style="flex:1;height:7px;border-radius:4px;background:var(--gray-100);overflow:hidden"><div style="height:100%;width:' + pct + '%;background:var(--green-600);border-radius:4px"></div></div>' +
+          '<span style="font-size:12px;color:var(--gray-600);white-space:nowrap">' + doneN + '/' + n + ' 句</span>' +
+        '</div>' +
+        '<div style="background:var(--gray-50);border-radius:14px;padding:16px 14px;text-align:center">' +
+          '<div style="font-size:12px;color:var(--gray-600);margin-bottom:6px">第 ' + (F.idx + 1) + ' 句</div>' +
+          '<div style="font-size:19px;line-height:1.45;font-weight:600">' + esc(s.t) + '</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;margin-top:12px">' +
+          '<button class="btn-secondary" style="flex:1;padding:12px 0" onclick="flPlayDemo()">🔊 听示范</button>' +
+          '<button class="' + (rec ? 'btn-secondary' : 'btn-primary') + '" style="flex:1;padding:12px 0" onclick="flRecToggle()">' + (rec ? '⏹ 我读完了' : '🎙 开始录音') + '</button>' +
+        '</div>' +
+        '<div id="fl-status" style="text-align:center;font-size:13px;color:var(--gray-600);margin-top:8px;min-height:18px">' +
+          (rec ? '🔴 正在听你读…（再点一下结束）' : (R || F.err ? '' : '先听一遍示范，再点录音跟读')) +
+        '</div>' +
+        actHtml +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:12px;color:var(--gray-600)">' +
+          '<span>达标线 ' + F.pass + ' 分</span>' +
+          '<span style="text-decoration:underline" onclick="flNext()">跳过这句 →</span>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function flRenderDone(m, pct) {
+    const F = FOLLOW, n = F.sents.length;
+    const got = F.scores.map(function (x) { return x == null ? 0 : x; });
+    const avg = got.length ? got.reduce(function (a, b) { return a + b; }, 0) / got.length : 0;
+    const passed = got.filter(function (x) { return x >= F.pass; }).length;
+    const t = DATA.tasks.find(function (x) { return x.id === F.id; });
+    const stars = avg >= 90 ? 3 : (avg >= 80 ? 2 : (avg >= F.pass ? 1 : 0));
+    m.innerHTML =
+      '<div class="modal" style="text-align:center">' +
+        '<h3>🎉 这一轮读完啦</h3>' +
+        '<div style="font-size:44px;font-weight:700;color:var(--green-600);margin:10px 0">' + avg.toFixed(1) + '</div>' +
+        '<p style="font-size:14px;color:var(--gray-700);margin-bottom:4px">平均分 · ' + passed + '/' + n + ' 句达标</p>' +
+        (stars ? '<p style="font-size:14px;color:var(--amber-600)">获得 ' + '⭐'.repeat(stars) + '</p>' : '') +
+        '<div style="display:flex;gap:8px;margin-top:16px">' +
+          '<button class="btn-secondary" style="flex:1" onclick="flRedo()">🔁 再练一轮</button>' +
+          '<button class="btn-primary" style="flex:1" onclick="flFinish()">' + (t && t.done ? '完成' : '完成打卡 +' + (t ? t.points : 0) + ' 分') + '</button>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function flPlayDemo() {
+    if (!FOLLOW) return;
+    const s = FOLLOW.sents[FOLLOW.idx]; if (!s) return;
+    flStopDemo();
+    const a = new Audio(flDemoUrl(s.f));
+    a.preload = 'auto';
+    FL_DEMO = a;
+    a.play().catch(function () { toast('示范音加载失败，检查网络'); });
+  }
+
+  function flRecToggle() {
+    if (!FOLLOW) return;
+    if (FOLLOW.state === 'recording') return flRecStop();
+    if (FOLLOW.state === 'scoring') return;
+    FOLLOW.err = ''; FOLLOW.result = null; FOLLOW.tries++;
+    if (!navigator.mediaDevices || !window.MediaRecorder) { FOLLOW.err = '这个设备不支持录音'; return flRender(); }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+      let mr;
+      try { mr = new MediaRecorder(stream); } catch (e) {
+        try { mr = new MediaRecorder(stream, { mimeType: 'audio/webm' }); } catch (e2) { throw e2; }
+      }
+      const chunks = [];
+      mr.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
+      mr.start();
+      FL_REC = { mr: mr, stream: stream, chunks: chunks };
+      FOLLOW.state = 'recording';
+      flRender();
+      FL_TIMER = setTimeout(function () { if (FOLLOW && FOLLOW.state === 'recording') flRecStop(); }, 20000);
+    }).catch(function () {
+      FOLLOW.state = 'idle';
+      FOLLOW.err = '没拿到麦克风权限，去系统设置里允许一下';
+      flRender();
+    });
+  }
+
+  function flRecStop() {
+    if (!FL_REC || !FL_REC.mr) return;
+    if (FL_TIMER) { clearTimeout(FL_TIMER); FL_TIMER = null; }
+    const mr = FL_REC.mr, chunks = FL_REC.chunks, stream = FL_REC.stream;
+    mr.onstop = function () {
+      try { stream.getTracks().forEach(function (x) { x.stop(); }); } catch (e) {}
+      const blob = new Blob(chunks, { type: mr.mimeType || 'audio/webm' });
+      FL_REC = null;
+      if (!blob.size) { FOLLOW.state = 'idle'; FOLLOW.err = '没录到声音，离话筒近一点再试'; return flRender(); }
+      FOLLOW.state = 'scoring'; flRender();
+      recToPcm16k(blob).then(function (pcm) {
+        if (!FOLLOW) return;
+        return iseEval(FOLLOW.sents[FOLLOW.idx].t, pcm);
+      }).then(function (xml) {
+        if (!FOLLOW) return;
+        const r = iseParse(xml);
+        const i = FOLLOW.idx;
+        const old = FOLLOW.scores[i];
+        FOLLOW.scores[i] = (old == null) ? r.total : Math.max(old, r.total);
+        FOLLOW.result = r; FOLLOW.state = 'idle'; FOLLOW.err = '';
+        flSaveProgress();
+        flRender();
+      }).catch(function (e) {
+        if (!FOLLOW) return;
+        FOLLOW.state = 'idle'; FOLLOW.err = (e && e.message) ? e.message : '评分失败，再试一次';
+        flRender();
+      });
+    };
+    try { mr.stop(); } catch (e) {}
+  }
+
+  function flSaveProgress() {
+    const t = DATA.tasks.find(function (x) { return x.id === FOLLOW.id; });
+    if (!t || !t.follow) return;
+    t.follow.scores = FOLLOW.scores.slice();
+    saveData(DATA);
+  }
+
+  function flRetry() {
+    if (!FOLLOW) return;
+    FOLLOW.result = null; FOLLOW.err = ''; FOLLOW.state = 'idle';
+    flRender();
+  }
+  function flNext() {
+    if (!FOLLOW) return;
+    flStopDemo();
+    FOLLOW.result = null; FOLLOW.err = ''; FOLLOW.state = 'idle'; FOLLOW.tries = 0;
+    const i = FOLLOW.idx;
+    if (FOLLOW.scores[i] == null) { FOLLOW.scores[i] = 0; flSaveProgress(); }
+    FOLLOW.idx++;
+    flRender();
+  }
+  function flRedo() {
+    if (!FOLLOW) return;
+    FOLLOW.scores = []; FOLLOW.idx = 0; FOLLOW.result = null; FOLLOW.err = ''; FOLLOW.state = 'idle'; FOLLOW.tries = 0;
+    flSaveProgress();
+    const old = document.getElementById('fl-modal');
+    if (old) { old.className = 'modal-mask'; old.id = 'fl-modal'; old.onclick = function (e) { if (e.target === old) flClose(); }; }
+    flRender();
+  }
+  function flFinish() {
+    if (!FOLLOW) return;
+    const t = DATA.tasks.find(function (x) { return x.id === FOLLOW.id; });
+    const got = FOLLOW.scores.map(function (x) { return x == null ? 0 : x; });
+    const avg = got.length ? got.reduce(function (a, b) { return a + b; }, 0) / got.length : 0;
+    const stars = avg >= 90 ? 3 : (avg >= 80 ? 2 : (avg >= FOLLOW.pass ? 1 : 0));
+    const id = FOLLOW.id;
+    if (t && !t.done) {
+      t.done = true; t.doneAt = Date.now();
+      const k = DATA.children.find(function (c) { return c.id === t.childId; });
+      if (k) {
+        k.earned = (k.earned || 0) + t.points; k.points += t.points;
+        DATA.pointsHistory.unshift({ id: 'h' + Date.now(), childId: k.id, date: t.date || TODAY, title: t.title, points: t.points, at: Date.now() });
+        if (stars) awardStars(k, stars, '跟读：' + t.title);
+        try { fpAdd('task', t.title, { childId: k.id, pts: t.points }); } catch (e) {}
+      }
+      saveData(DATA);
+    }
+    flClose();
+    toast(stars ? '打卡完成，获得 ' + stars + ' 颗星 ⭐' : '打卡完成');
+  }
+
+  // ---------------- 妈妈端：布置跟读任务时选句子 ----------------
+  function flUnitSel() {
+    return '<select id="t-fl-unit" onchange="flRenderList()" style="flex:1">' +
+      (TB_LIB.units || []).map(function (u) {
+        return '<option value="' + u.unit + '">Unit ' + u.unit + ' · ' + esc(u.bigQuestion) + '（' + u.sents.length + ' 句）</option>';
+      }).join('') + '</select>';
+  }
+  function flRenderList() {
+    const box = document.getElementById('t-fl-list');
+    const sel = document.getElementById('t-fl-unit');
+    if (!box || !sel) return;
+    const u = (TB_LIB.units || []).find(function (x) { return String(x.unit) === String(sel.value); });
+    if (!u) { box.innerHTML = ''; return; }
+    box.innerHTML = u.sents.map(function (s, i) {
+      return '<label style="display:flex;gap:8px;align-items:flex-start;padding:7px 8px;border-radius:8px;font-size:13px;line-height:1.4;cursor:pointer">' +
+        '<input type="checkbox" class="fl-pick" data-t="' + escA(s.t) + '" data-f="' + escA(s.f) + '" style="width:16px;height:16px;flex:none;margin-top:2px" onchange="flCount()" />' +
+        '<span>' + (i + 1) + '. ' + esc(s.t) + '</span></label>';
+    }).join('');
+    flCount();
+  }
+  function flPickAll(on) {
+    const box = document.getElementById('t-fl-list');
+    if (!box) return;
+    box.querySelectorAll('.fl-pick').forEach(function (c) { c.checked = !!on; });
+    flCount();
+  }
+  function flCount() {
+    const box = document.getElementById('t-fl-list');
+    const lab = document.getElementById('t-fl-count');
+    if (!box || !lab) return;
+    const n = box.querySelectorAll('.fl-pick:checked').length;
+    lab.textContent = n ? ('已选 ' + n + ' 句') : '还没选句子（点上面的方框勾选）';
+    lab.style.color = n ? 'var(--green-600)' : '';
+  }
+  function readFollowForm() {
+    const box = document.getElementById('t-fl-list');
+    const sel = document.getElementById('t-fl-unit');
+    const sents = [];
+    if (box) box.querySelectorAll('.fl-pick:checked').forEach(function (c) {
+      sents.push({ t: c.getAttribute('data-t'), f: c.getAttribute('data-f') });
+    });
+    return {
+      sents: sents,
+      unit: sel ? parseInt(sel.value, 10) || 1 : 1,
+      pass: parseInt((document.getElementById('t-fl-pass') || {}).value) || 75,
+      retry: parseInt((document.getElementById('t-fl-retry') || {}).value) || 3,
+      err: sents.length ? '' : '至少选一句要跟读的内容'
+    };
+  }
+  function fillFollowForm(fo) {
+    const sel = document.getElementById('t-fl-unit');
+    if (sel && fo && fo.unit) { sel.value = String(fo.unit); }
+    flRenderList();
+    if (fo) {
+      const box = document.getElementById('t-fl-list');
+      if (box) {
+        const want = (fo.sents || []).map(function (s) { return s.f; });
+        box.querySelectorAll('.fl-pick').forEach(function (c) { c.checked = want.indexOf(c.getAttribute('data-f')) >= 0; });
+      }
+      const p = document.getElementById('t-fl-pass'), r = document.getElementById('t-fl-retry');
+      if (p) p.value = fo.pass || 75;
+      if (r) r.value = fo.retry || 3;
+      flCount();
+    }
+  }
+
+  // ---------------- 妈妈端：讯飞密钥设置 ----------------
+  function openXfSettings() {
+    const c = XF.get();
+    const modal = document.createElement('div');
+    modal.className = 'modal-mask';
+    modal.onclick = function (e) { if (e.target === modal) modal.remove(); };
+    modal.innerHTML =
+      '<div class="modal">' +
+        '<button class="icon-btn close" onclick="this.closest(\'.modal-mask\').remove()">✕</button>' +
+        '<h3>🔑 跟读评分设置</h3>' +
+        '<p class="text-mute" style="font-size:12px;margin-bottom:10px">' +
+          '填讯飞开放平台的三个值，孩子跟读后才能自动打分。' +
+          '<b>只存在这台手机里</b>，不写进代码、不参与家庭同步，换设备要重新填一次。' +
+        '</p>' +
+        '<div class="field"><label>AppID</label><input id="xf-appid" placeholder="8 位，如 5d6c3162" value="' + escA(c.appid || '') + '" /></div>' +
+        '<div class="field"><label>APIKey</label><input id="xf-key" placeholder="32 位" value="' + escA(c.key || '') + '" /></div>' +
+        '<div class="field"><label>APISecret</label><input id="xf-secret" placeholder="以 Mm 开头的一串" value="' + escA(c.secret || '') + '" /></div>' +
+        '<div id="xf-test-out" class="wq-hint" style="text-align:left;display:none"></div>' +
+        '<div class="btn-row" style="margin-top:14px">' +
+          '<button class="btn-secondary" onclick="xfTest()">测试连接</button>' +
+          '<button class="btn-primary" onclick="saveXfSettings()">保存</button>' +
+        '</div>' +
+        '<p class="wq-hint" style="text-align:left;margin-top:10px">' +
+          '免费额度：语音合成、语音评测各 500 次/天。孩子一天读 20 句远用不完。' +
+        '</p>' +
+      '</div>';
+    document.getElementById('modal-root').appendChild(modal);
+  }
+  function saveXfSettings() {
+    const appid = (document.getElementById('xf-appid') || {}).value || '';
+    const key = (document.getElementById('xf-key') || {}).value || '';
+    const secret = (document.getElementById('xf-secret') || {}).value || '';
+    XF.save({ appid: appid.trim(), key: key.trim(), secret: secret.trim() });
+    const m = document.querySelector('.modal-mask');
+    if (m && m.querySelector('#xf-appid')) m.remove();
+    toast(appid.trim() ? '已保存到本机' : '已清空');
+    render();
+  }
+  function xfTest() {
+    const appid = (document.getElementById('xf-appid') || {}).value || '';
+    const key = (document.getElementById('xf-key') || {}).value || '';
+    const secret = (document.getElementById('xf-secret') || {}).value || '';
+    const out = document.getElementById('xf-test-out');
+    if (!appid.trim() || !key.trim() || !secret.trim()) { if (out) { out.style.display = 'block'; out.style.color = 'var(--pink-600)'; out.textContent = '三个值都要填'; } return; }
+    if (out) { out.style.display = 'block'; out.style.color = 'var(--gray-600)'; out.textContent = '⏳ 正在测试…'; }
+    XF.save({ appid: appid.trim(), key: key.trim(), secret: secret.trim() });
+    // 用一句最短的课文做一次真评测：合成示范音 → 当录音送去打分
+    const s = (TB_LIB.units && TB_LIB.units[0] && TB_LIB.units[0].sents[0]) ? TB_LIB.units[0].sents[0] : null;
+    if (!s) { if (out) { out.textContent = '素材库没加载'; } return; }
+    fetch(flDemoUrl(s.f)).then(function (r) { return r.arrayBuffer(); })
+      .then(recToPcm16k)
+      .then(function (pcm) { return iseEval(s.t, pcm); })
+      .then(function (xml) {
+        const p = iseParse(xml);
+        if (out) {
+          out.style.color = 'var(--green-600)';
+          out.textContent = '✅ 通了！测试句「' + s.t + '」得分 ' + p.total.toFixed(1) + '（合成音接近满分属正常）';
+        }
+      })
+      .catch(function (e) {
+        if (out) { out.style.color = 'var(--pink-600)'; out.textContent = '❌ ' + ((e && e.message) || '连接失败'); }
+      });
+  }
+
   function closeAllModals() {
     const list = document.querySelectorAll('.modal-mask');
     for (let i = 0; i < list.length; i++) list[i].remove();
