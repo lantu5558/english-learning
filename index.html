@@ -1893,14 +1893,11 @@
 
         ${momHabitSection()}
 
-        ${hwSection(true)}
+        ${momHwSection()}
 
         <div class="section">
           <h3>积分记录 <span class="badge">今日</span></h3>
-          ${DATA.pointsHistory.filter(h => h.date === TODAY).map(h => {
-            const k = DATA.children.find(c => c.id === h.childId);
-            return `<div class="task"><div class="title"><div class="name">${k.avatar} ${esc(k.name)} · ${esc(h.title)}${h.at?` · ${fmtClock(h.at)}`:''}</div></div><div class="pts" style="${h.points<0?'color:var(--red-600)':''}">${h.points>0?'+':''}${h.points}</div></div>`;
-          }).join('') || '<div class="empty">还没有积分记录</div>'}
+                    <div class="two-col">${DATA.children.map(c => momPointsCol(c)).join('')}</div>
         </div>
       </div>
       ${momTabBar('today')}
@@ -1909,31 +1906,13 @@
   }
   // 妈妈端「今日好习惯」：每个娃一行，点一下即可代记 / 撤销（记错了点回去就退回星星）
   function momHabitSection() {
-    const kids = DATA.children || [];
-    return `
-      <div class="section">
-        <h3>🌟 今日好习惯 <button class="text-pink" style="font-size:12px" onclick="openHabitModal()">${ICN.edit} 清单</button></h3>
-        ${(DATA.habits || []).length ? kids.map(k => {
-          const hs = habitList(k);
-          const done = hs.filter(h => habitLogOn(h.id, k.id, TODAY)).length;
-          return `
-            <div class="kid-row" style="margin-bottom:10px">
-              <div class="avatar">${k.avatar}</div>
-              <div class="info">
-                <div class="name">${esc(k.name)} · 习惯 ${done}/${hs.length}</div>
-                <div class="progress">点一下就记上：绿=做到了，红=扣分项；再点一下撤销</div>
-                <div class="habit-chips">
-                  ${hs.length ? hs.map(h => {
-                    const on = !!habitLogOn(h.id, k.id, TODAY);
-                    const pen = h.kind === 'penalty';
-                    return `<span class="habit-chip${on ? ' on' : ''}${pen ? ' pen' : ''}" onclick="momToggleHabit('${h.id}','${k.id}')">${esc(h.emoji || '⭐')} ${esc(h.title)} ${pen ? '-' : '+'}${h.points}</span>`;
-                  }).join('') : '<span class="text-mute" style="font-size:12px">今天没有适用的习惯</span>'}
-                </div>
-              </div>
-            </div>`;
-        }).join('') : '<div class="empty" style="padding:18px"><div class="emoji">🌟</div>还没定习惯清单<br><span style="font-size:12px">点右上角「清单」，和娃商量着定几条</span></div>'}
-      </div>`;
-  }
+  if (!(DATA.habits||[]).length) return `<div class="section"><h3>🌟 今日好习惯 <button class="text-pink" style="font-size:12px" onclick="openHabitModal()">${ICN.edit} 清单</button></h3><div class="empty" style="padding:18px"><div class="emoji">🌟</div>还没定习惯清单<br><span style="font-size:12px">点右上角「清单」，和娃商量着定几条</span></div></div>`;
+  return `
+    <div class="section">
+      <h3>🌟 今日好习惯 <button class="text-pink" style="font-size:12px" onclick="openHabitModal()">${ICN.edit} 清单</button></h3>
+      <div class="two-col">${DATA.children.map(c => momHabitCol(c)).join('')}</div>
+    </div>`;
+}
   function momTabBar(active) {
     const tabs = [
       { id:'today', icon: ICN.home, label:'今日', hash:'mom-today' },
@@ -6371,37 +6350,75 @@
     return d.slice(5) + ' · 周' + wd + '（' + diff + ' 天后）';
   }
   // 之后几天的任务也要能改 —— 布置错了常常是明天那几条错了
-  function momFutureTasks() {
-    const fut = (DATA.tasks || []).filter(t => t.date > TODAY).sort((a, b) => a.date < b.date ? -1 : (a.date > b.date ? 1 : 0));
-    if (!fut.length) return '';
-    const shown = MOM_FUT_ALL ? fut : fut.slice(0, 6);
-    const byDay = {};
-    shown.forEach(t => { (byDay[t.date] = byDay[t.date] || []).push(t); });
-    const days = Object.keys(byDay).sort();
-    return `
-      <div class="section">
-        <h3>📅 之后的安排 <span class="badge">${fut.length} 条</span>
-          ${fut.length > 6 ? `<button class="text-pink" style="font-size:12px" onclick="momFutToggle()">${MOM_FUT_ALL ? '收起' : '展开全部'}</button>` : ''}
-        </h3>
-        ${days.map(d => `
-          <div class="fut-day">${futDayLabel(d)}</div>
-          ${byDay[d].map(t => {
-            const k = DATA.children.find(c => c.id === t.childId);
-            const res = taskRes(t);
-            return `<div class="task ${t.done ? 'done' : ''}">
-              <div class="checkbox" onclick="toggleTask('${t.id}')">${t.done ? ICN.check : ''}</div>
-              <div class="title">
-                <div class="name">${esc(t.title)}</div>
-                <div class="meta">${k ? k.avatar + ' ' + esc(k.name) : ''}${res ? ' · 📎 ' + esc(res.title) : ''}</div>
-              </div>
-              <div class="pts">+${t.points}</div>
-              ${momTaskOps(t)}
-            </div>`;
-          }).join('')}
-        `).join('')}
-        ${(fut.length > 6 && !MOM_FUT_ALL) ? '<p class="wq-hint" style="margin-top:8px">只显示最近 6 条，点上面「展开全部」看剩下的</p>' : ''}
-      </div>`;
-  }
+  
+function momFutureCol(c) {
+  const fut = (DATA.tasks||[]).filter(t => t.childId===c.id && t.date>TODAY).sort((a,b)=> a.date<b.date?-1:(a.date>b.date?1:0));
+  const shown = MOM_FUT_ALL ? fut : fut.slice(0,6);
+  return `
+    <div class="kid-col">
+      <div class="kc-head"><div class="avatar">${c.avatar}</div><div class="kc-name">${esc(c.name)}</div><div class="kc-pts">${fut.length} 条</div></div>
+      ${shown.length ? shown.map(t => {
+        const res = taskRes(t);
+        return `<div class="task ${t.done?'done':''}" onclick="toggleTask('${t.id}')">
+          <div class="checkbox">${t.done?ICN.check:''}</div>
+          <div class="title"><div class="name">${esc(t.title)}</div><div class="meta">${futDayLabel(t.date)}${t.done&&t.doneAt?' · ✅ '+fmtClock(t.doneAt):''}${res?' · 📎 '+esc(res.title):''}</div></div>
+          <div class="pts">+${t.points}</div>${momTaskOps(t)}
+        </div>`;
+      }).join('') : '<div class="kc-empty">暂无安排</div>'}
+      ${(fut.length>6 && !MOM_FUT_ALL)?'<div class="kc-empty">还有 '+(fut.length-6)+' 条，点上方「展开全部」</div>':''}
+    </div>`;
+}
+function momHabitCol(c) {
+  const hs = habitList(c);
+  const done = hs.filter(h => habitLogOn(h.id, c.id, TODAY)).length;
+  return `
+    <div class="kid-col">
+      <div class="kc-head"><div class="avatar">${c.avatar}</div><div class="kc-name">${esc(c.name)}</div><div class="kc-pts">习惯 ${done}/${hs.length}</div></div>
+      ${hs.length ? `<div class="habit-chips">${hs.map(h => {
+        const on = !!habitLogOn(h.id, c.id, TODAY);
+        const pen = h.kind==='penalty';
+        return `<span class="habit-chip${on?' on':''}${pen?' pen':''}" onclick="momToggleHabit('${h.id}','${c.id}')">${esc(h.emoji||'⭐')} ${esc(h.title)} ${pen?'-':'+'}${h.points}</span>`;
+      }).join('')}</div>` : '<div class="kc-empty">今天没有适用的习惯</div>'}
+    </div>`;
+}
+function momHwCol(c) {
+  const scopes = ['today','week'].filter(sc => hwList(sc, c.id).length);
+  return `
+    <div class="kid-col">
+      <div class="kc-head"><div class="avatar">${c.avatar}</div><div class="kc-name">${esc(c.name)}</div></div>
+      ${scopes.length ? scopes.map(sc => {
+        const list = hwList(sc, c.id);
+        return `<div class="kc-sub">${HW_SCOPE[sc].icon} ${HW_SCOPE[sc].label} <span class="badge">${list.length}</span></div>${list.map(h => hwCard(h, true)).join('')}`;
+      }).join('') : '<div class="kc-empty">暂无作业</div>'}
+    </div>`;
+}
+function momPointsCol(c) {
+  const hs = DATA.pointsHistory.filter(h => h.childId===c.id && h.date===TODAY);
+  return `
+    <div class="kid-col">
+      <div class="kc-head"><div class="avatar">${c.avatar}</div><div class="kc-name">${esc(c.name)}</div><div class="kc-pts">${hs.length} 条</div></div>
+      ${hs.length ? hs.map(h => `<div class="task"><div class="title"><div class="name">${esc(h.title)}${h.at?' · '+fmtClock(h.at):''}</div></div><div class="pts" style="${h.points<0?'color:var(--red-600)':''}">${h.points>0?'+':''}${h.points}</div></div>`).join('') : '<div class="kc-empty">还没有积分记录</div>'}
+    </div>`;
+}
+function momHwSection() {
+  return `
+    <div class="section">
+      <h3>📝 作业 <button class="text-pink" style="font-size:12px" onclick="openHomeworkModal()">${ICN.add} 添加</button></h3>
+      <div class="two-col">${DATA.children.map(c => momHwCol(c)).join('')}</div>
+    </div>`;
+}
+
+function momFutureTasks() {
+  const total = (DATA.tasks||[]).filter(t => t.date>TODAY).length;
+  if (!total) return '';
+  return `
+    <div class="section">
+      <h3>📅 之后的安排 <span class="badge">${total} 条</span>
+        ${total>6?`<button class="text-pink" style="font-size:12px" onclick="momFutToggle()">${MOM_FUT_ALL?'收起':'展开全部'}</button>`:''}
+      </h3>
+      <div class="two-col">${DATA.children.map(c => momFutureCol(c)).join('')}</div>
+    </div>`;
+}
   // 取任务挂的资料（资源库引用 或 自定义链接）
   function taskRes(t) {
     if (!t) return null;
