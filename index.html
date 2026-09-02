@@ -2090,7 +2090,7 @@
     for (let i = 0; i < todayRecs.length; i++) todaySec += todayRecs[i].sec || 0;
     const logins = todayRecs.filter(f => f.kind === 'login').length;
     const kids = DATA.children;
-    const body = days.map(d => {
+    const body = days.slice().reverse().map(d => {
       const rs = list.filter(f => f.date === d).sort((a, b) => b.at - a.at);
       if (!rs.length) return '';
       let sec = 0;
@@ -5502,6 +5502,17 @@
     show('f-video', k === 'video');
     show('f-proof', k === 'normal');
     show('f-res', k === 'normal');
+    // 选中「逐句跟读」时，填充「跟读内容」单元下拉。原下拉是空的，导致妈妈选不了内容。
+    // 数据来自课本跟读素材库 TB_LIB.units（跟读任务复用课文素材，而非单词集）。
+    if (k === 'follow') {
+      const flSel = document.getElementById('t-fl-unit');
+      if (flSel && !flSel.options.length) {
+        flSel.innerHTML = (TB_LIB.units || []).map(function (u) {
+          return '<option value="' + u.unit + '">Unit ' + u.unit + ' · ' + esc(u.bigQuestion) + '（' + u.sents.length + ' 句）</option>';
+        }).join('');
+        flRenderList();
+      }
+    }
     const t = document.getElementById('t-title');
     const ph = { normal: '例：口算 20 题', read: '例：英语跟读 10 分钟', video: '例：看《书本里的旅行》第3集', follow: '例：Unit 3 课文跟读 10 句' };
     if (!silent) {
@@ -6506,7 +6517,7 @@ function momHwCol(c) {
     </div>`;
 }
 function momPointsCol(c) {
-  const hs = DATA.pointsHistory.filter(h => h.childId===c.id && h.date===TODAY);
+  const hs = DATA.pointsHistory.filter(h => h.childId===c.id && h.date===TODAY).slice().sort((a, b) => b.at - a.at);
   return `
     <div class="kid-col">
       <div class="kc-head"><div class="avatar">${c.avatar}</div><div class="kc-name">${esc(c.name)}</div><div class="kc-pts">${hs.length} 条</div></div>
