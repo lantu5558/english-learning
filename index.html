@@ -5827,11 +5827,40 @@
   }
 
   // 手机录的是 webm/opus，讯飞要 16k/16bit/单声道 PCM，这里做解码 + 重采样
+  // 把 Blob / ArrayBuffer / TypedArray 统一成 ArrayBuffer。
+  // 两个坑：① 测试连接走 fetch，拿到的是 ArrayBuffer 不是 Blob；
+  // ② 老 Android WebView 没有 Blob.prototype.arrayBuffer —— 必须留 FileReader 兜底。
+  function flToAb(x) {
+    if (!x) return Promise.reject(new Error('没有音频数据'));
+    if (Object.prototype.toString.call(x) === '[object ArrayBuffer]') return Promise.resolve(x);
+    if (x.buffer && Object.prototype.toString.call(x.buffer) === '[object ArrayBuffer]') {
+      var off = x.byteOffset || 0;
+      return Promise.resolve((off === 0 && x.buffer.byteLength === x.byteLength)
+        ? x.buffer : x.buffer.slice(off, off + x.byteLength));
+    }
+    if (typeof x.arrayBuffer === 'function') {
+      try {
+        var p = x.arrayBuffer();
+        if (p && p.then) return p;
+      } catch (e) {}
+    }
+    if (window.FileReader) {
+      return new Promise(function (res, rej) {
+        var fr = new FileReader();
+        fr.onload = function () { res(fr.result); };
+        fr.onerror = function () { rej(new Error('读不出这段录音')); };
+        try { fr.readAsArrayBuffer(x); }
+        catch (e) { rej(new Error('读不出这段录音')); }
+      });
+    }
+    return Promise.reject(new Error('这个浏览器版本太老，读不了录音'));
+  }
+
   function recToPcm16k(blob) {
     const AC = window.AudioContext || window.webkitAudioContext;
     const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
     if (!AC || !OAC) return Promise.reject(new Error('这个设备不支持录音处理'));
-    return blob.arrayBuffer().then(function (ab) {
+    return flToAb(blob).then(function (ab) {
       const ac = new AC();
       return new Promise(function (res, rej) {
         const p = ac.decodeAudioData(ab, res, rej);
@@ -6206,21 +6235,36 @@
     if (!appid.trim() || !key.trim() || !secret.trim()) { if (out) { out.style.display = 'block'; out.style.color = 'var(--pink-600)'; out.textContent = '三个值都要填'; } return; }
     if (out) { out.style.display = 'block'; out.style.color = 'var(--gray-600)'; out.textContent = '⏳ 正在测试…'; }
     XF.save({ appid: appid.trim(), key: key.trim(), secret: secret.trim() });
-    // 用一句最短的课文做一次真评测：合成示范音 → 当录音送去打分
+    // 用一句最短的课文做一次真评测：拉示范音 → 转码 → 送去打分（等于把整条链路都跑一遍）
     const s = (TB_LIB.units && TB_LIB.units[0] && TB_LIB.units[0].sents[0]) ? TB_LIB.units[0].sents[0] : null;
     if (!s) { if (out) { out.textContent = '素材库没加载'; } return; }
-    fetch(flDemoUrl(s.f)).then(function (r) { return r.arrayBuffer(); })
-      .then(recToPcm16k)
-      .then(function (pcm) { return iseEval(s.t, pcm); })
+    // stage 用来区分「密钥/网络问题」和「这台设备解码录音有问题」，报错才好定位
+    let stage = 'download';
+    fetch(flDemoUrl(s.f)).then(function (r) {
+        if (!r.ok && r.status) throw new Error('示范音下载失败 HTTP ' + r.status);
+        return r.arrayBuffer();
+      })
+      .then(function (ab) { stage = 'decode'; return recToPcm16k(ab); })
+      .then(function (pcm) { stage = 'ise'; return iseEval(s.t, pcm); })
       .then(function (xml) {
         const p = iseParse(xml);
         if (out) {
           out.style.color = 'var(--green-600)';
-          out.textContent = '✅ 通了！测试句「' + s.t + '」得分 ' + p.total.toFixed(1) + '（合成音接近满分属正常）';
+          out.textContent = '✅ 通了！密钥可用、转码也正常。测试句「' + s.t + '」得分 ' +
+            (p.total || 0).toFixed(1) + '（合成音接近满分属正常）';
         }
       })
       .catch(function (e) {
-        if (out) { out.style.color = 'var(--pink-600)'; out.textContent = '❌ ' + ((e && e.message) || '连接失败'); }
+        const m = (e && e.message) ? e.message : '未知错误';
+        if (!out) return;
+        out.style.color = 'var(--pink-600)';
+        if (stage === 'ise') {
+          out.textContent = '❌ 密钥或网络有问题：' + m + '（检查三个值有没有填错，以及这台设备能不能上网）';
+        } else if (stage === 'download') {
+          out.textContent = '❌ 示范音下不下来：' + m + '（网络问题，密钥还没验证到）';
+        } else {
+          out.textContent = '❌ 这台设备解码音频失败：' + m + '（密钥可能是对的，但孩子录音可能也用不了）';
+        }
       });
   }
 
