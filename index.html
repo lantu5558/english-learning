@@ -147,23 +147,6 @@
     .wq-round-tip { text-align:center; font-size:12px; color:var(--gray-600); margin-bottom:10px; }
     .good { border-color:var(--green-400) !important; background:var(--green-50) !important; color:var(--green-600) !important; }
     .btn-text { background:none; border:none; color:var(--gray-600); font-size:13px; cursor:pointer; padding:6px; text-decoration:underline; }
-    /* ---- 听写 ---- */
-    .dic-hero { background:linear-gradient(135deg,var(--indigo-400),var(--indigo-600)); color:#fff; border-radius:var(--radius-lg); padding:26px 16px; text-align:center; margin-bottom:12px; }
-    .dic-hero .n { font-size:13px; opacity:.9; }
-    .dic-hero .tip { font-size:21px; font-weight:600; margin-top:8px; line-height:1.5; word-break:break-all; }
-    .dic-hero .sub { font-size:13px; opacity:.85; margin-top:8px; }
-    .dic-play { width:88px; height:88px; border-radius:50%; background:rgba(255,255,255,.22); color:#fff; display:flex; align-items:center; justify-content:center; margin:16px auto 0; font-size:34px; border:none; cursor:pointer; }
-    .dic-play:active { transform:scale(.94); }
-    .dic-input { width:100%; text-align:center; font-size:22px; padding:14px; border-radius:var(--radius-md); border:1.5px solid var(--border); background:var(--bg-card); }
-    .dic-dots { display:flex; flex-wrap:wrap; gap:5px; justify-content:center; margin-bottom:12px; }
-    .dic-dot { width:22px; height:22px; border-radius:50%; background:var(--gray-100); color:var(--gray-600); font-size:11px; display:flex; align-items:center; justify-content:center; }
-    .dic-dot.now { background:var(--pink-400); color:#fff; }
-    .dic-dot.ok { background:var(--green-50); color:var(--green-600); }
-    .dic-dot.no { background:var(--red-50); color:var(--red-600); }
-    .dic-result { text-align:center; padding:18px; border-radius:var(--radius-lg); background:var(--green-50); margin-bottom:12px; }
-    .dic-wrong-item { display:flex; justify-content:space-between; align-items:center; padding:9px 12px; border-radius:10px; background:var(--bg-card); border:1px solid var(--border); margin-bottom:6px; font-size:14px; }
-    .dic-wrong-item .right { color:var(--green-600); font-weight:600; }
-    .dic-wrong-item .mine { color:var(--red-600); text-decoration:line-through; }
     /* ---- 任务类型 ---- */
     .kind-row { display:flex; gap:6px; }
     .kind-pill { flex:1; padding:9px 4px; border-radius:10px; background:var(--gray-100); color:var(--gray-600); font-size:13px; font-weight:600; text-align:center; cursor:pointer; border:1.5px solid transparent; }
@@ -367,6 +350,37 @@
     .kid-row .progress-bar { width: 80px; height: 4px; background: var(--gray-200); border-radius: 2px; overflow: hidden; margin-top: 4px; }
     .kid-row .progress-bar div { height: 100%; background: var(--pink-400); }
     .kid-row .pts { font-size: 14px; font-weight: 600; color: var(--pink-600); }
+
+    /* ===== 课表 ===== */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .kid-col { background: var(--gray-50); border-radius: var(--radius-md); padding: 12px; }
+    .kc-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .kc-head .avatar { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #fff; font-size: 18px; }
+    .kc-name { flex: 1; font-weight: 600; font-size: 14px; }
+    .kc-name .kc-streak { font-weight: 400; font-size: 11px; color: var(--gray-600); margin-left: 6px; }
+    .kc-pts { font-weight: 600; color: var(--pink-600); font-size: 14px; }
+    .kc-sub { font-size: 12px; font-weight: 600; color: var(--gray-600); margin: 10px 0 6px; }
+    .kc-empty { font-size: 12px; color: var(--gray-600); padding: 6px 0; }
+    .course { background: var(--bg-card); border-radius: var(--radius-sm); padding: 8px 10px; margin-bottom: 6px; position: relative; }
+    .course .c-time { font-size: 11px; color: var(--gray-600); }
+    .course .c-title { font-size: 13px; font-weight: 500; }
+    .course .c-meta { font-size: 11px; color: var(--gray-600); margin-top: 2px; }
+    .course .c-ops { position: absolute; top: 6px; right: 6px; display: flex; gap: 4px; }
+    .today-courses { background: var(--amber-50); border-radius: var(--radius-md); padding: 12px; margin-bottom: 12px; border: 1px solid var(--amber-600); }
+    .today-courses .tc-title { font-weight: 600; font-size: 13px; margin-bottom: 6px; color: var(--amber-600); }
+    .chip-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+    .chip { padding: 6px 12px; border-radius: 999px; background: var(--gray-100); font-size: 13px; color: var(--gray-600); cursor: pointer; }
+    .chip.on { background: var(--pink-400); color: #fff; }
+    .week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+    .wk-day { background: var(--gray-50); border-radius: var(--radius-sm); padding: 6px; min-height: 64px; }
+    .wk-day.today { background: var(--amber-50); border: 1px solid var(--amber-600); }
+    .wk-h { font-size: 11px; font-weight: 600; color: var(--gray-600); margin-bottom: 4px; }
+    .wk-h .wk-d { font-weight: 400; color: var(--gray-600); }
+    .wk-empty { font-size: 11px; color: var(--gray-600); text-align: center; padding-top: 8px; }
+    .month-list { display: flex; flex-direction: column; gap: 8px; }
+    .mo-day { background: var(--gray-50); border-radius: var(--radius-sm); padding: 8px 10px; }
+    .mo-h { font-size: 12px; font-weight: 600; color: var(--gray-600); margin-bottom: 4px; }
+
 
     /* ===== 奖励视频 ===== */
     .reward {
@@ -797,8 +811,9 @@
     ],
     // 轮转计划：布置一次，每天自动出下一批；计划本身不带日期，每天的实例仍是 wordTasks 里的条目
     wordPlans: [],
-    dictations: [],
+    wheelLogs: [],
     homeworks: [],
+    schedules: [],
     // 好习惯清单：长期约定，每天自动出现。习惯本身不带日期，只有「做到了」的记录带日期
     habits: [],
     habitLogs: [],
@@ -837,13 +852,31 @@
     } catch (e) {} // 首次初始化时 SYNC 尚未定义，忽略即可
   }
   function saveLocalOnly(d) { localStorage.setItem(LS_KEY, JSON.stringify(d)); }
+  function gcRecords() {
+    const TTL = 180 * 86400000;
+    const cut = Date.now() - TTL;
+    ['redemptions', 'wheelLogs'].forEach(k => {
+      const arr = DATA[k];
+      if (!Array.isArray(arr) || !arr.length) return;
+      const keep = [];
+      for (const it of arr) {
+        const at = it.at || (it.date ? new Date(it.date).getTime() : 0);
+        if (at && at < cut) { tombAdd(k, it.id); }
+        else keep.push(it);
+      }
+      if (keep.length !== arr.length) DATA[k] = keep;
+    });
+  }
+
   let DATA = loadData();
   // 兼容旧数据：补齐单词模块字段
   if (!DATA.wordSets) DATA.wordSets = JSON.parse(JSON.stringify(DEFAULT_DATA.wordSets));
   if (!DATA.wordTasks) DATA.wordTasks = [];
   if (!DATA.wordPlans) DATA.wordPlans = [];   // 老版本本地数据没有轮转计划，补上空数组
-  if (!DATA.dictations) DATA.dictations = [];   // 老版本本地数据没有听写模块，补上空数组
+  if (!DATA.wheelLogs) DATA.wheelLogs = [];   // 大转盘抽中记录
   if (!DATA.homeworks) DATA.homeworks = [];    // 老版本本地数据没有作业栏
+  if (!DATA.schedules) DATA.schedules = [];   // 机构课程表
+  gcRecords();
   (DATA.resources || []).forEach(r => { if (!r.category) r.category = 'learn'; });
 
   // ========== 云端同步（textdb.dev 家庭通道，轮询 5 秒） ==========
@@ -903,13 +936,13 @@
   // ---- 合并式同步 ----
   // 坑（重要）：原来是「谁后写谁赢」的整包覆盖 —— 妈妈刚加的词库，只要孩子端在
   // 这 2.8 秒里打了一次卡，整包就被冲掉。改成按 id 取并集，两边的新增都能活下来。
-  const MERGE_KEYS = ['resources', 'wordSets', 'wordTasks', 'wordPlans', 'dictations', 'homeworks', 'tasks', 'rewards', 'redemptions', 'wheel', 'pointsHistory', 'children', 'habits', 'habitLogs', 'footprints'];
+  const MERGE_KEYS = ['resources', 'wordSets', 'wordTasks', 'wordPlans', 'homeworks', 'tasks', 'rewards', 'redemptions', 'wheel', 'pointsHistory', 'children', 'habits', 'habitLogs', 'footprints', 'wheelLogs', 'schedules'];
   // 墓碑：删掉的东西记一笔，别的设备推回来时不许复活
   // （合并规则是「本地新增一律保留」，只删数组会被另一台设备的旧缓存救回来）
   // 坑（2026-08-30）：原来这里只写了 tasks/homeworks，于是资源、奖励、词库这些
   // 删完又活 —— 尤其出厂那 10 条示例资源，任何一台新设备首次打开都自带一份，
   // 一推送就把全家删掉的东西全带回来。凡是用户能删的实体，一律进墓碑。
-  const TOMB_KEYS = ['tasks', 'homeworks', 'resources', 'rewards', 'wordSets', 'wordTasks', 'wordPlans', 'dictations', 'children', 'wheel', 'habits', 'habitLogs'];
+  const TOMB_KEYS = ['tasks', 'homeworks', 'resources', 'rewards', 'wordSets', 'wordTasks', 'wordPlans', 'children', 'wheel', 'habits', 'habitLogs', 'redemptions', 'wheelLogs', 'schedules'];
   const TOMB_TTL = 14 * 86400000;
   function tombAdd(kind, id) {
     if (!id) return;
@@ -1046,7 +1079,8 @@
     if (!d.wordSets) d.wordSets = JSON.parse(JSON.stringify(DEFAULT_DATA.wordSets));
     if (!d.wordTasks) d.wordTasks = [];
     if (!d.wordPlans) d.wordPlans = [];
-    if (!d.dictations) d.dictations = [];
+    if (!Array.isArray(d.wheelLogs)) d.wheelLogs = [];
+  if (!Array.isArray(d.schedules)) d.schedules = [];
     if (!d.tomb) d.tomb = {};
     seedBuiltinResources(d);          // 补种新上架的内置资源（删过的不复活）
     if (!Array.isArray(d.footprints)) d.footprints = [];
@@ -1420,6 +1454,7 @@
       'mom-words':   viewMomWords,
       'mom-log':     viewMomFootprints,
       'mom-settings':viewMomSettings,
+      'mom-schedule': viewMomSchedule,
       'kid-select':  viewKidSelect,
       'kid-pin':     viewKidPin,
       'kid-tasks':   viewKidTasks,
@@ -1427,7 +1462,7 @@
       'kid-rewards': viewKidRewards,
       'kid-words':   viewKidWords,
       'kid-word-quiz': viewWordQuiz,
-      'kid-dictation': viewKidDictation,
+      'kid-schedule': viewKidSchedule,
       'kid-fun':     viewKidFun,
       'kid-mine':    viewKidMine,
       'kid-memory':  viewKidMemory,
@@ -1558,6 +1593,269 @@
   function momPinBackspace() { momPinBuf = momPinBuf.slice(0, -1); render(); }
 
   // ========== 妈妈后台 - 今日 ==========
+
+  // ========== 课表（机构课程安排） ==========
+  // 每周固定课：按 星期+时间 排，学期内每天自动提醒；妈妈学期初一次性录入
+  function weekday(dateStr) {
+    const js = new Date(dateStr + 'T00:00:00').getDay();
+    return js === 0 ? 7 : js; // 1=周一 … 7=周日
+  }
+  function mondayOf(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    const off = d.getDay() === 0 ? -6 : 1 - d.getDay();
+    d.setDate(d.getDate() + off);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function monthFirst(dateStr) { return dateStr.slice(0, 7) + '-01'; }
+  function addMonths(dateStr, n) {
+    const d = new Date(dateStr + 'T00:00:00');
+    d.setDate(1); d.setMonth(d.getMonth() + n);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-01';
+  }
+  function schedOn(sc, dateStr) {
+    return (!sc.from || sc.from <= dateStr) && (!sc.to || dateStr <= sc.to);
+  }
+  function todayCourses(c) {
+    if (!c) return [];
+    const wd = weekday(TODAY);
+    return (DATA.schedules || []).filter(sc => sc.childId === c.id && sc.day === wd && schedOn(sc, TODAY))
+      .sort((a, b) => (a.start || '').localeCompare(b.start || ''));
+  }
+  function todayCoursesOn(c, dateStr) {
+    if (!c) return [];
+    const wd = weekday(dateStr);
+    return (DATA.schedules || []).filter(sc => sc.childId === c.id && sc.day === wd && schedOn(sc, dateStr))
+      .sort((a, b) => (a.start || '').localeCompare(b.start || ''));
+  }
+  function courseCard(sc, editable) {
+    const col = sc.color || 'pink';
+    return `
+      <div class="course" style="border-left:4px solid var(--${col}-400, var(--pink-400))">
+        <div class="c-time">🕒 ${esc(sc.start)}${sc.end ? '-' + esc(sc.end) : ''}</div>
+        <div class="c-title">${esc(sc.title)}</div>
+        <div class="c-meta">${sc.place ? '📍' + esc(sc.place) + ' ' : ''}${sc.teacher ? '👩‍🏫' + esc(sc.teacher) : ''}</div>
+        ${editable ? `<div class="c-ops"><button class="icon-btn" onclick="event.stopPropagation();openScheduleModal('${sc.id}')">${ICN.edit}</button><button class="icon-btn danger" onclick="event.stopPropagation();delSchedule('${sc.id}')">${ICN.trash}</button></div>` : ''}
+      </div>`;
+  }
+  function todayCoursesBlock(c) {
+    const cs = todayCourses(c);
+    if (!cs.length) return '';
+    return `
+      <div class="today-courses">
+        <div class="tc-title">📅 今日课程 <span class="badge">${cs.length}</span>
+          <button class="text-pink" style="font-size:12px" onclick="location.hash='kid-schedule'">看全部 »</button></div>
+        ${cs.map(sc => courseCard(sc, false)).join('')}
+      </div>`;
+  }
+  function momKidCol(c) {
+    const todays = DATA.tasks.filter(t => t.childId === c.id && t.date === TODAY);
+    const done = todays.filter(t => t.done).length;
+    const cs = todayCourses(c);
+    return `
+      <div class="kid-col">
+        <div class="kc-head">
+          <div class="avatar">${c.avatar}</div>
+          <div class="kc-name">${esc(c.name)}<span class="kc-streak">连签 ${c.streak} 天</span></div>
+          <div class="kc-pts">★ ${c.points}</div>
+        </div>
+        ${cs.length ? `<div class="kc-sub">📅 今日课程 <span class="badge">${cs.length}</span></div>${cs.map(sc => courseCard(sc, false)).join('')}` : '<div class="kc-empty">🎈 今天没课</div>'}
+        <div class="kc-sub">✅ 今日任务 <span class="badge">${done}/${todays.length}</span></div>
+        ${todays.length ? todays.map(t => {
+          const res = taskRes(t);
+          return `
+            <div class="task ${t.done ? 'done' : ''}" onclick="toggleTask('${t.id}')">
+              <div class="checkbox">${t.done ? ICN.check : ''}</div>
+              <div class="title">
+                <div class="name">${esc(t.title)}</div>
+                <div class="meta">${t.remindAt ? '⏰ ' + t.remindAt : ''}${t.done && t.doneAt ? ' · ✅ ' + fmtClock(t.doneAt) : ''}${t.proof ? ' · ' + `<span class="proof-badge" onclick="event.stopPropagation();viewTaskProof(event,'${t.id}')">` + (t.proof === 'photo' ? '📷' : '🎙') + '凭证</span>' : ''}${res ? ' · 📎 ' + esc(res.title) : ''}</div>
+              </div>
+              <div class="pts">+${t.points}</div>
+              ${momTaskOps(t)}
+            </div>`;
+        }).join('') : '<div class="kc-empty">暂无任务</div>'}
+      </div>`;
+  }
+  let schedTab = 'week';   // week | month | next
+  let schedChild = 'all';  // all | c1 | c2
+  function schedSetTab(v) { schedTab = v; render(); }
+  function schedSetChild(v) { schedChild = v; render(); }
+  const SCHED_CAL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>';
+  function schedWeekGrid(childList, editable) {
+    const mon = mondayOf(TODAY);
+    return [0,1,2,3,4,5,6].map(i => {
+      const day = addDays(mon, i);
+      const cs = childList.flatMap(c => todayCoursesOn(c, day));
+      return `
+        <div class="wk-day${day === TODAY ? ' today' : ''}">
+          <div class="wk-h">周${'一二三四五六日'[i]}${day === TODAY ? ' · 今天' : ''}<br><span class="wk-d">${day.slice(5)}</span></div>
+          ${cs.length ? cs.map(sc => courseCard(sc, editable)).join('') : '<div class="wk-empty">—</div>'}
+        </div>`;
+    }).join('');
+  }
+  function schedMonthList(childList, editable) {
+    const base = schedTab === 'next' ? addMonths(TODAY, 1) : TODAY;
+    const first = monthFirst(base);
+    const y = +first.slice(0, 4), m = +first.slice(5, 7);
+    const dim = new Date(y, m, 0).getDate();
+    let out = '';
+    for (let i = 0; i < dim; i++) {
+      const day = first.slice(0, 8) + String(i + 1).padStart(2, '0');
+      const cs = childList.flatMap(c => todayCoursesOn(c, day));
+      if (!cs.length) continue;
+      out += `
+        <div class="mo-day">
+          <div class="mo-h">${day.slice(5)} 周${'日一二三四五六'[new Date(day + 'T00:00:00').getDay()]}</div>
+          ${cs.map(sc => courseCard(sc, editable)).join('')}
+        </div>`;
+    }
+    return out || '<div class="empty">这个月没有排课</div>';
+  }
+  function schedBody(childList, editable) {
+    if (schedTab === 'week') return `<div class="section"><div class="week-grid">${schedWeekGrid(childList, editable)}</div></div>`;
+    return `<div class="section">${schedMonthList(childList, editable)}</div>`;
+  }
+  function viewMomSchedule() {
+    if (!sessionStorage.getItem('mom-auth')) { location.hash = 'mom-pin'; return ''; }
+    const kids = DATA.children;
+    const childList = schedChild === 'all' ? kids : kids.filter(c => c.id === schedChild);
+    return `
+      <div class="topbar">
+        <button class="icon-btn" data-back data-to="mom-today">${ICN.back}</button>
+        <h1>📅 课表</h1>
+        <button class="icon-btn" onclick="openScheduleModal()" title="添加课程">${ICN.add}</button>
+      </div>
+      <div class="page">
+        <div class="chip-row">
+          ${[{ v: 'all', t: '全部' }].concat(kids.map(c => ({ v: c.id, t: c.avatar + ' ' + c.name }))).map(o => `<div class="chip ${schedChild === o.v ? 'on' : ''}" onclick="schedSetChild('${o.v}')">${o.t}</div>`).join('')}
+        </div>
+        <div class="chip-row">
+          ${[{ v: 'week', t: '本周' }, { v: 'month', t: '本月' }, { v: 'next', t: '下月' }].map(o => `<div class="chip ${schedTab === o.v ? 'on' : ''}" onclick="schedSetTab('${o.v}')">${o.t}</div>`).join('')}
+        </div>
+        ${schedBody(childList, true)}
+        <div class="section">
+          <h3>🛠 课程清单 <span class="badge">${(DATA.schedules || []).length}</span></h3>
+          ${(DATA.schedules || []).length ? (DATA.schedules || []).map(sc => {
+            const k = DATA.children.find(c => c.id === sc.childId);
+            return `
+              <div class="task" style="cursor:default">
+                <div class="title">
+                  <div class="name">周${'日一二三四五六'[sc.day === 7 ? 0 : sc.day]} ${esc(sc.start)}${sc.end ? '-' + esc(sc.end) : ''} · ${esc(sc.title)}</div>
+                  <div class="meta">${k ? k.avatar + ' ' + esc(k.name) : ''}${sc.place ? ' · 📍' + esc(sc.place) : ''}</div>
+                </div>
+                <button class="icon-btn" onclick="openScheduleModal('${sc.id}')">${ICN.edit}</button>
+                <button class="icon-btn danger" onclick="delSchedule('${sc.id}')">${ICN.trash}</button>
+              </div>`;
+          }).join('') : '<div class="empty">还没有课程，点右上角 ➕ 添加</div>'}
+        </div>
+      </div>
+      ${momTabBar('schedule')}
+    `;
+  }
+  function viewKidSchedule() {
+    const c = kidCheck();
+    if (!c) { location.hash = 'kid-select'; return ''; }
+    return `
+      <div class="topbar">
+        <button class="icon-btn" data-back data-to="kid-tasks">${ICN.back}</button>
+        <h1>📅 我的课表</h1>
+        <div class="icon-btn" style="background:var(--amber-50);color:var(--amber-600);font-size:13px;font-weight:600">★ ${c.points}</div>
+      </div>
+      <div class="page">
+        <div class="chip-row">
+          ${[{ v: 'week', t: '本周' }, { v: 'month', t: '本月' }, { v: 'next', t: '下月' }].map(o => `<div class="chip ${schedTab === o.v ? 'on' : ''}" onclick="schedSetTab('${o.v}')">${o.t}</div>`).join('')}
+        </div>
+        ${schedBody([c], false)}
+        <p class="wq-hint">要改课程找妈妈哦～</p>
+      </div>
+      ${kidTabBar('schedule')}
+    `;
+  }
+  function openScheduleModal(editId) {
+    const ed = editId ? (DATA.schedules || []).find(x => x.id === editId) : null;
+    window.__editSchedId = ed ? editId : null;
+    const sel = (v, cur) => v === cur ? ' selected' : '';
+    const kids = DATA.children;
+    const modal = document.createElement('div');
+    modal.className = 'modal-mask sched-mask';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+      <div class="modal">
+        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+        <h3>📅 ${ed ? '修改课程' : '添加课程'}</h3>
+        <p class="text-mute" style="margin-top:-8px;margin-bottom:12px;font-size:12px">机构课程一般每周固定，填好星期和时间，学期内每天自动提醒。</p>
+        <div class="field"><label>给谁</label>
+          <select id="s-childId">
+            ${kids.map(k => `<option value="${k.id}"${sel(k.id, ed ? ed.childId : (kids[0] && kids[0].id))}>${k.avatar} ${esc(k.name)}</option>`).join('')}
+          </select></div>
+        <div style="display:flex;gap:8px">
+          <div class="field" style="flex:1"><label>星期</label>
+            <select id="s-day">${[1,2,3,4,5,6,7].map(d => `<option value="${d}"${sel(d, ed ? ed.day : 1)}>周${'一二三四五六日'[d-1]}</option>`).join('')}</select></div>
+          <div class="field" style="flex:1"><label>开始</label><input id="s-start" type="time" value="${ed ? escAttr(ed.start || '') : '15:30'}"></div>
+          <div class="field" style="flex:1"><label>结束</label><input id="s-end" type="time" value="${ed ? escAttr(ed.end || '') : ''}"></div>
+        </div>
+        <div class="field"><label>课程名称</label><input id="s-title" placeholder="例：钢琴课 / 足球训练" value="${ed ? escAttr(ed.title || '') : ''}"></div>
+        <div style="display:flex;gap:8px">
+          <div class="field" style="flex:1"><label>地点</label><input id="s-place" placeholder="例：少年宫 3 楼" value="${ed ? escAttr(ed.place || '') : ''}"></div>
+          <div class="field" style="flex:1"><label>老师</label><input id="s-teacher" placeholder="例：王老师" value="${ed ? escAttr(ed.teacher || '') : ''}"></div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <div class="field" style="flex:1"><label>标签色</label>
+            <select id="s-color">${['pink','cyan','purple','orange','green','amber','teal'].map(c => `<option value="${c}"${sel(c, ed ? ed.color : 'pink')}>${c}</option>`).join('')}</select></div>
+          <div class="field" style="flex:1"><label>学期(可选)</label><input id="s-semester" placeholder="例：2026 春季" value="${ed ? escAttr(ed.semester || '') : ''}"></div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <div class="field" style="flex:1"><label>生效起(可选)</label><input id="s-from" type="date" value="${ed ? escAttr(ed.from || '') : ''}"></div>
+          <div class="field" style="flex:1"><label>生效止(可选)</label><input id="s-to" type="date" value="${ed ? escAttr(ed.to || '') : ''}"></div>
+        </div>
+        <div class="btn-row">
+          ${ed ? '<button class="btn-secondary" onclick="openScheduleModal()">取消修改</button>' : '<button class="btn-secondary" onclick="this.closest(\'.modal-mask\').remove()">关闭</button>'}
+          <button class="btn-primary" onclick="saveSchedule()">${ed ? '保存修改' : '添加课程'}</button>
+        </div>
+      </div>`;
+    document.getElementById('modal-root').appendChild(modal);
+    const t = document.getElementById('s-title'); if (t) t.focus();
+  }
+  function saveSchedule() {
+    const title = (document.getElementById('s-title').value || '').trim();
+    if (!title) { toast('写一下课程名称'); return; }
+    const one = {
+      childId: document.getElementById('s-childId').value,
+      day: parseInt(document.getElementById('s-day').value) || 1,
+      start: document.getElementById('s-start').value || '',
+      end: document.getElementById('s-end').value || '',
+      title: title,
+      place: (document.getElementById('s-place').value || '').trim(),
+      teacher: (document.getElementById('s-teacher').value || '').trim(),
+      color: document.getElementById('s-color').value || 'pink',
+      semester: (document.getElementById('s-semester').value || '').trim(),
+      from: document.getElementById('s-from').value || '',
+      to: document.getElementById('s-to').value || '',
+    };
+    const eid = window.__editSchedId;
+    if (eid) {
+      const sc = (DATA.schedules || []).find(x => x.id === eid);
+      if (sc) Object.assign(sc, one);
+      toast('已修改');
+    } else {
+      if (!DATA.schedules) DATA.schedules = [];
+      DATA.schedules.push(Object.assign({ id: 'sc' + Date.now().toString(36) }, one));
+      toast('已添加');
+    }
+    window.__editSchedId = null;
+    saveData(DATA);
+    const m = document.querySelector('.sched-mask'); if (m) m.remove();
+    render();
+  }
+  function delSchedule(id) {
+    const sc = (DATA.schedules || []).find(x => x.id === id);
+    if (!sc) return;
+    if (!confirm('删除这门课？\n\n' + sc.title)) return;
+    tombAdd('schedules', id);
+    DATA.schedules = (DATA.schedules || []).filter(x => x.id !== id);
+    saveData(DATA);
+    render();
+  }
+
   function viewMomToday() {
     if (!sessionStorage.getItem('mom-auth')) { location.hash='mom-pin'; return ''; }
     const todays = DATA.tasks.filter(t => t.date === TODAY);
@@ -1586,39 +1884,12 @@
         </div>
 
         <div class="section">
-          <h3>孩子的进度 <span class="badge">${kids.length} 人</span></h3>
-          ${kids.map(k => `
-            <div class="kid-row">
-              <div class="avatar">${k.avatar}</div>
-              <div class="info">
-                <div class="name">${esc(k.name)}</div>
-                <div class="progress">${k.done}/${k.total} 已完成 · 连续 ${k.streak} 天</div>
-                <div class="progress-bar"><div style="width:${k.total?k.done/k.total*100:0}%"></div></div>
-              </div>
-              <div class="pts">★ ${k.points}</div>
-            </div>
-          `).join('')}
-        </div>
-
-        <div class="section">
-          <h3>今日全部任务 <button class="text-pink" style="font-size:12px" onclick="openTaskModal()">${ICN.add} 添加</button></h3>
-          ${todays.length ? todays.map(t => {
-            const k = DATA.children.find(c => c.id === t.childId);
-            const res = taskRes(t);
-            return `
-              <div class="task ${t.done?'done':''}" onclick="toggleTask('${t.id}')">
-                <div class="checkbox">${t.done?ICN.check:''}</div>
-                <div class="title">
-                  <div class="name">${esc(t.title)}</div>
-                  <div class="meta">${k.avatar} ${esc(k.name)}${t.groupId&&DATA.tasks.filter(x=>x.groupId===t.groupId).length>1?` · 📅 连排${DATA.tasks.filter(x=>x.groupId===t.groupId).length}天`:''}${t.remindAt?` · ⏰ ${t.remindAt}`:''}${t.done&&t.doneAt?` · ✅ ${fmtClock(t.doneAt)} 完成`:''}${t.proof?` · <span class="proof-badge" onclick="viewTaskProof(event,'${t.id}')">${t.proof==='photo'?'📷':'🎙'}${t.proofData?' 凭证✓':' 待交'}</span>`:''}${t.pageFrom?` · 📖 <span style="color:var(--green-600)">${taskPageLabel(t)}</span>`:''}${res?` · 📎 <span style="color:var(--pink-600)" onclick="openTaskRes(event,'${t.id}')">${esc(res.title)}</span>`:''}</div>
-                </div>
-                <div class="pts">+${t.points}</div>
-                ${momTaskOps(t)}
-              </div>`;
-          }).join('') : '<div class="empty"><div class="emoji">📝</div>还没布置任务</div>'}
-        </div>
-
-        ${momFutureTasks()}
+          <h3>📅 今日安排 <span class="badge">${DATA.children.length} 人</span>
+            <button class="text-pink" style="font-size:12px" onclick="location.hash='mom-schedule'">📋 课表总览</button></h3>
+          <div class="two-col">
+            ${DATA.children.map(c => momKidCol(c)).join('')}
+          </div>
+        </div>${momFutureTasks()}
 
         ${momHabitSection()}
 
@@ -1666,6 +1937,7 @@
   function momTabBar(active) {
     const tabs = [
       { id:'today', icon: ICN.home, label:'今日', hash:'mom-today' },
+      { id:'schedule', icon: SCHED_CAL, label:'课表', hash:'mom-schedule' },
       { id:'words', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16M6 16l3-9 3 9M7.2 13.5h3.6M14 16l2-9 2 9M15 13.5h2"/></svg>', label:'单词', hash:'mom-words' },
       { id:'log', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/></svg>', label:'记录', hash:'mom-log' },
       { id:'resources', icon: ICN.book, label:'资源', hash:'mom-resources' },
@@ -2110,7 +2382,7 @@
     read:      { icon: '📖', name: '阅读' },
     task:      { icon: '✅', name: '完成任务' },
     word:      { icon: '🔤', name: '单词练习' },
-    dictation: { icon: '✍️', name: '听写' },
+    dictation: { icon: '✍️', name: '听写' },   // 听写功能已下线，此项仅用于显示历史积分记录，勿删
     habit:     { icon: '⭐', name: '习惯打卡' },
     game:      { icon: '🎮', name: '小游戏' },
   };
@@ -2541,6 +2813,7 @@
           <div class="big">${done}/${todays.length}</div>
           <div class="meta"><div>已完成 <span>${done}</span></div><div>待打卡 <span>${todays.length-done}</span></div><div>连签 <span>${c.streak}</span> 天</div></div>
         </div>
+        ${todayCoursesBlock(c)}
         <div class="section">
           <h3>今日任务</h3>
           ${todays.length ? todays.map(t => {
@@ -2586,6 +2859,8 @@
 
         ${kidHabitSection(c)}
 
+        ${kidWordSection(c)}
+
         ${hwSection(false)}
       </div>
       ${kidTabBar('tasks')}
@@ -2614,10 +2889,28 @@
         }).join('') : '<div class="empty" style="padding:20px 16px"><div class="emoji">🌟</div>还没有习惯清单，让妈妈来定</div>'}
       </div>`;
   }
+  function kidWordSection(c) {
+    const wts = (DATA.wordTasks || []).filter(wt => wt.childId === c.id && wt.date === TODAY);
+    if (!wts.length) return '';
+    return `<div class="section">
+      <h3>📚 今日单词 <span class="badge">${wts.length}</span></h3>
+      ${wts.map(wt => {
+        const s = wtSet(wt); const n = wtBatchSize(wt);
+        const done = wt.done; const prog = wtProgress(wt);
+        return `<div class="task ${done ? 'done' : ''}" onclick="location.hash='kid-word-quiz?wt=${wt.id}'">
+          <div class="checkbox">${done ? ICN.check : ''}</div>
+          <div class="title"><div class="name">📚 ${esc(s ? s.title : '单词')}</div>
+            <div class="meta">${prog}/${n} 词${done ? ' · ✅ 已完成' : ''}</div></div>
+          <div class="pts">+${wt.points}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
   function kidTabBar(active) {
     const tabs = [
       { id:'tasks', icon: ICN.home, label:'任务', hash:'kid-tasks' },
-      { id:'words', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16M6 16l3-9 3 9M7.2 13.5h3.6M14 16l2-9 2 9M15 13.5h2"/></svg>', label:'单词', hash:'kid-words' },
+      { id:'schedule', icon: SCHED_CAL, label:'课表', hash:'kid-schedule' },
       { id:'fun', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>', label:'乐园', hash:'kid-fun' },
       { id:'resources', icon: ICN.book, label:'资源', hash:'kid-resources' },
       { id:'rewards', icon: ICN.gift, label:'奖励', hash:'kid-rewards' },
@@ -2834,6 +3127,7 @@
     const sorted = DATA.rewards.slice().sort((a,b)=>a.cost-b.cost);
     const grouped = Object.entries(REWARD_CATS).map(([k, v]) => ({ k, v, list: sorted.filter(r => (r.cat||'cartoon') === k) })).filter(g => g.list.length);
     const myRds = (DATA.redemptions||[]).filter(r => r.childId === c.id).slice(0, 12);
+    const myWls = (DATA.wheelLogs||[]).filter(r => r.childId === c.id).slice(0, 12);
     return `
       <div class="topbar">
         <h1>🎁 我的奖励</h1>
@@ -2890,6 +3184,17 @@
                 : (hasUrl ? `<span class="text-mute" style="font-size:12px">${multi?'每集都已看满':'已达'+MAX_REWARD_VIEWS+'次上限'}</span>` : ''))}
             </div>`;
           }).join('') || '<div class="empty">还没有兑换记录</div>'}
+        </div>
+        <div class="section">
+          <h3>🎡 大转盘记录 <span class="badge">${myWls.length}</span></h3>
+          ${myWls.map(w => `
+            <div class="reward">
+              <div class="thumb">🎡</div>
+              <div class="info">
+                <div class="name">${esc(w.label)}</div>
+                <div class="threshold">${w.pts ? ('+' + w.pts + ' 星') : '未中奖'} · ${w.at ? fmtClock(w.at) : ''}</div>
+              </div>
+            </div>`).join('') || '<div class="empty">还没转过大转盘</div>'}
         </div>
         <div class="section">
           <h3>勋章墙 <span class="badge">收集</span></h3>
@@ -3294,23 +3599,6 @@
           </div>`;
         }).join('') : '<div class="empty"><div class="emoji">📚</div>今天没有单词任务，等妈妈布置</div>'}
 
-        <div class="section">
-          <h3>✍️ 听写</h3>
-          ${(() => {
-            const dts = (DATA.dictations || []).filter(t => t.childId === c.id && t.date === TODAY);
-            if (!dts.length) return '<div class="text-mute" style="padding:6px 0">今天没有听写，等妈妈布置</div>';
-            return dts.map(dt => {
-              const s = dicSet(dt);
-              const n = Math.min(dt.count, (s.words || []).length);
-              const unit = setLang(s) === 'zh' ? '词语' : '单词';
-              return `<div class="task">
-                <div class="title"><div class="name">✍️ ${esc(s.title)}</div>
-                <div class="meta">${n} 个${unit} · 每个读 ${dt.repeat || 1} 遍${dt.done ? ` · ✅ 对了 ${dt.score}/${dt.total}` : ''}</div></div>
-                <button class="icon-btn" style="background:var(--indigo-50);color:var(--indigo-600);font-size:13px;font-weight:600" onclick="location.hash='kid-dictation?id=${dt.id}'">${dt.done ? '再练' : '开始'}</button>
-              </div>`;
-            }).join('');
-          })()}
-        </div>
       </div>
       ${kidTabBar('words')}
     `;
@@ -3871,213 +4159,9 @@
 
   // ========== 听写（英语单词 / 语文词语）==========
   // 词库带 lang：'en' 读英文（英语听写）、'zh' 读中文（语文听写）。老词库默认 en。
-  function setLang(ws) { return (ws && ws.lang === 'zh') ? 'zh' : 'en'; }
-  function dicFind(id) { return (DATA.dictations || []).find(t => t.id === id); }
-  function dicSet(dt) { return DATA.wordSets.find(s => s.id === dt.setId) || { title: '词库已删除', words: [] }; }
-  function dicCount(dt) { return Math.min(dt.count || 0, (dicSet(dt).words || []).length); }
 
-  let DIC = null; // 运行态 { dtId, list, idx, answers, phase:'run'|'done', timers, result }
-  function dicClearTimers() {
-    if (DIC && DIC.timers) DIC.timers.forEach(t => clearTimeout(t));
-    if (DIC) DIC.timers = [];
-  }
-  function dicBegin(dtId) {
-    const dt = dicFind(dtId);
-    if (!dt) { location.hash = 'kid-words'; return; }
-    if (dicCount(dt) < 1) { toast('这个词库是空的'); return; }
-    DIC = { dtId, list: Array.from({ length: dicCount(dt) }, (_, i) => i), idx: 0, answers: {}, phase: 'run', timers: [], result: null };
-    location.hash = 'kid-dictation?id=' + dtId;
-    render();
-    dicPlay();
-  }
-  // 一个词读 repeat 遍，遍与遍之间隔 gap 秒。
-  // 不用 onEnd 链式回调：降级到系统语音时 onEnd 不一定触发，会卡住；用定时器更稳。
-  function dicPlay() {
-    const dt = dicFind(DIC && DIC.dtId);
-    if (!dt || !DIC || DIC.phase !== 'run') return;
-    const word = dicSet(dt).words[DIC.list[DIC.idx]];
-    if (!word) return;
-    const times = Math.max(1, Math.min(5, dt.repeat || 1));
-    const gapMs = Math.max(0, Math.min(10, dt.gap == null ? 2 : dt.gap)) * 1000;
-    const perMs = 1600 + gapMs;  // 一个词发音大约 1.5 秒
-    dicClearTimers();
-    let k = 0;
-    const one = () => {
-      if (!DIC || DIC.phase !== 'run') return;
-      if (k >= times) return;
-      speak(word.w);
-      k++;
-      if (k < times) DIC.timers.push(setTimeout(one, perMs));
-    };
-    one();
-    toast(`第 ${DIC.idx + 1} 个，读 ${times} 遍`);
-  }
-  function dicNext() {
-    if (!DIC || DIC.phase !== 'run') return;
-    const input = document.getElementById('dic-input');
-    DIC.answers[DIC.idx] = input ? input.value.trim() : '';
-    dicClearTimers(); speakStop();
-    if (DIC.idx < DIC.list.length - 1) { DIC.idx++; render(); dicPlay(); return; }
-    dicSubmit();
-  }
-  function dicSkip() {
-    if (!DIC || DIC.phase !== 'run') return;
-    DIC.answers[DIC.idx] = '';
-    dicClearTimers(); speakStop();
-    if (DIC.idx < DIC.list.length - 1) { DIC.idx++; render(); dicPlay(); return; }
-    dicSubmit();
-  }
-  function dicSubmit() {
-    const dt = dicFind(DIC.dtId);
-    if (!dt) { dicClearTimers(); DIC = null; render(); return; }
-    const s = dicSet(dt);
-    let right = 0; const wrong = [];
-    DIC.list.forEach((wi, k) => {
-      const w = s.words[wi];
-      if (!w) return;
-      const mine = String(DIC.answers[k] || '').trim();
-      if (mine.toLowerCase() === String(w.w).trim().toLowerCase()) right++;
-      else wrong.push({ w: w.w, cn: w.cn || '', mine });
-    });
-    const total = DIC.list.length;
-    const gain = total ? Math.max(1, Math.round((dt.points || 5) * right / total)) : 0;
-    const first = !dt.done;   // 只有第一次正式完成才加星，之后重练不重复给分
-    dt.done = true; dt.score = right; dt.total = total; dt.wrong = wrong;
-    if (first && gain > 0) {
-      const c = DATA.children.find(x => x.id === dt.childId);
-      if (c) awardStars(c, gain, `听写：${s.title} ${right}/${total}`);
-    }
-    fpAdd('dictation', s.title + ' ' + right + '/' + total, { childId: dt.childId, pts: first ? gain : 0 });
-    saveData(DATA);
-    DIC.phase = 'done';
-    DIC.result = { right, total, wrong, gain, first };
-    render();
-  }
-  function dicRetryWrong() {
-    if (!DIC || !DIC.result) return;
-    const w = DIC.result.wrong;
-    if (!w.length) { toast('全对了，不用再练啦'); return; }
-    const s = dicSet(dicFind(DIC.dtId));
-    const idxs = w.map(x => s.words.findIndex(y => y.w === x.w)).filter(i => i >= 0);
-    if (!idxs.length) return;
-    DIC.list = idxs; DIC.idx = 0; DIC.answers = {}; DIC.phase = 'run'; DIC.result = null;
-    render(); dicPlay();
-  }
-  function dicQuit() { dicClearTimers(); speakStop(); DIC = null; location.hash = 'kid-words'; render(); }
 
-  function viewKidDictation(params) {
-    const c = kidCheck();
-    if (!c) { location.hash = 'kid-select'; return ''; }
-    const dt = dicFind(params.id);
-    if (!dt) { location.hash = 'kid-words'; return ''; }
-    const s = dicSet(dt);
-    const zh = setLang(s) === 'zh';
-    const unit = zh ? '词语' : '单词';
 
-    const top = `
-      <div class="topbar">
-        <button class="icon-btn" onclick="dicQuit()">${ICN.back}</button>
-        <h1>✍️ 听写</h1>
-        <div class="actions"><div class="icon-btn" style="background:var(--amber-50);color:var(--amber-600);font-size:13px;font-weight:600">★ ${c.points}</div></div>
-      </div>`;
-
-    // 还没开始（直接点进来 / 重练）→ 说明页
-    if (!DIC || DIC.dtId !== dt.id) {
-      return top + `
-      <div class="page">
-        <div class="dic-hero">
-          <div class="n">✍️ 听写练习</div>
-          <div class="tip">${esc(s.title)}</div>
-          <div class="sub">共 ${dicCount(dt)} 个${unit} · 每个读 ${dt.repeat || 1} 遍 · 间隔 ${dt.gap == null ? 2 : dt.gap} 秒${dt.showCn ? ' · 显示中文提示' : ''}</div>
-        </div>
-        <p class="wq-hint">听发音，把${unit}写进下面的框。写完点「下一个」，全部写完自动批改。</p>
-        <button class="btn-primary" style="width:100%;margin-top:12px" onclick="dicBegin('${dt.id}')">🎧 开始听写</button>
-        <button class="btn-secondary" style="width:100%;margin-top:10px" onclick="location.hash='kid-words'">先不写</button>
-      </div>
-      ${kidTabBar('words')}`;
-    }
-
-    // 结果页
-    if (DIC.phase === 'done' && DIC.result) {
-      const r = DIC.result;
-      const allRight = r.wrong.length === 0;
-      return top + `
-      <div class="page">
-        <div class="dic-result" style="${allRight ? '' : 'background:var(--amber-50)'}">
-          <div style="font-size:44px">${allRight ? '🎉' : '💪'}</div>
-          <div style="font-size:20px;font-weight:700;margin-top:6px">${r.right} / ${r.total} 写对了</div>
-          <div style="font-size:13px;color:var(--gray-600);margin-top:6px">${r.first ? `+${r.gain} 颗星星 ⭐` : '这次是重练，不计分'}</div>
-        </div>
-        ${allRight ? '<div class="wq-done">全部写对，太棒了！</div>' : `
-        <div class="section" style="padding:14px">
-          <h3>错了 ${r.wrong.length} 个，对照看一遍</h3>
-          ${r.wrong.map(x => `<div class="dic-wrong-item">
-            <span class="right">${esc(x.w)}${x.cn ? ' <small style="color:var(--gray-600);font-weight:400">' + esc(x.cn) + '</small>' : ''}</span>
-            <span class="mine">${x.mine ? esc(x.mine) : '没写出来'}</span>
-          </div>`).join('')}
-        </div>`}
-        ${allRight ? '' : '<button class="btn-primary" style="width:100%" onclick="dicRetryWrong()">🔁 只练这几个错的</button>'}
-        <button class="btn-secondary" style="width:100%;margin-top:10px" onclick="dicQuit()">${allRight ? '完成 🎉' : '先这样，回单词页'}</button>
-      </div>
-      ${kidTabBar('words')}`;
-    }
-
-    // 进行中
-    const len = DIC.list.length;
-    const isLast = DIC.idx === len - 1;
-    const dots = DIC.list.map((_, k) => {
-      const cls = k === DIC.idx ? 'now' : (DIC.answers[k] != null ? 'ok' : '');
-      return `<span class="dic-dot ${cls}">${k + 1}</span>`;
-    }).join('');
-    window.__dicAuto = function () {
-      const el = document.getElementById('dic-input');
-      if (el) { try { el.focus(); } catch (e) {} }
-    };
-    return top + `
-      <div class="page">
-        <div class="dic-dots">${dots}</div>
-        <div class="dic-hero">
-          <div class="n">第 ${DIC.idx + 1} / ${len} 个${unit}</div>
-          <div class="tip">${dt.showCn && s.words[DIC.list[DIC.idx]].cn ? esc(s.words[DIC.list[DIC.idx]].cn) : '…… 仔细听'}</div>
-          <button class="dic-play" onclick="dicPlay()">🔊</button>
-          <div class="sub">点大喇叭可以再听一遍</div>
-        </div>
-        <input class="dic-input" id="dic-input" autocomplete="off" autocapitalize="off" spellcheck="false"
-               placeholder="写在这里…" onkeydown="if(event.key==='Enter')dicNext()" />
-        <button class="btn-primary" style="width:100%;margin-top:12px" onclick="dicNext()">${isLast ? '提交 ✓' : '下一个 ▶'}</button>
-        <button class="btn-text" style="width:100%;margin-top:10px" onclick="dicSkip()">不会，跳过这个</button>
-      </div>
-      ${kidTabBar('words')}`;
-  }
-
-  function assignDictation() {
-    const childId = document.getElementById('dc-child').value;
-    const setId = document.getElementById('dc-set').value;
-    const count = parseInt(document.getElementById('dc-count').value) || 10;
-    const repeat = parseInt(document.getElementById('dc-repeat').value) || 2;
-    const gap = parseInt(document.getElementById('dc-gap').value);
-    const points = parseInt(document.getElementById('dc-points').value) || 8;
-    const showCn = document.getElementById('dc-showcn').checked;
-    if (!setId) { toast('先去建一个词库'); return; }
-    const dup = (DATA.dictations || []).find(t => t.childId === childId && t.date === TODAY && t.setId === setId && !t.done);
-    if (dup) { toast('这个娃今天已有该词库的听写'); return; }
-    if (!Array.isArray(DATA.dictations)) DATA.dictations = [];
-    DATA.dictations.push({
-      id: 'dc' + Date.now(), childId, date: TODAY, setId, count,
-      repeat: Math.max(1, Math.min(5, repeat)),
-      gap: isNaN(gap) ? 2 : Math.max(0, Math.min(10, gap)),
-      points, showCn, done: false, score: null, total: 0, wrong: [],
-    });
-    saveData(DATA); render(); toast('已布置，孩子端「单词」页里能看到');
-  }
-  function delDictation(id) {
-    if (!confirm('删除这个听写任务？')) return;
-    tombAdd('dictations', id);
-    DATA.dictations = (DATA.dictations || []).filter(t => t.id !== id);
-    saveData(DATA); render();
-  }
-
-  // ---- 妈妈端：单词管理 ----
   function viewMomWords() {
     const todays = DATA.wordTasks.filter(t => t.date === TODAY);
     const pending = wpPendingMom();
@@ -4168,43 +4252,6 @@
         </div>
 
         <div class="section">
-          <h3>听写 <span class="badge">英语 / 语文都能用</span></h3>
-          ${(() => {
-            const dts = (DATA.dictations || []).filter(t => t.date === TODAY);
-            if (!dts.length) return '<div class="text-mute">今天还没布置听写</div>';
-            return dts.map(dt => {
-              const k = DATA.children.find(c => c.id === dt.childId);
-              const s = dicSet(dt);
-              return `<div class="task">
-                <div class="title"><div class="name">${k ? k.avatar + ' ' + esc(k.name) : ''} · 听写</div>
-                <div class="meta">📚 ${esc(s.title)} · ${Math.min(dt.count, (s.words || []).length)} 词${dt.done ? ` · ✅ 对了 ${dt.score}/${dt.total}${dt.wrong && dt.wrong.length ? ' · 错 ' + dt.wrong.length + ' 个' : ''}` : ' · 未开始'}</div></div>
-                <button class="icon-btn" style="background:#FFEBEE;color:#C62828" onclick="delDictation('${dt.id}')">${ICN.trash}</button>
-              </div>`;
-            }).join('');
-          })()}
-        </div>
-
-        <div class="section">
-          <h3>布置听写</h3>
-          <div class="field"><label>给谁</label>
-            <select id="dc-child">${DATA.children.map(c => `<option value="${c.id}">${c.avatar} ${esc(c.name)}</option>`).join('')}</select></div>
-          <div class="field"><label>用哪个词库</label>
-            <select id="dc-set">${DATA.wordSets.map(ws => `<option value="${ws.id}">${setLang(ws) === 'zh' ? '🇨🇳' : '🔤'} ${esc(ws.title)}（${ws.words.length} 条）</option>`).join('')}</select></div>
-          <div class="field"><label>考几个</label>
-            <input id="dc-count" type="number" value="10" min="1" max="50" /></div>
-          <div class="field"><label>每个读几遍</label>
-            <input id="dc-repeat" type="number" value="2" min="1" max="5" /></div>
-          <div class="field"><label>每遍间隔（秒）</label>
-            <input id="dc-gap" type="number" value="2" min="0" max="10" /></div>
-          <div class="field"><label>完成后积分</label>
-            <input id="dc-points" type="number" value="8" min="1" max="50" /></div>
-          <label style="display:flex;align-items:center;gap:8px;font-size:14px;margin:6px 0">
-            <input type="checkbox" id="dc-showcn" style="width:18px;height:18px" /> 听写时显示中文提示（低年级建议勾上）</label>
-          <button class="btn-primary" style="width:100%" onclick="assignDictation()">布置听写</button>
-          <p class="text-mute" style="font-size:12px;margin-top:8px">语文听写：新建词库时把「朗读语言」选成语文，词条每行写一个词语即可</p>
-        </div>
-
-        <div class="section">
           <h3>词库管理 <button class="text-pink" style="font-size:12px" onclick="openWordSetModal()">${ICN.add} 新建词库</button></h3>
           ${DATA.wordSets.map(s => `<div class="task">
             <div class="title"><div class="name">${setLang(s) === 'zh' ? '🇨🇳' : '🔤'} ${esc(s.title)}</div><div class="meta">${s.words.length} 条 · ${setLang(s) === 'zh' ? '语文（读中文）' : '英语（读英文）'}</div></div>
@@ -4229,6 +4276,8 @@
                     '冠词':1, '感叹词':1, '助动词':1, '情态动词':1, '及物动词':1, '不及物动词':1,
                     '专有名词':1, '可数名词':1, '不可数名词':1, '短语动词':1, '量词':1, '拟声词':1,
                     '前缀':1, '后缀':1 };
+  function setLang(ws) { return (ws && ws.lang === 'zh') ? 'zh' : 'en'; }
+
   function wsIsPos(x) {
     let t = String(x == null ? '' : x).trim().toLowerCase().replace(/\.+$/, '');
     if (!t) return false;
@@ -4580,6 +4629,8 @@
       if (seg.again) { c.points += 10; saveData(DATA); toast('🎡 再来一次！星星已退回'); }
       else if (seg.pts > 0) { awardStars(c, seg.pts, `幸运转盘中奖 ${seg.pts} 星`); toast(`🎉 恭喜抽中 ${seg.pts} 颗星星！`); }
       else { toast('🎁 抽中：' + seg.label + '！和妈妈商量兑现哦～'); }
+      if (!DATA.wheelLogs) DATA.wheelLogs = [];
+      DATA.wheelLogs.unshift({ id: 'wl' + Date.now(), childId: c.id, label: seg.label, pts: seg.pts || 0, at: Date.now() });
       render();
     }, 3350);
   }
