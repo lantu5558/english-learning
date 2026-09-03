@@ -47,6 +47,7 @@
     .topbar .actions { display:flex; gap:8px; }
     .icon-btn { width:36px; height:36px; border-radius: 10px; display:flex; align-items:center; justify-content:center; background: var(--gray-100); }
     .icon-btn svg { width:18px; height:18px; }
+    .rec-stat { font-size:11px; color:var(--gray-600); margin-left:4px }
 
     /* ===== 底部 Tab Bar ===== */
     .tabbar {
@@ -2352,6 +2353,11 @@
             </div>
           </div>
           <button class="btn-secondary mt-8" onclick="openXfSettings()">${XF.ok() ? '修改密钥' : '填写密钥'}</button>
+        </div>
+        <div class="section">
+          <h3>🎙 真人跟读原音</h3>
+          <p class="text-mute" style="font-size:12px;margin-bottom:8px">妈妈在每句跟读录的真人原音，会自动上传到独立仓库 lantu5558/flp-audio（需对仓库有写权限的 GitHub 令牌）。填一次即可，不影响主网站。</p>
+          <input id="flp-audio-pat" placeholder="GitHub 音频上传令牌（PAT）" style="width:100%;padding:9px 12px;border:0.5px solid var(--border-soft);border-radius:12px;font-size:13px" value="${escA(localStorage.getItem('flp_audio_pat') || '')}" oninput="localStorage.setItem('flp_audio_pat', this.value.trim())" />
         </div>
         <div class="section">
           <h3>☁️ 云端同步</h3>
@@ -6188,11 +6194,62 @@
       '</div>';
   }
 
+  // ---- 妈妈录真人跟读原音：上传到独立仓库 flp-audio，不与主仓库耦合 ----
+  const FL_REC_MAP = {};
+  let _flRec = null, _flStream = null;
+  async function uploadFollowAudio(blob, key) {
+    const pat = localStorage.getItem('flp_audio_pat');
+    if (!pat) { alert('请先在「设置」里填写 GitHub 音频仓库上传令牌'); return null; }
+    if (blob.size > 200 * 1024) { alert('录音文件过大（>200KB），请重录短一点'); return null; }
+    const b64 = await new Promise(res => { const r = new FileReader(); r.onload = () => res((r.result.split(',')[1])); r.readAsDataURL(blob); });
+    const path = 'audio/' + key + '.webm';
+    const url = 'https://api.github.com/repos/lantu5558/flp-audio/contents/' + path;
+    const body = JSON.stringify({ message: 'follow audio ' + key, content: b64, branch: 'main' });
+    const res = await fetch(url, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + pat, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github+json' }, body });
+    if (res.status === 404 || res.status === 401) { alert('上传失败：仓库 flp-audio 不存在或无权限。请先部署一次以初始化音频仓库，并确认令牌有写权限。'); return null; }
+    if (!res.ok) { alert('上传失败：' + res.status); return null; }
+    const j = await res.json();
+    return 'https://raw.githubusercontent.com/lantu5558/flp-audio/main/' + path;
+  }
+  async function flRecSentence(setter, statusEl) {
+    try {
+      _flStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(_flStream);
+      const chunks = [];
+      mr.ondataavailable = e => chunks.push(e.data);
+      mr.onstop = async () => {
+        _flStream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        if (statusEl) statusEl.textContent = '上传中…';
+        const code = (localStorage.getItem('flp-sync-code') || 'default');
+        const url = await uploadFollowAudio(blob, code + '/' + setter.key);
+        if (url) { setter.set(url); saveData(); if (statusEl) statusEl.textContent = '✅ 已存真人原音'; }
+        else if (statusEl) statusEl.textContent = '';
+      };
+      mr.start();
+      _flRec = mr;
+      if (statusEl) statusEl.textContent = '● 录音中…（再点停止）';
+    } catch (e) { alert('无法录音：' + e.message); }
+  }
+  function flRecDemoStop() { if (_flRec && _flRec.state === 'recording') _flRec.stop(); }
+  function flRecDemoBtn(btn, key) {
+    const st = btn.parentElement.querySelector('.rec-stat');
+    if (_flRec && _flRec.state === 'recording') { flRecDemoStop(); return; }
+    const s = FL_REC_MAP[key];
+    flRecSentence({ key: key, set: function (u) {
+      if (s) s.audio = u;
+      const dk = (localStorage.getItem('flp-sync-code') || 'default') + '/' + key;
+      DATA.demoAudio = DATA.demoAudio || {}; DATA.demoAudio[dk] = u; saveData();
+    } }, st);
+  }
+
   function flPlayDemo() {
     if (!FOLLOW) return;
     const s = FOLLOW.sents[FOLLOW.idx]; if (!s) return;
     flStopDemo();
-    const a = new Audio(flDemoUrl(s.f));
+    if (!s.audio && !s.f) { try { speak(s.t); } catch (e) {} return; }
+    const demoUrl = s.audio || flDemoUrl(s.f);
+    const a = new Audio(demoUrl);
     a.preload = 'auto';
     FL_DEMO = a;
     a.play().catch(function () { toast('示范音加载失败，检查网络'); });
@@ -6319,9 +6376,15 @@
     const u = (TB_LIB.units || []).find(function (x) { return String(x.unit) === String(sel.value); });
     if (!u) { box.innerHTML = ''; return; }
     box.innerHTML = u.sents.map(function (s, i) {
+      const key = u.unit + '_' + i;
+      FL_REC_MAP[key] = s;
+      const dk = (localStorage.getItem('flp-sync-code') || 'default') + '/' + key;
+      const hasAudio = !!(s.audio || (DATA.demoAudio && DATA.demoAudio[dk]));
       return '<label style="display:flex;gap:8px;align-items:flex-start;padding:7px 8px;border-radius:8px;font-size:13px;line-height:1.4;cursor:pointer">' +
-        '<input type="checkbox" class="fl-pick" data-t="' + escA(s.t) + '" data-f="' + escA(s.f) + '" style="width:16px;height:16px;flex:none;margin-top:2px" onchange="flCount()" />' +
-        '<span>' + (i + 1) + '. ' + esc(s.t) + '</span></label>';
+        '<input type="checkbox" class="fl-pick" data-t="' + escA(s.t) + '" data-f="' + escA(s.f) + '" data-key="' + escA(key) + '" style="width:16px;height:16px;flex:none;margin-top:2px" onchange="flCount()" />' +
+        '<span>' + (i + 1) + '. ' + esc(s.t) + '</span>' +
+        '<button type="button" class="icon-btn" style="font-size:14px;flex:none;margin-top:1px" onclick="flRecDemoBtn(this,\'' + key + '\')">' + (hasAudio ? '🎙✔' : '🎙') + '</button>' +
+        '<span class="rec-stat"></span></label>';
     }).join('');
     flCount();
   }
@@ -6344,7 +6407,8 @@
     const sel = document.getElementById('t-fl-unit');
     const sents = [];
     if (box) box.querySelectorAll('.fl-pick:checked').forEach(function (c) {
-      sents.push({ t: c.getAttribute('data-t'), f: c.getAttribute('data-f') });
+      const dk = (localStorage.getItem('flp-sync-code') || 'default') + '/' + (c.getAttribute('data-key') || '');
+      sents.push({ t: c.getAttribute('data-t'), f: c.getAttribute('data-f'), audio: (DATA.demoAudio && DATA.demoAudio[dk]) || '' });
     });
     return {
       sents: sents,
