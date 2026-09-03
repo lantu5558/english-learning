@@ -1042,21 +1042,49 @@
       if (!a.length && !b.length) continue;
       // 出厂示例 + 云端这一项也是空的 = 这个家还没开始配数据，那就先把示例留着给家长看
       if (seed && !b.length) { out[key] = a.slice(); continue; }
-      const merged = [];
-      // 远端为准（孩子的打卡、妈妈在别的设备上的改动能同步过来）
-      for (let x = 0; x < b.length; x++) {
-        let local = null;
-        for (let y = 0; y < a.length; y++) { if (a[y] && a[y].id && a[y].id === b[x].id) { local = a[y]; break; } }
-        merged.push((localWins && local) ? local : b[x]);
-      }
-      // 本地新增（还没推上去的词库、资源等）一律保留
-      // 例外：本机还是出厂示例时，那点「新增」就是 r1~r10 那几条占位示例，留不得
-      for (let x = 0; x < a.length; x++) {
-        const cur = a[x];
-        if (!cur || !cur.id) { if (!seed) merged.push(cur); continue; }
-        let has = false;
-        for (let y = 0; y < b.length; y++) { if (b[y] && b[y].id === cur.id) { has = true; break; } }
-        if (!has && !seed) merged.push(cur);
+      let merged;
+      if (key === 'tasks') {
+        // 字段级合并：结构字段按 localWins 原逻辑，完成状态(done/doneAt/proofData)以 doneAt 较新者为准，
+        // 防止某设备持有陈旧 done=false 副本在推送时把云端 done=true 覆盖回去。
+        merged = [];
+        const seen = {};
+        for (let x = 0; x < b.length; x++) {
+          const remote = b[x]; if (!remote || !remote.id) continue;
+          let local = null;
+          for (let y = 0; y < a.length; y++) { if (a[y] && a[y].id === remote.id) { local = a[y]; break; } }
+          if (local) {
+            const baseObj = localWins ? local : remote;
+            const outTask = Object.assign({}, baseObj);
+            const ld = local.doneAt || 0, rd = remote.doneAt || 0;
+            const src = rd > ld ? remote : (ld > rd ? local : null);
+            if (src) { outTask.done = src.done; outTask.doneAt = src.doneAt; if ('proofData' in src) outTask.proofData = src.proofData; }
+            merged.push(outTask);
+          } else {
+            merged.push(remote);
+          }
+          seen[remote.id] = true;
+        }
+        for (let x = 0; x < a.length; x++) {
+          const cur = a[x]; if (!cur || !cur.id) { if (!seed) merged.push(cur); continue; }
+          if (!seen[cur.id] && !seed) merged.push(cur);
+        }
+      } else {
+        merged = [];
+        // 远端为准（孩子的打卡、妈妈在别的设备上的改动能同步过来）
+        for (let x = 0; x < b.length; x++) {
+          let local = null;
+          for (let y = 0; y < a.length; y++) { if (a[y] && a[y].id && a[y].id === b[x].id) { local = a[y]; break; } }
+          merged.push((localWins && local) ? local : b[x]);
+        }
+        // 本地新增（还没推上去的词库、资源等）一律保留
+        // 例外：本机还是出厂示例时，那点「新增」就是 r1~r10 那几条占位示例，留不得
+        for (let x = 0; x < a.length; x++) {
+          const cur = a[x];
+          if (!cur || !cur.id) { if (!seed) merged.push(cur); continue; }
+          let has = false;
+          for (let y = 0; y < b.length; y++) { if (b[y] && b[y].id === cur.id) { has = true; break; } }
+          if (!has && !seed) merged.push(cur);
+        }
       }
       out[key] = merged;
     }
