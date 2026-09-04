@@ -6216,8 +6216,16 @@
     const b64 = await new Promise(res => { const r = new FileReader(); r.onload = () => res((r.result.split(',')[1])); r.readAsDataURL(blob); });
     const path = 'audio/' + key + '.webm';
     const url = 'https://api.github.com/repos/lantu5558/flp-audio/contents/' + path;
-    const body = JSON.stringify({ message: 'follow audio ' + key, content: b64, branch: 'main' });
-    const res = await fetch(url, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + pat, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github+json' }, body });
+    const ghHeaders = { 'Authorization': 'Bearer ' + pat, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github+json' };
+    // 重录覆盖：GitHub 更新【已存在】文件必须带原文件 sha，否则返回 422。先 GET 取 sha（不存在则 404，sha 留空=新建）。
+    let _sha = null;
+    try {
+      const g = await fetch(url, { method: 'GET', headers: { 'Authorization': 'Bearer ' + pat, 'Accept': 'application/vnd.github+json' } });
+      if (g.ok) { const gj = await g.json(); if (gj && gj.sha) _sha = gj.sha; }
+    } catch (e) {}
+    const payload = { message: 'follow audio ' + key, content: b64, branch: 'main' };
+    if (_sha) payload.sha = _sha;
+    const res = await fetch(url, { method: 'PUT', headers: ghHeaders, body: JSON.stringify(payload) });
     if (res.status === 404 || res.status === 401) { alert('上传失败：仓库 flp-audio 不存在或无权限。请先部署一次以初始化音频仓库，并确认令牌有写权限。'); return null; }
     if (!res.ok) { alert('上传失败：' + res.status); return null; }
     const j = await res.json();
