@@ -6229,7 +6229,7 @@
     if (res.status === 404 || res.status === 401) { alert('上传失败：仓库 flp-audio 不存在或无权限。请先部署一次以初始化音频仓库，并确认令牌有写权限。'); return null; }
     if (!res.ok) { alert('上传失败：' + res.status); return null; }
     const j = await res.json();
-    return 'https://raw.githubusercontent.com/lantu5558/flp-audio/main/' + path;
+    return 'https://cdn.jsdelivr.net/gh/lantu5558/flp-audio@main/' + path;
   }
   async function flRecSentence(setter, statusEl) {
     try {
@@ -6268,11 +6268,26 @@
     const s = FOLLOW.sents[FOLLOW.idx]; if (!s) return;
     flStopDemo();
     if (!s.audio && !s.f) { try { speak(s.t); } catch (e) {} return; }
-    const demoUrl = s.audio || flDemoUrl(s.f);
-    const a = new Audio(demoUrl);
-    a.preload = 'auto';
-    FL_DEMO = a;
-    a.play().catch(function () { toast('示范音加载失败，检查网络'); });
+    let demoUrl = s.audio || flDemoUrl(s.f);
+    // 真人音统一走 jsDelivr CDN（比 raw.githubusercontent 国内更稳）；旧 raw 地址也在此改写
+    if (demoUrl.indexOf('raw.githubusercontent.com/lantu5558/flp-audio/') >= 0) {
+      demoUrl = demoUrl.replace('raw.githubusercontent.com/lantu5558/flp-audio/main/', 'cdn.jsdelivr.net/gh/lantu5558/flp-audio@main/');
+    }
+    // 播放降级链：jsDelivr → raw.githubusercontent → 有道真人音朗读（覆盖网络/格式加载失败）
+    const flUrls = [demoUrl];
+    if (demoUrl.indexOf('cdn.jsdelivr.net') >= 0) {
+      flUrls.push(demoUrl.replace('cdn.jsdelivr.net/gh/lantu5558/flp-audio@main/', 'raw.githubusercontent.com/lantu5558/flp-audio/main/'));
+    }
+    function flTryPlay(i) {
+      if (i >= flUrls.length) { try { speak(s.t); } catch (e) {} return; }
+      const u = flUrls[i];
+      const a = new Audio(u); a.preload = 'auto'; FL_DEMO = a;
+      let advanced = false;
+      function go() { if (advanced) return; advanced = true; flTryPlay(i + 1); }
+      a.onerror = go;
+      a.play().catch(go);
+    }
+    flTryPlay(0);
   }
 
   function flRecToggle() {
