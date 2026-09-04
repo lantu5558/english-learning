@@ -1071,23 +1071,28 @@
         }
       } else {
         merged = [];
-        // 远端为准（孩子的打卡、妈妈在别的设备上的改动能同步过来）
+        // 配置类集合（课表/资源/奖励/词库/转盘）：按「最后修改时间」逐条判定谁新（last-write-wins），
+        // 修掉 2026-09-04 事故（电脑改的课表被手机旧版按 id 盲信云端覆盖）。其余集合沿用原有 localWins 逻辑，避免波及无关数据。
+        const cfg = (key === 'schedules' || key === 'resources' || key === 'rewards' || key === 'wordSets' || key === 'wheel');
+        const seen = {};
         for (let x = 0; x < b.length; x++) {
+          const remote = b[x]; if (!remote || !remote.id) continue;
           let local = null;
-          for (let y = 0; y < a.length; y++) { if (a[y] && a[y].id && a[y].id === b[x].id) { local = a[y]; break; } }
-          // 配置类集合（课表等）以云端最新为准，确保一台设备改了、其他设备立刻看到。
-          // 不再用 localWins 保本地——localWins 是全局脏标记，手机端孩子随便点一下就变 true，
-          // 会把妈妈刚在另一台设备改的课表永久挡在门外（2026-09-04 修复）。
-          merged.push((localWins && local && ['schedules','resources','rewards','wordSets','wheel'].indexOf(key) < 0) ? local : b[x]);
+          for (let y = 0; y < a.length; y++) { if (a[y] && a[y].id === remote.id) { local = a[y]; break; } }
+          if (local && cfg) {
+            const la = Number(local.modifiedAt || 0), ra = Number(remote.modifiedAt || 0);
+            merged.push(ra >= la ? remote : local); // 同时间取云端，保证确定性；否则谁新用谁
+          } else {
+            merged.push((localWins && local) ? local : remote);
+          }
+          seen[remote.id] = true;
         }
         // 本地新增（还没推上去的词库、资源等）一律保留
         // 例外：本机还是出厂示例时，那点「新增」就是 r1~r10 那几条占位示例，留不得
         for (let x = 0; x < a.length; x++) {
           const cur = a[x];
           if (!cur || !cur.id) { if (!seed) merged.push(cur); continue; }
-          let has = false;
-          for (let y = 0; y < b.length; y++) { if (b[y] && b[y].id === cur.id) { has = true; break; } }
-          if (!has && !seed) merged.push(cur);
+          if (!seen[cur.id] && !seed) merged.push(cur);
         }
       }
       out[key] = merged;
@@ -1959,13 +1964,14 @@
       to: document.getElementById('s-to').value || '',
     };
     const eid = window.__editSchedId;
+    const _now = Date.now();
     if (eid) {
       const sc = (DATA.schedules || []).find(x => x.id === eid);
-      if (sc) Object.assign(sc, one);
+      if (sc) { Object.assign(sc, one); sc.modifiedAt = _now; }
       toast('已修改');
     } else {
       if (!DATA.schedules) DATA.schedules = [];
-      DATA.schedules.push(Object.assign({ id: 'sc' + Date.now().toString(36) }, one));
+      DATA.schedules.push(Object.assign({ id: 'sc' + Date.now().toString(36), modifiedAt: _now }, one));
       toast('已添加');
     }
     window.__editSchedId = null;
@@ -4583,7 +4589,7 @@
     const langEl = document.getElementById('ws-lang');
     const words = wsParseWords(raw, langEl ? langEl.value : 'en');
     if (!words.length) { toast('至少写一行，格式：「单词 中文」或每行一个词语'); return; }
-    DATA.wordSets.push({ id: 'ws' + Date.now(), title, words, lang: langEl ? langEl.value : 'en' });
+    DATA.wordSets.push({ id: 'ws' + Date.now(), title, words, lang: langEl ? langEl.value : 'en', modifiedAt: Date.now() });
     saveData(DATA); document.querySelector('.modal-mask').remove(); render(); toast(`已保存 ${words.length} 个单词`);
   }
   function openWordSetEdit(id) {
@@ -4642,6 +4648,7 @@
     ws.title = title;
     ws.lang = langEl ? langEl.value : ws.lang;
     ws.words = words;
+    ws.modifiedAt = Date.now();
     saveData(DATA);
     const m = document.querySelector('.modal-mask');
     if (m) m.remove();
@@ -7306,7 +7313,7 @@ function momFutureTasks() {
       if (ex) {
         const keepId = ex.id;
         Object.assign(ex, res);
-        ex.id = keepId; // 保留原 id，避免孩子端已打开的链接失效
+        ex.id = keepId; ex.modifiedAt = Date.now(); // 保留原 id，避免孩子端已打开的链接失效
         window.__editResId = null;
         saveData(DATA); document.querySelector('.modal-mask').remove(); render();
         toast('已保存');
@@ -7315,6 +7322,7 @@ function momFutureTasks() {
       window.__editResId = null;
     }
     res.id = 'r' + Date.now();
+    res.modifiedAt = Date.now();
     DATA.resources.push(res);
     saveData(DATA); document.querySelector('.modal-mask').remove(); render();
     toast(eps.length >= 2 ? '已添加合集（' + eps.length + '集）' : '已添加');
@@ -7428,7 +7436,7 @@ function momFutureTasks() {
     if (!items || !items.length) return;
     const now = Date.now();
     items.forEach((x, i) => {
-      const res = { id: 'r' + (now + i), type: x.type, subject: x.subject, title: x.title || ('资源' + (i + 1)), url: x.url || (x.eps[0] ? x.eps[0].url : ''), category: x.category };
+      const res = { id: 'r' + (now + i), type: x.type, subject: x.subject, title: x.title || ('资源' + (i + 1)), url: x.url || (x.eps[0] ? x.eps[0].url : ''), category: x.category, modifiedAt: Date.now() };
       if (x.eps && x.eps.length >= 2) {
         res.episodes = x.eps.map((e, j) => ({ title: e.title || ('第' + (j + 1) + '集'), url: e.url }));
         res.url = res.episodes[0].url;
@@ -8864,7 +8872,7 @@ function momFutureTasks() {
     if (!title) { toast('标题要填'); return; }
     if (cat !== 'promise' && !url && !eps.length) { toast('视频类奖励要填微云链接或分集'); return; }
     if (eps.length === 1 && !url) { toast('只有 1 集就直接填上面的链接'); return; }
-    const rw = { id: 'rw'+Date.now(), title, emoji, cost, url, cat };
+    const rw = { id: 'rw'+Date.now(), title, emoji, cost, url, cat, modifiedAt: Date.now() };
     if (eps.length >= 2) { rw.eps = eps; if (!url) rw.url = eps[0].url; }
     DATA.rewards.push(rw);
     saveData(DATA); document.querySelector('.modal-mask').remove(); render();
@@ -9014,7 +9022,7 @@ function momFutureTasks() {
   }
   function wheelSegAdd() {
     if (!DATA.wheel) DATA.wheel = [];
-    DATA.wheel.push({ id: 'ws' + Date.now(), label: '新扇区', pts: 0, w: 10 });
+    DATA.wheel.push({ id: 'ws' + Date.now(), label: '新扇区', pts: 0, w: 10, modifiedAt: Date.now() });
     openWheelModal();
   }
   function wheelSegDel(i) {
@@ -9036,7 +9044,8 @@ function momFutureTasks() {
       label: (s.label || '').trim(),
       pts: s.again ? 0 : (parseInt(s.pts) || 0),
       w: Math.max(1, parseInt(s.w) || 1),
-      again: !!s.again
+      again: !!s.again,
+      modifiedAt: Date.now()
     }));
     saveData(DATA);
     const m = document.querySelector('.modal-mask'); if (m) m.remove();
