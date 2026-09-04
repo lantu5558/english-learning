@@ -1075,7 +1075,10 @@
         for (let x = 0; x < b.length; x++) {
           let local = null;
           for (let y = 0; y < a.length; y++) { if (a[y] && a[y].id && a[y].id === b[x].id) { local = a[y]; break; } }
-          merged.push((localWins && local) ? local : b[x]);
+          // 配置类集合（课表等）以云端最新为准，确保一台设备改了、其他设备立刻看到。
+          // 不再用 localWins 保本地——localWins 是全局脏标记，手机端孩子随便点一下就变 true，
+          // 会把妈妈刚在另一台设备改的课表永久挡在门外（2026-09-04 修复）。
+          merged.push((localWins && local && ['schedules','resources','rewards','wordSets','wheel'].indexOf(key) < 0) ? local : b[x]);
         }
         // 本地新增（还没推上去的词库、资源等）一律保留
         // 例外：本机还是出厂示例时，那点「新增」就是 r1~r10 那几条占位示例，留不得
@@ -1266,7 +1269,9 @@
     return JSON.parse(raw);
   }
   async function syncPull(silent) {
-    if (!SYNC.code || SYNC.status !== 'on' || SYNC.busy) return false;
+    // 即使上次同步报过错（status==='err'）也继续尝试拉取，网络抖动后能自动恢复，
+    // 否则会永远卡在旧数据（2026-09-04 修复）。只有没填同步码或正在忙才跳过。
+    if (!SYNC.code || SYNC.busy) return false;
     SYNC.busy = true;
     let applied = false;
     try {
