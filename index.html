@@ -907,7 +907,7 @@
 
   // ========== 云端同步（textdb.dev 家庭通道，轮询 5 秒） ==========
   const SYNC = {
-    code: localStorage.getItem('flp-sync-code') || '',
+    code: localStorage.getItem('flp-sb-uid') || '',
     status: 'off', // off | on | err
     busy: false, pending: false, poll: null, lastTs: 0,
     lastRemoteTs: 0, dirty: false, lastErr: '',
@@ -1219,7 +1219,46 @@
     });
     return d;
   }
-  function syncUrl() { return 'https://textdb.dev/api/data/flp-lebaomaibao-' + encodeURIComponent(SYNC.code.trim()); }
+  // ========== 云端同步后端：Supabase（账号登录，不用同步码） ==========
+  const SB_URL = 'https://ccwsmhuiladxkojztjdy.supabase.co';
+  const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNjd3NtaHVpbGFkeGtvanp0amR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg1MzYxMzMsImV4cCI6MjEwNDExMjEzM30.1-AnJytChOZ8MHhFjzbXOD1BQ9vdp_3OvS3sXvREYvQ';
+  const SB_TABLE = 'sync_docs';
+  function sbBaseHeaders() { return { 'apikey': SB_ANON, 'Content-Type': 'application/json' }; }
+  function sbAuthHeaders() { const t = localStorage.getItem('flp-sb-token'); const h = sbBaseHeaders(); if (t) h['Authorization'] = 'Bearer ' + t; return h; }
+  function sbSaveSession(j) {
+    if (j && j.access_token) localStorage.setItem('flp-sb-token', j.access_token);
+    if (j && j.refresh_token) localStorage.setItem('flp-sb-refresh', j.refresh_token);
+    if (j && j.user && j.user.id) localStorage.setItem('flp-sb-uid', j.user.id);
+    if (j && j.user && j.user.email) localStorage.setItem('flp-sb-email', j.user.email);
+  }
+  function sbClearSession() { ['flp-sb-token','flp-sb-refresh','flp-sb-uid','flp-sb-email'].forEach(k=>localStorage.removeItem(k)); }
+  async function sbRefresh() {
+    const rt = localStorage.getItem('flp-sb-refresh');
+    if (!rt) return false;
+    try {
+      const r = await fetch(SB_URL + '/auth/v1/token?grant_type=refresh_token', { method:'POST', headers: sbBaseHeaders(), body: JSON.stringify({ refresh_token: rt }) });
+      if (!r.ok) return false;
+      const j = await r.json();
+      if (!j.access_token) return false;
+      sbSaveSession(j); return true;
+    } catch (e) { return false; }
+  }
+  async function sbFetchRow() {
+    let r = await fetch(SB_URL + '/rest/v1/' + SB_TABLE + '?select=data,updated_at&t=' + Date.now(), { headers: sbAuthHeaders() });
+    if (r.status === 401) { if (await sbRefresh()) r = await fetch(SB_URL + '/rest/v1/' + SB_TABLE + '?select=data,updated_at&t=' + Date.now(), { headers: sbAuthHeaders() }); }
+    if (r.status === 404) return null;
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const arr = await r.json();
+    if (!Array.isArray(arr) || !arr.length) return null;
+    return { _ts: Date.parse(arr[0].updated_at) || 0, d: JSON.stringify(arr[0].data) };
+  }
+  async function sbUpsertRow() {
+    const payload = { user_id: localStorage.getItem('flp-sb-uid'), data: packForSync(DATA), updated_at: new Date().toISOString() };
+    const hd = Object.assign(sbAuthHeaders(), { 'Prefer': 'return=minimal' });
+    let r = await fetch(SB_URL + '/rest/v1/' + SB_TABLE + '?on_conflict=user_id', { method:'POST', headers: hd, body: JSON.stringify(payload) });
+    if (r.status === 401) { if (await sbRefresh()) r = await fetch(SB_URL + '/rest/v1/' + SB_TABLE + '?on_conflict=user_id', { method:'POST', headers: hd, body: JSON.stringify(payload) }); }
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+  }
   function scheduleSyncPush() {
     if (!SYNC.code || SYNC.status !== 'on') return;
     SYNC.pending = true;
@@ -1242,12 +1281,7 @@
         }
       } catch (e) { /* 拉不到就照常推，不阻塞 */ }
       const ts = Date.now();
-      const res = await fetch(syncUrl(), {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify({ _ts: ts, d: packForSync(DATA) })
-      });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
+      await sbUpsertRow();
       SYNC.lastTs = ts;
       SYNC.lastRemoteTs = ts;
       SYNC.dirty = false;
@@ -1266,13 +1300,7 @@
     SYNC.busy = false;
     if (SYNC.pending) doSyncPush();
   }
-  async function fetchRemote() {
-    const res = await fetch(syncUrl() + '?t=' + Date.now());
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    let raw = (await res.text()).replace(/=+\s*$/, '');
-    if (!raw || raw === 'null') return null;
-    return JSON.parse(raw);
-  }
+  async function fetchRemote() { return sbFetchRow(); }
   async function syncPull(silent) {
     // 即使上次同步报过错（status==='err'）也继续尝试拉取，网络抖动后能自动恢复，
     // 否则会永远卡在旧数据（2026-09-04 修复）。只有没填同步码或正在忙才跳过。
@@ -1283,7 +1311,7 @@
       const remote = await fetchRemote();
       if (remote && remote._ts && remote.d && remote._ts !== SYNC.lastRemoteTs) {
         const incoming = normalizeData(unpackFromSync(remote.d));
-        const merged = mergeData(DATA, incoming, SYNC.dirty);
+        const merged = mergeData(DATA, incoming, false); // 拉取永远安全合并，不被 SYNC.dirty 卡死
         SYNC.lastRemoteTs = remote._ts;
         if (remote._ts > SYNC.lastTs) SYNC.lastTs = remote._ts;
         if (JSON.stringify(merged) !== JSON.stringify(DATA)) {
@@ -1304,16 +1332,47 @@
     if (SYNC.pending) doSyncPush();
     return applied;
   }
+  function forceSyncNow() {
+    // 手动强制拉取一次云端（已开启同步时）。用于「开了同步但数据没刷出来」时自救，
+    // 不必再走关闭→重开的破坏式流程。
+    if (!SYNC.code) { if (typeof toast==='function') toast('请先开启同步'); return; }
+    if (SYNC.busy) { if (typeof toast==='function') toast('同步进行中…'); return; }
+    syncPull(false).then(function(applied){ if (!applied && typeof toast==='function') toast('已是最新'); })
+      .catch(function(){ if (typeof toast==='function') toast('同步失败，稍后自动重试'); });
+  }
   function startSyncPoll() {
     if (SYNC.poll) clearInterval(SYNC.poll);
     SYNC.poll = setInterval(() => { syncPull(true).catch(() => {}); }, 5000);
   }
-  async function enableSync() {
-    const code = document.getElementById('sync-code').value.trim();
-    if (!code) { toast('先起一个家庭同步码，比如 lebao2026'); return; }
-    SYNC.code = code;
-    localStorage.setItem('flp-sync-code', code);
-    await adoptRemote(true);
+  async function enableSync() { await accSignIn(); } // 兼容旧入口
+  async function accSignIn() {
+    const email = document.getElementById('acc-email').value.trim();
+    const pwd = document.getElementById('acc-pwd').value;
+    if (!email || !pwd) { toast('请输入邮箱和密码'); return; }
+    SYNC.busy = true;
+    try {
+      const r = await fetch(SB_URL + '/auth/v1/token?grant_type=password', { method:'POST', headers: sbBaseHeaders(), body: JSON.stringify({ email, password: pwd }) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.msg || j.message || ('HTTP ' + r.status));
+      sbSaveSession(j); SYNC.code = j.user.id; SYNC.status = 'on';
+      await adoptRemote(true);
+    } catch (e) { SYNC.status='err'; SYNC.lastErr=String(e.message||e); toast('登录失败：' + (e.message||e)); }
+    SYNC.busy = false;
+  }
+  async function accSignUp() {
+    const email = document.getElementById('acc-email').value.trim();
+    const pwd = document.getElementById('acc-pwd').value;
+    if (!email || !pwd) { toast('请输入邮箱和密码'); return; }
+    if (pwd.length < 6) { toast('密码至少 6 位'); return; }
+    SYNC.busy = true;
+    try {
+      const r = await fetch(SB_URL + '/auth/v1/signup', { method:'POST', headers: sbBaseHeaders(), body: JSON.stringify({ email, password: pwd }) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.msg || j.message || ('HTTP ' + r.status));
+      if (j.access_token) { sbSaveSession(j); SYNC.code = j.user.id; SYNC.status='on'; await adoptRemote(true); }
+      else { toast('注册成功！请到邮箱点击验证链接，然后回来点「登录」'); SYNC.status='off'; }
+    } catch (e) { SYNC.status='err'; SYNC.lastErr=String(e.message||e); toast('注册失败：' + (e.message||e)); }
+    SYNC.busy = false;
   }
   async function adoptRemote(first) {
     SYNC.status = 'on';
@@ -1340,7 +1399,7 @@
           // 非首次：合并，绝不整包覆盖
           fpClose();                                // 同上：先把这次观看写进本地，合并时才带得过去
           const incoming = normalizeData(unpackFromSync(remote.d));
-          const merged = mergeData(DATA, incoming, SYNC.dirty);
+          const merged = mergeData(DATA, incoming, false); // 拉取永远安全合并，不被 SYNC.dirty 卡死
           SYNC.lastRemoteTs = remote._ts;
           if (remote._ts > SYNC.lastTs) SYNC.lastTs = remote._ts;
           if (JSON.stringify(merged) !== JSON.stringify(DATA)) {
@@ -1361,16 +1420,17 @@
     }
     render();
   }
-  function disableSync() {
-    SYNC.code = '';
-    localStorage.removeItem('flp-sync-code');
+  async function disableSync() {
+    try { const t = localStorage.getItem('flp-sb-token'); if (t) await fetch(SB_URL + '/auth/v1/logout', { method:'POST', headers: sbAuthHeaders() }); } catch (e) {}
+    sbClearSession();
+    SYNC.code = ''; SYNC.status = 'off';
     if (SYNC.poll) { clearInterval(SYNC.poll); SYNC.poll = null; }
-    SYNC.status = 'off';
     render();
-    toast('已关闭同步，数据回到本机模式');
+    toast('已退出账号，数据回到本机模式');
   }
   // 开机自动续连：远端更新则拉取，远端为空则推送本地
-  if (SYNC.code) {
+  if (localStorage.getItem('flp-sb-token') && localStorage.getItem('flp-sb-uid')) {
+    SYNC.code = localStorage.getItem('flp-sb-uid');
     SYNC.status = 'on';
     startSyncPoll();
     (async () => { try { const r = await fetchRemote(); if (!r || !r.d) await doSyncPush(); else await syncPull(true); } catch (e) {} })();
@@ -2373,17 +2433,20 @@
         <div class="section">
           <h3>☁️ 云端同步</h3>
           ${SYNC.status === 'off' ? `
-            <p class="text-mute" style="font-size:12px;margin-bottom:8px">全家设备填同一个「家庭同步码」，任务、打卡、积分、凭证每 5 秒自动互通。<br>每台设备（手机/Pad/学习机）都要开启一次。</p>
-            <input id="sync-code" placeholder="家庭同步码，如 lebao2026" style="width:100%;padding:10px 12px;border:0.5px solid var(--border-soft);border-radius:12px;font-size:14px;margin-bottom:8px" />
-            <button class="btn-primary" style="width:100%" onclick="enableSync()">开启同步</button>
+            <p class="text-mute" style="font-size:12px;margin-bottom:8px">全家用一个账号登录，任务、打卡、积分、凭证自动互通。<br>妈妈先「注册」一个家庭账号（邮箱+密码），电脑/手机/学习机都登同一个即可。</p>
+            <input id="acc-email" placeholder="邮箱（家庭账号）" style="width:100%;padding:10px 12px;border:0.5px solid var(--border-soft);border-radius:12px;font-size:14px;margin-bottom:8px" />
+            <input id="acc-pwd" type="password" placeholder="密码（至少 6 位）" style="width:100%;padding:10px 12px;border:0.5px solid var(--border-soft);border-radius:12px;font-size:14px;margin-bottom:8px" />
+            <button class="btn-primary" style="width:100%" onclick="accSignUp()">注册家庭账号</button>
+            <button class="btn-secondary mt-8" style="width:100%" onclick="accSignIn()">登录</button>
           ` : `
             <div class="task" style="cursor:default">
               <div class="title">
-                <div class="name">${SYNC.status === 'err' ? '🟡 连接异常，自动重试中' : '🟢 同步已开启'}</div>
-                <div class="meta">同步码：${esc(SYNC.code)} · 每 5 秒自动互通</div>
+                <div class="name">${SYNC.status === 'err' ? '🟡 连接异常，自动重试中' : '🟢 已登录云端'}</div>
+                <div class="meta">账号：${esc(localStorage.getItem('flp-sb-email') || SYNC.code)} · 每 5 秒自动互通</div>
               </div>
             </div>
-            <button class="btn-secondary mt-8" onclick="disableSync()">关闭同步</button>
+            <button class="btn-secondary mt-8" onclick="forceSyncNow()">立即同步</button>
+            <button class="btn-secondary mt-8" onclick="disableSync()">退出账号</button>
           `}
         </div>
         <div class="section">
@@ -6241,7 +6304,7 @@
         _flStream.getTracks().forEach(t => t.stop());
         const blob = new Blob(chunks, { type: 'audio/webm' });
         if (statusEl) statusEl.textContent = '上传中…';
-        const code = (localStorage.getItem('flp-sync-code') || 'default');
+        const code = (localStorage.getItem('flp-audio-draft') || 'default');
         const url = await uploadFollowAudio(blob, code + '/' + setter.key);
         if (url) { setter.set(url); saveData(); if (statusEl) statusEl.textContent = '✅ 已存真人原音'; }
         else if (statusEl) statusEl.textContent = '';
@@ -6258,7 +6321,7 @@
     const s = FL_REC_MAP[key];
     flRecSentence({ key: key, set: function (u) {
       if (s) s.audio = u;
-      const dk = (localStorage.getItem('flp-sync-code') || 'default') + '/' + key;
+      const dk = (localStorage.getItem('flp-audio-draft') || 'default') + '/' + key;
       DATA.demoAudio = DATA.demoAudio || {}; DATA.demoAudio[dk] = u; saveData();
     } }, st);
   }
@@ -6413,7 +6476,7 @@
     box.innerHTML = u.sents.map(function (s, i) {
       const key = u.unit + '_' + i;
       FL_REC_MAP[key] = s;
-      const dk = (localStorage.getItem('flp-sync-code') || 'default') + '/' + key;
+      const dk = (localStorage.getItem('flp-audio-draft') || 'default') + '/' + key;
       const hasAudio = !!(s.audio || (DATA.demoAudio && DATA.demoAudio[dk]));
       return '<label style="display:flex;gap:8px;align-items:flex-start;padding:7px 8px;border-radius:8px;font-size:13px;line-height:1.4;cursor:pointer">' +
         '<input type="checkbox" class="fl-pick" data-t="' + escA(s.t) + '" data-f="' + escA(s.f) + '" data-key="' + escA(key) + '" style="width:16px;height:16px;flex:none;margin-top:2px" onchange="flCount()" />' +
@@ -6442,7 +6505,7 @@
     const sel = document.getElementById('t-fl-unit');
     const sents = [];
     if (box) box.querySelectorAll('.fl-pick:checked').forEach(function (c) {
-      const dk = (localStorage.getItem('flp-sync-code') || 'default') + '/' + (c.getAttribute('data-key') || '');
+      const dk = (localStorage.getItem('flp-audio-draft') || 'default') + '/' + (c.getAttribute('data-key') || '');
       sents.push({ t: c.getAttribute('data-t'), f: c.getAttribute('data-f'), audio: (DATA.demoAudio && DATA.demoAudio[dk]) || '' });
     });
     return {
@@ -9202,10 +9265,10 @@ function momFutureTasks() {
   try {
     fpWatchModals();                     // 弹窗关掉 = 这次观看 / 阅读结束
     document.addEventListener('visibilitychange', function () {
-      if (document.hidden) fpPause(); else fpResume(); // 切后台不计时
+      if (document.hidden) fpPause(); else { fpResume(); if (SYNC.code) { syncPull(true).catch(function () {}); } } // 切后台不计时；回到前台立即同步一次
     });
   } catch (e) {}
-  window.addEventListener('hashchange', render);
+  window.addEventListener('hashchange', function () { render(); if (SYNC.code) { syncPull(true).catch(function () {}); } });
   render();
 
   // 注册 service worker（PWA 离线）
