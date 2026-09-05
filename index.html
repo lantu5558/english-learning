@@ -1293,10 +1293,20 @@
     } catch (e) { return false; }
   }
   function sbSessionExpired() {
-    if (typeof toast === 'function') toast('☁️ 登录已过期且无法自动恢复，请重新登录账号');
+    // token 已死（access_token 1 小时过期，且 refresh 也失败）。
+    // 若本机存过密码：只清死 token，保留 user_id 和轮询 —— 之后 401 会走
+    // refresh → sbReauth() 自动重连，网络恢复即自愈，不必等下次打开（2026-09-05）。
+    // 没存密码才彻底停下，提示重新登录。
+    const canAuto = sbHasCreds();
+    if (typeof toast === 'function') {
+      toast(canAuto ? '☁️ 网络不稳定，同步已暂停，恢复后会自动重连'
+                    : '☁️ 登录已过期，请重新登录账号');
+    }
     sbClearSession();
-    SYNC.code = '';
-    if (SYNC.poll) { clearInterval(SYNC.poll); SYNC.poll = null; }
+    if (!canAuto) {
+      SYNC.code = '';
+      if (SYNC.poll) { clearInterval(SYNC.poll); SYNC.poll = null; }
+    }
     if (typeof render === 'function') render();
   }
   async function sbRefresh() {
@@ -1534,16 +1544,31 @@
     render();
     toast('已退出账号，数据回到本机模式');
   }
-  // 开机自动续连：远端更新则拉取，远端为空则推送本地
-  if (localStorage.getItem('flp-sb-token') && localStorage.getItem('flp-sb-uid')) {
-    SYNC.code = localStorage.getItem('flp-sb-uid');
-    SYNC.status = 'on';
+  // 开机自动续连：有 token 直接用，没 token 但只要本机存过密码，就静默重登。
+  // 关键（2026-09-05）：原来这里要求「必须有 flp-sb-token」才续连，
+  // 而 sbSessionExpired() 会在登录过期时把 token 清掉（密码还留着）——
+  // 于是下次打开 APP 就跳过续连、直接弹登录框，用户又得手动输一遍密码。
+  const _hasTok = !!(localStorage.getItem('flp-sb-token') && localStorage.getItem('flp-sb-uid'));
+  if (_hasTok || sbHasCreds()) {
+    const _uid = localStorage.getItem('flp-sb-uid');
+    if (_uid) SYNC.code = _uid;
+    SYNC.status = 'on';   // 乐观置 on，让开机瞬间的自动推送不被门槛挡掉；失败会在下面改回
     startSyncPoll();
     (async () => {
       try {
-        // access_token 1 小时就过期，多设备共用账号还会互踢；有保存的凭据就先静默重登一次，
-        // 换一份全新 session，避免「昨天还好好的，今天打开就掉线」（2026-09-05）
-        if (sbHasCreds()) await sbReauth();
+        // access_token 只有 1 小时；有保存的凭据就换一份全新 session，避免「昨天还好好的今天掉线」
+        let ok = _hasTok;
+        if (sbHasCreds()) ok = await sbReauth();
+        if (!ok) {
+          // 重登也失败（多半是断网）：保留密码，回到登录界面，下次打开继续自动重试
+          if (!_hasTok) {
+            SYNC.code = ''; SYNC.status = 'off';
+            if (SYNC.poll) { clearInterval(SYNC.poll); SYNC.poll = null; }
+          }
+          return;
+        }
+        SYNC.code = localStorage.getItem('flp-sb-uid') || SYNC.code;
+        SYNC.status = 'on';
         const r = await fetchRemote(); if (!r || !r.d) await doSyncPush(); else await syncPull(true);
       } catch (e) {}
     })();
