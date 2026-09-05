@@ -944,7 +944,11 @@
   // 还原分集。注意：_eb/_et 保留不删，老版本页面回传时也不会把分集弄丢
   function unpackFromSync(d) {
     let o;
-    try { o = JSON.parse(JSON.stringify(d || {})); } catch (e) { return d; }
+    // 传入的可能是 JSON 字符串（历史云端格式）：必须先还原成对象，
+    // 否则后面 o.resources 之类全取不到，静默返回字符串给调用方（2026-09-05 修复）。
+    if (typeof d === 'string') { try { o = JSON.parse(d); } catch (e) { return null; } }
+    else { try { o = JSON.parse(JSON.stringify(d || {})); } catch (e) { return d; } }
+    if (!o || typeof o !== 'object') return o;
     const rs = o.resources || [];
     for (let n = 0; n < rs.length; n++) {
       const r = rs[n];
@@ -1137,7 +1141,10 @@
   }
 
   function normalizeData(d) {
-    if (!d) return d;
+    // 防御：给字符串/数组赋属性会静默失败，随后 d.schedules.forEach 直接抛
+    // "Cannot read properties of undefined (reading 'forEach')"（2026-09-05 修复）。
+    if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) { return null; } }
+    if (!d || typeof d !== 'object' || Array.isArray(d)) return d;
     if (!d.wordSets) d.wordSets = JSON.parse(JSON.stringify(DEFAULT_DATA.wordSets));
     if (!d.wordTasks) d.wordTasks = [];
     if (!d.wordPlans) d.wordPlans = [];
@@ -1264,7 +1271,8 @@
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const arr = await r.json();
     if (!Array.isArray(arr) || !arr.length) return null;
-    return { _ts: Date.parse(arr[0].updated_at) || 0, d: JSON.stringify(arr[0].data) };
+    // data 列是 jsonb，本来就是对象，直接返回。原来多包了一层 JSON.stringify 变成字符串，下游 normalizeData 给字符串赋属性会静默失败，接着 d.schedules.forEach 就抛 "Cannot read properties of undefined"（2026-09-05 根因修复）。
+    return { _ts: Date.parse(arr[0].updated_at) || 0, d: arr[0].data };
   }
   async function sbUpsertRow() {
     const payload = { user_id: localStorage.getItem('flp-sb-uid'), data: packForSync(DATA), updated_at: new Date().toISOString() };
@@ -1385,7 +1393,7 @@
       sbSaveSession(j); SYNC.code = j.user.id; SYNC.status = 'on';
       SYNC.busy = false;   // doSyncPush 遇 busy 会直接 return，先放行让首次登录能把本机数据推上去
       await adoptRemote(true);
-    } catch (e) { SYNC.status='err'; SYNC.lastErr=String(e.message||e); toast('登录失败：' + (e.message||e)); }
+    } catch (e) { SYNC.status='err'; SYNC.lastErr=String(e.message||e); try { SYNC.lastStack = String((e && e.stack) || '').split('\n').slice(0, 3).join(' | '); } catch (_) {} toast('登录失败：' + (e.message||e)); }
     SYNC.busy = false;
   }
   async function accSignUp() {
@@ -1444,6 +1452,7 @@
     } catch (e) {
       SYNC.status = SYNC.code ? 'err' : 'expired';
       SYNC.lastErr = String((e && e.message) || e);
+      try { SYNC.lastStack = String((e && e.stack) || '').split('\n').slice(0, 3).join(' | '); } catch (_) {}
       if (SYNC.code) { toast('同步通道暂时连不上（' + (SYNC.lastErr || '未知错误') + '），会自动重试'); startSyncPoll(); }
     }
     render();
