@@ -1251,8 +1251,14 @@
     } catch (e) { return false; }
   }
   async function sbFetchRow() {
-    let r = await fetch(SB_URL + '/rest/v1/' + SB_TABLE + '?select=data,updated_at&t=' + Date.now(), { headers: sbAuthHeaders() });
-    if (r.status === 401) { if (await sbRefresh()) r = await fetch(SB_URL + '/rest/v1/' + SB_TABLE + '?select=data,updated_at&t=' + Date.now(), { headers: sbAuthHeaders() }); }
+    // URL 里绝不能带 PostgREST 不认识的查询参数（原来是 &t=<时间戳>）：
+    // PostgREST 会把它当过滤条件解析，返回 400 PGRST100 "failed to parse filter"，
+    // 导致所有设备「拉取」永远失败、只能推送（2026-09-05 根因修复）。
+    // 防缓存改用 Cache-Control 头 + fetch cache:'no-store'。
+    const SB_GET_URL = SB_URL + '/rest/v1/' + SB_TABLE + '?select=data,updated_at';
+    const SB_GET_OPT = () => ({ headers: Object.assign(sbAuthHeaders(), { 'Cache-Control': 'no-store' }), cache: 'no-store' });
+    let r = await fetch(SB_GET_URL, SB_GET_OPT());
+    if (r.status === 401) { if (await sbRefresh()) r = await fetch(SB_GET_URL, SB_GET_OPT()); }
     if (r.status === 401) { sbSessionExpired(); throw new Error('登录已过期，请重新登录'); }
     if (r.status === 404) return null;
     if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -1349,8 +1355,11 @@
     // 不必再走关闭→重开的破坏式流程。
     if (!SYNC.code) { if (typeof toast==='function') toast('请先开启同步'); return; }
     if (SYNC.busy) { if (typeof toast==='function') toast('同步进行中…'); return; }
-    syncPull(false).then(function(applied){ if (!applied && typeof toast==='function') toast('已是最新'); })
-      .catch(function(){ if (typeof toast==='function') toast('同步失败，稍后自动重试'); });
+    syncPull(false).then(async function(applied){
+      // 拉取后若本机有未上传改动，顺手推上去（「立即同步」= 双向，不只是拉）
+      if (SYNC.dirty) { try { await doSyncPush(true); applied = true; } catch (e) {} }
+      if (!applied && typeof toast==='function') toast('已是最新');
+    }).catch(function(e){ if (typeof toast==='function') toast('同步失败：' + ((e && e.message) || e)); });
   }
   async function forceUploadNow() {
     if (!SYNC.code) { if (typeof toast==='function') toast('请先登录账号'); return; }
