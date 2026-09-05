@@ -1232,6 +1232,13 @@
     if (j && j.user && j.user.email) localStorage.setItem('flp-sb-email', j.user.email);
   }
   function sbClearSession() { ['flp-sb-token','flp-sb-refresh','flp-sb-uid','flp-sb-email'].forEach(k=>localStorage.removeItem(k)); }
+  function sbSessionExpired() {
+    if (typeof toast === 'function') toast('☁️ 登录已过期，请重新登录账号');
+    sbClearSession();
+    SYNC.code = '';
+    if (SYNC.poll) { clearInterval(SYNC.poll); SYNC.poll = null; }
+    if (typeof render === 'function') render();
+  }
   async function sbRefresh() {
     const rt = localStorage.getItem('flp-sb-refresh');
     if (!rt) return false;
@@ -1246,6 +1253,7 @@
   async function sbFetchRow() {
     let r = await fetch(SB_URL + '/rest/v1/' + SB_TABLE + '?select=data,updated_at&t=' + Date.now(), { headers: sbAuthHeaders() });
     if (r.status === 401) { if (await sbRefresh()) r = await fetch(SB_URL + '/rest/v1/' + SB_TABLE + '?select=data,updated_at&t=' + Date.now(), { headers: sbAuthHeaders() }); }
+    if (r.status === 401) { sbSessionExpired(); throw new Error('登录已过期，请重新登录'); }
     if (r.status === 404) return null;
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const arr = await r.json();
@@ -1257,6 +1265,7 @@
     const hd = Object.assign(sbAuthHeaders(), { 'Prefer': 'return=minimal' });
     let r = await fetch(SB_URL + '/rest/v1/' + SB_TABLE + '?on_conflict=user_id', { method:'POST', headers: hd, body: JSON.stringify(payload) });
     if (r.status === 401) { if (await sbRefresh()) r = await fetch(SB_URL + '/rest/v1/' + SB_TABLE + '?on_conflict=user_id', { method:'POST', headers: hd, body: JSON.stringify(payload) }); }
+    if (r.status === 401) { sbSessionExpired(); throw new Error('登录已过期，请重新登录'); }
     if (!r.ok) throw new Error('HTTP ' + r.status);
   }
   function scheduleSyncPush() {
@@ -1288,7 +1297,7 @@
       SYNC.lastErr = '';
       SYNC.status = 'on';
     } catch (e) {
-      SYNC.status = 'err';
+      SYNC.status = SYNC.code ? 'err' : 'expired';
       SYNC.lastErr = String((e && e.message) || e);
       SYNC.dirty = true; // 没推上去 -> 拉数据时本地优先，绝不让它被冲掉
       if (!retry) {
@@ -1325,7 +1334,7 @@
       SYNC.status = 'on';
       SYNC.lastErr = '';
     } catch (e) {
-      SYNC.status = 'err';
+      SYNC.status = SYNC.code ? 'err' : 'expired';
       SYNC.lastErr = String((e && e.message) || e);
     }
     SYNC.busy = false;
@@ -1339,6 +1348,13 @@
     if (SYNC.busy) { if (typeof toast==='function') toast('同步进行中…'); return; }
     syncPull(false).then(function(applied){ if (!applied && typeof toast==='function') toast('已是最新'); })
       .catch(function(){ if (typeof toast==='function') toast('同步失败，稍后自动重试'); });
+  }
+  async function forceUploadNow() {
+    if (!SYNC.code) { if (typeof toast==='function') toast('请先登录账号'); return; }
+    if (SYNC.busy) { if (typeof toast==='function') toast('同步进行中…'); return; }
+    SYNC.dirty = true;
+    try { await doSyncPush(true); if (typeof toast==='function') toast('已用本机数据覆盖云端'); }
+    catch (e) { if (typeof toast==='function') toast('上传失败：' + (e && e.message ? e.message : e)); }
   }
   function startSyncPoll() {
     if (SYNC.poll) clearInterval(SYNC.poll);
@@ -1381,20 +1397,20 @@
       const hasRemote = remote && remote._ts && remote.d;
       if (hasRemote) {
         if (first) {
-          const useRemote = confirm('云端已有这台设备之外的同步数据。\n\n「确定」= 采用云端数据（推荐，其他设备的打卡会拉过来）\n「取消」= 用本机数据覆盖云端');
-          if (useRemote) {
-            SYNC.lastRemoteTs = remote._ts;
-            SYNC.lastTs = remote._ts;
-            SYNC.dirty = false;
-            fpClose();                                  // 正在计时的先落库，别被整包替换冲掉
+          // 首次登录不再弹 confirm()：学习机/手机 APK 的 WebView 没有 WebChromeClient，
+          // confirm() 会直接返回 false，被当成「取消」→ 用本机覆盖云端，冲掉全家数据。
+          // 改为安全合并：本机与云端各取较新字段，绝不整包覆盖（2026-09-05 修复）。
+          fpClose();                                  // 正在计时的先落库
+          const incoming = normalizeData(unpackFromSync(remote.d));
+          const merged = mergeData(DATA, incoming, SYNC.dirty);
+          SYNC.lastRemoteTs = remote._ts;
+          if (remote._ts > SYNC.lastTs) SYNC.lastTs = remote._ts;
+          if (JSON.stringify(merged) !== JSON.stringify(DATA)) {
             const fpKeep = (DATA.footprints || []).slice();
-            DATA = normalizeData(unpackFromSync(remote.d));
-            fpAdopt(DATA, fpKeep);
-            saveLocalOnly(DATA);
-            render();
-          } else {
-            await doSyncPush();
+            DATA = merged; fpAdopt(DATA, fpKeep);
+            saveLocalOnly(DATA); render();
           }
+          SYNC.dirty = false;
         } else {
           // 非首次：合并，绝不整包覆盖
           fpClose();                                // 同上：先把这次观看写进本地，合并时才带得过去
@@ -1413,10 +1429,9 @@
       if (first) toast('✅ 云端同步已开启，全家设备连成一体');
       startSyncPoll();
     } catch (e) {
-      SYNC.status = 'err';
+      SYNC.status = SYNC.code ? 'err' : 'expired';
       SYNC.lastErr = String((e && e.message) || e);
-      toast('同步通道暂时连不上，会自动重试');
-      startSyncPoll();
+      if (SYNC.code) { toast('同步通道暂时连不上，会自动重试'); startSyncPoll(); }
     }
     render();
   }
@@ -2432,7 +2447,8 @@
         </div>
         <div class="section">
           <h3>☁️ 云端同步</h3>
-          ${SYNC.status === 'off' ? `
+          ${(SYNC.status === 'off' || SYNC.status === 'expired') ? `
+            ${SYNC.status === 'expired' ? '<p style="color:#e0533d;font-size:12px;margin-bottom:8px">⚠️ 登录已过期（多设备共用账号时常见）：重新登录即可恢复，本机数据不会丢。</p>' : ''}
             <p class="text-mute" style="font-size:12px;margin-bottom:8px">全家用一个账号登录，任务、打卡、积分、凭证自动互通。<br>妈妈先「注册」一个家庭账号（邮箱+密码），电脑/手机/学习机都登同一个即可。</p>
             <input id="acc-email" placeholder="邮箱（家庭账号）" style="width:100%;padding:10px 12px;border:0.5px solid var(--border-soft);border-radius:12px;font-size:14px;margin-bottom:8px" />
             <input id="acc-pwd" type="password" placeholder="密码（至少 6 位）" style="width:100%;padding:10px 12px;border:0.5px solid var(--border-soft);border-radius:12px;font-size:14px;margin-bottom:8px" />
@@ -2442,10 +2458,11 @@
             <div class="task" style="cursor:default">
               <div class="title">
                 <div class="name">${SYNC.status === 'err' ? '🟡 连接异常，自动重试中' : '🟢 已登录云端'}</div>
-                <div class="meta">账号：${esc(localStorage.getItem('flp-sb-email') || SYNC.code)} · 每 5 秒自动互通</div>
+                <div class="meta">账号：${esc(localStorage.getItem('flp-sb-email') || SYNC.code)} · 每 5 秒自动互通${SYNC.status === 'err' && SYNC.lastErr ? ' · 错误：' + esc(String(SYNC.lastErr).slice(0, 90)) : ''}</div>
               </div>
             </div>
             <button class="btn-secondary mt-8" onclick="forceSyncNow()">立即同步</button>
+            <button class="btn-secondary mt-8" onclick="forceUploadNow()">用本机覆盖云端</button>
             <button class="btn-secondary mt-8" onclick="disableSync()">退出账号</button>
           `}
         </div>
