@@ -1262,7 +1262,10 @@
   }
   async function sbUpsertRow() {
     const payload = { user_id: localStorage.getItem('flp-sb-uid'), data: packForSync(DATA), updated_at: new Date().toISOString() };
-    const hd = Object.assign(sbAuthHeaders(), { 'Prefer': 'return=minimal' });
+    // 必须带 resolution=merge-duplicates：否则行已存在时 PostgREST 走纯 INSERT，
+    // 报 409 duplicate key violates unique constraint sync_docs_user_idx，
+    // 导致除首次外的每次推送都失败（2026-09-05 根因修复）。
+    const hd = Object.assign(sbAuthHeaders(), { 'Prefer': 'return=minimal,resolution=merge-duplicates' });
     let r = await fetch(SB_URL + '/rest/v1/' + SB_TABLE + '?on_conflict=user_id', { method:'POST', headers: hd, body: JSON.stringify(payload) });
     if (r.status === 401) { if (await sbRefresh()) r = await fetch(SB_URL + '/rest/v1/' + SB_TABLE + '?on_conflict=user_id', { method:'POST', headers: hd, body: JSON.stringify(payload) }); }
     if (r.status === 401) { sbSessionExpired(); throw new Error('登录已过期，请重新登录'); }
@@ -1371,6 +1374,7 @@
       const j = await r.json();
       if (!r.ok) throw new Error(j.msg || j.message || ('HTTP ' + r.status));
       sbSaveSession(j); SYNC.code = j.user.id; SYNC.status = 'on';
+      SYNC.busy = false;   // doSyncPush 遇 busy 会直接 return，先放行让首次登录能把本机数据推上去
       await adoptRemote(true);
     } catch (e) { SYNC.status='err'; SYNC.lastErr=String(e.message||e); toast('登录失败：' + (e.message||e)); }
     SYNC.busy = false;
@@ -1385,7 +1389,7 @@
       const r = await fetch(SB_URL + '/auth/v1/signup', { method:'POST', headers: sbBaseHeaders(), body: JSON.stringify({ email, password: pwd }) });
       const j = await r.json();
       if (!r.ok) throw new Error(j.msg || j.message || ('HTTP ' + r.status));
-      if (j.access_token) { sbSaveSession(j); SYNC.code = j.user.id; SYNC.status='on'; await adoptRemote(true); }
+      if (j.access_token) { sbSaveSession(j); SYNC.code = j.user.id; SYNC.status='on'; SYNC.busy=false; await adoptRemote(true); }
       else { toast('注册成功！请到邮箱点击验证链接，然后回来点「登录」'); SYNC.status='off'; }
     } catch (e) { SYNC.status='err'; SYNC.lastErr=String(e.message||e); toast('注册失败：' + (e.message||e)); }
     SYNC.busy = false;
@@ -1431,7 +1435,7 @@
     } catch (e) {
       SYNC.status = SYNC.code ? 'err' : 'expired';
       SYNC.lastErr = String((e && e.message) || e);
-      if (SYNC.code) { toast('同步通道暂时连不上，会自动重试'); startSyncPoll(); }
+      if (SYNC.code) { toast('同步通道暂时连不上（' + (SYNC.lastErr || '未知错误') + '），会自动重试'); startSyncPoll(); }
     }
     render();
   }
