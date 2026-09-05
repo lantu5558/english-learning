@@ -1341,7 +1341,10 @@
     if (!r.ok) throw new Error('HTTP ' + r.status);
   }
   function scheduleSyncPush() {
-    if (!SYNC.code || SYNC.status !== 'on') return;
+    // 只有「真的没登录」（off / expired）才放弃；status==='err' 多半只是网络抖动，照样排一次尝试。
+    // 原来严格要求 status==='on'：开机异步续连还没跑完时（status 仍是 'off'）、
+    // 或上次同步报错后（status='err'），新增的数据都会被静默丢弃（2026-09-05 根因修复）。
+    if (!SYNC.code || SYNC.status === 'off' || SYNC.status === 'expired') return;
     SYNC.pending = true;
     if (!SYNC.busy) doSyncPush();
   }
@@ -1431,9 +1434,19 @@
     try { await doSyncPush(true); if (typeof toast==='function') toast('已用本机数据覆盖云端'); }
     catch (e) { if (typeof toast==='function') toast('上传失败：' + (e && e.message ? e.message : e)); }
   }
+  /** 统一同步节拍：有未上传改动就推送（doSyncPush 内部会先合并拉取），否则只拉。 */
+  function syncTick() {
+    if (!SYNC.code || SYNC.busy) return;
+    if (SYNC.dirty || SYNC.pending) doSyncPush().catch(() => {});
+    else syncPull(true).catch(() => {});
+  }
   function startSyncPoll() {
     if (SYNC.poll) clearInterval(SYNC.poll);
-    SYNC.poll = setInterval(() => { syncPull(true).catch(() => {}); }, 5000);
+    // 轮询必须双向：原来这里只 syncPull（拉）、从不推送 ——
+    // 而自动推送只依赖 saveData 里那一次 scheduleSyncPush()，它一旦被 status/busy 门槛挡掉，
+    // 就再没有任何机制补推：手机上新增的作业永远上不了云，只能手动点「用本机覆盖云端」
+    // （2026-09-05 根因修复）。现在只要 dirty/pending 为真，最多 5 秒必补推一次。
+    SYNC.poll = setInterval(syncTick, 5000);
   }
   async function enableSync() { await accSignIn(); } // 兼容旧入口
   async function accSignIn() {
@@ -9368,10 +9381,10 @@ function momFutureTasks() {
   try {
     fpWatchModals();                     // 弹窗关掉 = 这次观看 / 阅读结束
     document.addEventListener('visibilitychange', function () {
-      if (document.hidden) fpPause(); else { fpResume(); if (SYNC.code) { syncPull(true).catch(function () {}); } } // 切后台不计时；回到前台立即同步一次
+      if (document.hidden) fpPause(); else { fpResume(); syncTick(); } // 切后台不计时；回到前台立即同步一次（有改动则顺带推送）
     });
   } catch (e) {}
-  window.addEventListener('hashchange', function () { render(); if (SYNC.code) { syncPull(true).catch(function () {}); } });
+  window.addEventListener('hashchange', function () { render(); syncTick(); });
   render();
 
   // 注册 service worker（PWA 离线）
