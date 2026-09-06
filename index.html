@@ -202,6 +202,10 @@
     .hw-text { font-size:14px; line-height:1.65; white-space:normal; word-break:break-word; }
     .hw-imgs { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
     .hw-img { width:72px; height:72px; object-fit:cover; border-radius:8px; border:1px solid var(--border); cursor:pointer; }
+    .hw-pts { font-size:11px; font-weight:600; color:var(--orange-600); background:#FFF3E0; border-radius:8px; padding:2px 7px; white-space:nowrap; }
+    .hw-acts { display:flex; gap:8px; align-items:center; margin-top:9px; }
+    .hw-acts .btn-primary, .hw-acts .btn-secondary { flex:1; margin-top:0; }
+    .hw-done-tip { flex:1; font-size:12px; font-weight:600; color:var(--green-600); }
 
     /* ===== 星星乐园 ===== */
     .fun-hero { background: linear-gradient(135deg, #7C4DFF, #448AFF); color:#fff; border-radius: var(--radius-lg); padding:18px 16px; margin-bottom:12px; text-align:center; }
@@ -907,6 +911,12 @@
   if (!DATA.wordPlans) DATA.wordPlans = [];   // 老版本本地数据没有轮转计划，补上空数组
   if (!DATA.wheelLogs) DATA.wheelLogs = [];   // 大转盘抽中记录
   if (!DATA.homeworks) DATA.homeworks = [];    // 老版本本地数据没有作业栏
+  // 老作业没有积分字段，一律补 0 —— 保持「只记录不打卡」的老行为，别让历史作业突然冒出打卡按钮
+  (DATA.homeworks || []).forEach(h => {
+    const n = parseInt(h && h.points);
+    h.points = (isFinite(n) && n > 0) ? n : 0;
+    if (!h.done) h.done = false;
+  });
   if (!DATA.schedules) DATA.schedules = [];   // 机构课程表
   gcRecords();
   (DATA.resources || []).forEach(r => { if (!r.category) r.category = 'learn'; });
@@ -4358,19 +4368,27 @@
       (h.scope === 'week' || !h.date || h.date === TODAY)   // 今日作业只显示当天的
     ).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   }
-  // 作业卡片：妈妈端带删除，孩子端只读
+  /** 作业分值：老数据、乱填的数字都归到「0 = 不计分」 */
+  function hwPts(h) { const n = parseInt(h && h.points); return (isFinite(n) && n > 0) ? n : 0; }
+  // 作业卡片：妈妈端可编辑/删除/撤销，孩子端能点「做完啦」领分
   function hwCard(h, isMom) {
     const k = DATA.children.find(c => c.id === h.childId);
     const imgs = h.imgs || [];
+    const pts = hwPts(h);
     return `<div class="hw-card">
       <div class="hw-head">
         <span class="hw-who">${k ? k.avatar + ' ' + esc(k.name) : ''}</span>
         ${h.subject && SUBJECTS[h.subject] ? `<span class="badge-subj" style="background:var(--gray-100);color:var(--gray-600)">${SUBJECTS[h.subject].emoji} ${SUBJECTS[h.subject].name}</span>` : ''}
-        ${isMom ? `<button class="icon-btn" style="margin-left:auto;background:#FFEBEE;color:#C62828;width:28px;height:28px;font-size:12px" onclick="delHomework('${h.id}')">${ICN.trash}</button>` : ''}
+        ${pts > 0 ? `<span class="hw-pts">${h.done ? '✅ ' : '🏅 '}+${pts} 分</span>` : ''}
+        ${isMom ? `<button class="icon-btn" style="margin-left:auto;background:#E3F2FD;color:#1565C0;width:28px;height:28px;font-size:12px" title="编辑" onclick="openHomeworkModal('${h.id}')">${ICN.edit}</button>` : ''}
+        ${isMom ? `<button class="icon-btn" style="background:#FFEBEE;color:#C62828;width:28px;height:28px;font-size:12px" title="删除" onclick="delHomework('${h.id}')">${ICN.trash}</button>` : ''}
       </div>
       ${h.text ? `<div class="hw-text">${esc(h.text).replace(/\n/g, '<br/>')}</div>` : ''}
       ${imgs.length ? `<div class="hw-imgs">${imgs.map((src, i) =>
         `<img class="hw-img" src="${src}" alt="作业图${i + 1}" onclick="viewHwImg('${h.id}', ${i})" />`).join('')}</div>` : ''}
+      ${pts > 0 ? `<div class="hw-acts">${h.done
+        ? `<span class="hw-done-tip">✅ 已完成，+${pts} 分</span>${isMom ? `<button class="btn-secondary btn-sm" onclick="hwUndo('${h.id}')">↩️ 撤销</button>` : ''}`
+        : `<button class="btn-primary btn-sm" onclick="hwFinish('${h.id}')">✅ 做完啦，领 ${pts} 分</button>`}</div>` : ''}
     </div>`;
   }
   function hwSection(isMom) {
@@ -4394,41 +4412,55 @@
     }
     const addBtn = isMom ? `<div class="section">
       <button class="btn-secondary" style="width:100%" onclick="openHomeworkModal()">${ICN.add} 添加作业</button>
-      <p class="text-mute" style="text-align:center;font-size:12px;margin-top:8px">作业只做记录、不打卡计分</p>
-    </div>` : `<p class="text-mute" style="text-align:center;font-size:12px;margin:10px 0">作业不用打卡，做完就行</p>`;
+      <p class="text-mute" style="text-align:center;font-size:12px;margin-top:8px">填了积分的作业，做完点一下就能领分</p>
+    </div>` : `<p class="text-mute" style="text-align:center;font-size:12px;margin:10px 0">有积分的作业，做完点一下「做完啦」就能领分</p>`;
     return parts.join('') + addBtn;
   }
-  let HW_STASH = null;   // 正在编辑的作业图片
-  function openHomeworkModal() {
-    HW_STASH = [];
+  let HW_STASH = null;      // 正在编辑的作业图片
+  let HW_EDIT_ID = null;    // 正在编辑的作业 id（null = 新建）
+  function openHomeworkModal(hwId) {
+    const ed = hwId ? (DATA.homeworks || []).find(h => h.id === hwId) : null;
+    HW_EDIT_ID = ed ? ed.id : null;
+    HW_STASH = ed ? (ed.imgs || []).slice() : [];
+    const pts = ed ? hwPts(ed) : 5;                 // 新建默认 5 分，跟任务打卡一致
     const modal = document.createElement('div');
     modal.className = 'modal-mask';
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     modal.innerHTML = `
       <div class="modal">
         <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
-        <h3>添加作业</h3>
+        <h3>${ed ? '修改作业' : '添加作业'}</h3>
         <div class="field"><label>给谁</label>
-          <select id="hw-child">${DATA.children.map(c => `<option value="${c.id}">${c.avatar} ${esc(c.name)}</option>`).join('')}</select></div>
+          <select id="hw-child">${DATA.children.map(c => `<option value="${c.id}"${ed && ed.childId === c.id ? ' selected' : ''}>${c.avatar} ${esc(c.name)}</option>`).join('')}</select></div>
         <div class="field"><label>哪一类</label>
           <select id="hw-scope">
-            <option value="today">📝 今日作业（校内，每天更新）</option>
-            <option value="week">🗓 本周作业（校外机构，挂着不用天天发）</option>
+            <option value="today"${ed && ed.scope === 'week' ? '' : ' selected'}>📝 今日作业（校内，每天更新）</option>
+            <option value="week"${ed && ed.scope === 'week' ? ' selected' : ''}>🗓 本周作业（校外机构，挂着不用天天发）</option>
           </select></div>
         <div class="field"><label>科目（可选）</label>
-          <select id="hw-subject"><option value="">不分类</option>${Object.entries(SUBJECTS).map(([k, v]) => `<option value="${k}">${v.emoji} ${v.name}</option>`).join('')}</select></div>
+          <select id="hw-subject"><option value="">不分类</option>${Object.entries(SUBJECTS).map(([k, v]) => `<option value="${k}"${ed && ed.subject === k ? ' selected' : ''}>${v.emoji} ${v.name}</option>`).join('')}</select></div>
         <div class="field"><label>作业内容</label>
-          <textarea id="hw-text" rows="4" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);font-size:14px" placeholder="例：&#10;数学：练习册 P12-13&#10;语文：抄写第3课生字 3 遍&#10;英语：跟读 Unit2 课文"></textarea></div>
+          <textarea id="hw-text" rows="4" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);font-size:14px" placeholder="例：&#10;数学：练习册 P12-13&#10;语文：抄写第3课生字 3 遍&#10;英语：跟读 Unit2 课文">${ed ? esc(ed.text || '') : ''}</textarea></div>
+        <div class="field"><label>完成奖励（积分）</label>
+          <input id="hw-points" type="number" min="0" max="50" value="${pts}" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);font-size:14px"${ed && ed.done ? ' disabled' : ''} />
+          <p class="wq-hint" style="text-align:left;margin-top:6px">${ed && ed.done
+            ? '这个作业已经领过分了，积分不能再改。想改的话先撤销完成。'
+            : '填 0 就只是记录、不打卡不给分。填了分数，做完时孩子或妈妈点一下「做完啦」，积分立刻到账。'}</p></div>
         <div class="field"><label>作业照片（可选，最多 3 张）</label>
           <input type="file" accept="image/*" multiple onchange="hwPickImgs(this)" />
           <div id="hw-imgprev" class="hw-imgs" style="margin-top:8px"></div>
           <p class="wq-hint" style="text-align:left;margin-top:6px">会自动压缩后再存，避免拖慢同步</p></div>
         <div class="btn-row">
           <button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">取消</button>
-          <button class="btn-primary" onclick="addHomework()">保存</button>
+          <button class="btn-primary" onclick="saveHomework()">保存</button>
         </div>
+        ${ed ? `<div class="btn-row" style="margin-top:10px;flex-direction:column;gap:8px">
+          ${ed.done ? `<button class="btn-secondary" style="width:100%" onclick="hwUndo('${ed.id}')">↩️ 撤销完成（扣回 ${hwPts(ed)} 分）</button>` : ''}
+          <button class="btn-secondary" style="width:100%;color:#C62828" onclick="delHomework('${ed.id}')">${ICN.trash} 删除这条作业</button>
+        </div>` : ''}
       </div>`;
     document.getElementById('modal-root').appendChild(modal);
+    hwRenderPrev();
   }
   // 压缩到宽 720、JPEG 0.6，单张通常 40~90KB，避免撑爆同步数据
   function compressImg(file, maxW, quality, cb) {
@@ -4470,27 +4502,100 @@
     HW_STASH.splice(i, 1);
     hwRenderPrev();
   }
-  function addHomework() {
-    const childId = document.getElementById('hw-child').value;
-    const scope = document.getElementById('hw-scope').value;
-    const subject = document.getElementById('hw-subject').value || '';
-    const text = (document.getElementById('hw-text').value || '').trim();
+  function addHomework() { saveHomework(); }   // 老调用点（新建）保留
+  function saveHomework() {
+    const childId = (document.getElementById('hw-child') || {}).value;
+    const scope = (document.getElementById('hw-scope') || {}).value;
+    const subject = (document.getElementById('hw-subject') || {}).value || '';
+    const text = ((document.getElementById('hw-text') || {}).value || '').trim();
     if (!text && !(HW_STASH || []).length) { toast('写点内容或加张图'); return; }
+    let pts = parseInt((document.getElementById('hw-points') || {}).value);
+    if (!isFinite(pts) || pts < 0) pts = 0;
+    if (pts > 50) pts = 50;
     if (!Array.isArray(DATA.homeworks)) DATA.homeworks = [];
-    DATA.homeworks.push({
-      id: 'hw' + Date.now(), childId, scope, subject, text,
-      imgs: (HW_STASH || []).slice(0, 3),
-      date: TODAY, createdAt: Date.now(),
-    });
-    saveData(DATA); HW_STASH = null;
+    const ed = HW_EDIT_ID ? DATA.homeworks.find(h => h.id === HW_EDIT_ID) : null;
+    if (ed) {
+      ed.childId = childId; ed.scope = scope; ed.subject = subject; ed.text = text;
+      ed.imgs = (HW_STASH || []).slice(0, 3);
+      // 已经领过分的作业不许改分值（改了账就对不上），要改先撤销完成
+      if (!ed.done) ed.points = pts;
+    } else {
+      DATA.homeworks.push({
+        id: 'hw' + Date.now(), childId, scope, subject, text,
+        imgs: (HW_STASH || []).slice(0, 3),
+        date: TODAY, createdAt: Date.now(),
+        points: pts, done: false,
+      });
+    }
+    saveData(DATA); HW_STASH = null; HW_EDIT_ID = null;
     const m = document.querySelector('.modal-mask'); if (m) m.remove();
-    render(); toast('作业已记下，孩子端能看到');
+    render(); toast(ed ? '作业已改好' : '作业已记下，孩子端能看到');
   }
+
+  /**
+   * 作业完成领分。孩子端和妈妈端都能点，一条作业只发一次：
+   * 除了 done 标记，还会查一遍积分流水里有没有 hwId —— 两台设备都点了完成、
+   * 数据还没同步完时，靠这个兜底，不让孩子领双份。
+   */
+  function hwFinish(id) {
+    const h = (DATA.homeworks || []).find(x => x.id === id);
+    if (!h || h.done) return;
+    const pts = hwPts(h);
+    if (!pts) return;
+    const k = DATA.children.find(c => c.id === h.childId);
+    if (k && !(DATA.pointsHistory || []).some(x => x.hwId === id)) {
+      k.earned = (k.earned || 0) + pts;
+      k.points = (k.points || 0) + pts;
+      const first = String(h.text || '作业').split('\n')[0].slice(0, 18);
+      DATA.pointsHistory.unshift({
+        id: 'h' + Date.now(), childId: k.id, date: TODAY,
+        title: '作业：' + first, points: pts, at: Date.now(), hwId: h.id,
+      });
+    }
+    h.done = true; h.doneAt = Date.now();
+    saveData(DATA); render();
+    toast('完成作业 +' + pts + ' 分 🎉');
+  }
+  /** 撤销完成（仅妈妈端）：把发出去的分收回来，同时删掉那条积分记录。 */
+  function hwUndo(id) {
+    const h = (DATA.homeworks || []).find(x => x.id === id);
+    if (!h || !h.done) return;
+    const pts = hwPts(h);
+    h.done = false; h.doneAt = 0;
+    const k = DATA.children.find(c => c.id === h.childId);
+    if (k) {
+      k.points = Math.max(0, (k.points || 0) - pts);
+      k.earned = Math.max(0, (k.earned || 0) - pts);
+      const i = (DATA.pointsHistory || []).findIndex(x => x.hwId === id);
+      if (i >= 0) DATA.pointsHistory.splice(i, 1);
+    }
+    saveData(DATA);
+    const m = document.querySelector('.modal-mask'); if (m) m.remove();
+    render(); toast('已撤销完成，扣回 ' + pts + ' 分');
+  }
+  // 删除改成页面内确认：APK 的 WebView 没接管 confirm()，用原生 confirm 在 APP 里永远返回「取消」
   function delHomework(id) {
-    if (!confirm('删除这条作业？')) return;
+    const h = (DATA.homeworks || []).find(x => x.id === id);
+    if (!h) return;
+    const mask = document.createElement('div');
+    mask.className = 'modal-mask';
+    mask.onclick = (e) => { if (e.target === mask) mask.remove(); };
+    mask.innerHTML = `<div class="modal">
+      <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+      <h3>🗑 删除作业</h3>
+      <p class="del-warn">删掉就找不回来了${h.done ? '（这个作业领过 ' + hwPts(h) + ' 分，删除不会把分扣回去）' : ''}，确定吗？</p>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="this.closest('.modal-mask').remove()">不删了</button>
+        <button class="btn-secondary" style="background:#C62828;color:#fff;border-color:#C62828" onclick="hwDelSure('${id}')">确认删除</button>
+      </div></div>`;
+    document.getElementById('modal-root').appendChild(mask);
+  }
+  function hwDelSure(id) {
     DATA.homeworks = (DATA.homeworks || []).filter(h => h.id !== id);
     tombAdd('homeworks', id);
-    saveData(DATA); render();
+    saveData(DATA);
+    const m = document.querySelector('.modal-mask'); if (m) m.remove();
+    render(); toast('作业已删除');
   }
   function viewHwImg(hwId, i) {
     const h = (DATA.homeworks || []).find(x => x.id === hwId);
