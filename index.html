@@ -460,6 +460,12 @@
     .modal h3 { margin: 0 0 16px; font-size: 16px; font-weight: 600; text-align: center; }
     .modal .close { float: right; margin-top: -8px; }
 
+    /* 严格模式播放器的关闭按钮：平时在标题右上；全屏（影院模式）时浮到视频右上角，
+       层级必须盖住 <video>，否则孩子一点开就再也退不出去。 */
+    #sv-close { float: right; margin-top: -8px; margin-right: -4px; }
+    #sv-close.armed { background: var(--red-600); color: #fff; width: auto; padding: 0 10px; font-size: 12px; }
+    .modal.lv-fs #sv-close { position: absolute; top: 10px; right: 12px; z-index: 30; float: none; margin: 0; background: rgba(0,0,0,0.55); color: #fff; }
+
     /* ===== 视频播放器 ===== */
     .video-mask { align-items: center; padding: 16px; }
     .video-modal { border-radius: var(--radius-lg); padding: 16px; max-height: 90vh; }
@@ -6926,6 +6932,7 @@ function momFutureTasks() {
     mask.id = 'sv-mask';
     mask.innerHTML = `
       <div class="modal">
+        <button class="icon-btn close" id="sv-close" type="button" title="关闭" onclick="svAskClose()">✕</button>
         <h3 style="padding-right:34px">${esc(title)}</h3>
         <div class="sv-stage" id="sv-stage">
           <video id="sv-video" playsinline preload="auto" src="${escA(url)}" disablepictureinpicture controlslist="nodownload"></video>
@@ -6942,9 +6949,11 @@ function momFutureTasks() {
           <button type="button" class="btn-sm" id="sv-sub" onclick="svToggleSub()">字幕：开</button>
           <span class="sv-subinfo" id="sv-subinfo"></span>
         </div>
-        <div class="sv-tip">🔒 不能拖进度条、最高 1.5 倍速，看到最后自动打卡 +${task.points} 分</div>
+        <div class="sv-tip">🔒 不能拖进度条、最高 1.5 倍速，看到最后自动打卡 +${task.points} 分<br>不想看了就点右上角 ✕ 退出（进度会存下来，下次接着看）</div>
       </div>`;
+    mask.addEventListener('click', e => { if (e.target === mask) svAskClose(); });
     document.getElementById('modal-root').appendChild(mask);
+    fpPushGuard();
     SV = { task, video: document.getElementById('sv-video'), maxSeen: 0, finished: false, rate: 0,
            subUrl: '', subOn: false, subBlob: '', lastT: null };
     fpOpen('video', title, { childId: task && task.childId });
@@ -6977,6 +6986,52 @@ function momFutureTasks() {
     const p = v.play();
     if (p && p.catch) p.catch(() => {});
   }
+  /**
+   * 退出严格模式播放器 —— 二次确认，防孩子手一滑把视频关了。
+   * 已经在播放中途退出不算打卡（closeSv 里只记进度），所以这里不吓唬人，
+   * 只是「点一次给提示，3.5 秒内再点一次才真的退」。
+   * 已看完（finished）时一步直接关，不看这段确认。
+   */
+  let SV_CLOSE_ARM = 0;
+  function svAskClose() {
+    if (!SV) { closeSv(); return; }
+    if (SV.finished) { closeSv(); return; }
+    if (SV_CLOSE_ARM) { closeSv(); return; }        // 第二次点：真退出
+    try { SV.video.pause(); } catch (e) {}
+    const pct = Math.round(SV.task.videoProgress || 0);
+    const btn = document.getElementById('sv-close');
+    if (btn) { btn.textContent = '再点一次'; btn.classList.add('armed'); }
+    toast('还没看完，再点一次就退出（已看到 ' + pct + '%，下次接着看）');
+    SV_CLOSE_ARM = setTimeout(() => {
+      SV_CLOSE_ARM = 0;
+      const b2 = document.getElementById('sv-close');
+      if (b2) { b2.textContent = '✕'; b2.classList.remove('armed'); }
+    }, 3500);
+  }
+
+  /**
+   * 返回键 / ESC 关播放器。
+   *
+   * 手机和学习机 APP 上，关视频最顺手的其实是返回键。做法：打开播放器时压一个
+   * 历史哨兵，返回键就先弹掉哨兵（触发 popstate）而不是直接退出 APP；
+   * 用 ✕ 关掉时再主动把哨兵弹回去，栈深度守恒 —— 不然连开十次视频就得按十一次返回。
+   * 注：APK 壳若没把返回键传给 WebView，这段在 APP 里不生效，网页版正常。
+   */
+  let SV_GUARD = 0;
+  function fpPushGuard() { try { if (!SV_GUARD) { history.pushState({ flpVideo: 1 }, ''); SV_GUARD = 1; } } catch (e) {} }
+  function fpPopGuard() { try { if (SV_GUARD) { SV_GUARD = 0; history.back(); } } catch (e) {} }
+  window.addEventListener('popstate', function () {
+    SV_GUARD = 0;
+    if (SV && document.getElementById('sv-mask')) { closeSv(); return; }
+    const m = document.querySelector('#lv-mask, .modal-mask.video-mask');
+    if (m) closeVideoModal(m);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    if (SV && document.getElementById('sv-mask')) { closeSv(); return; }
+    const m = document.querySelector('#lv-mask, .modal-mask.video-mask');
+    if (m) closeVideoModal(m);
+  });
   function svBtn(txt) { const b = document.getElementById('sv-playbtn'); if (b) b.innerHTML = (txt && txt.indexOf('暂停') >= 0) ? '⏸' : '▶'; }
   // ---- 字幕 ----
   // srt → vtt：浏览器只认 WebVTT。差别就是把时间轴的逗号换成点，再加个 WEBVTT 头。
@@ -7177,6 +7232,11 @@ function momFutureTasks() {
     if (cover) { const sp = cover.querySelector('span'); if (sp) sp.textContent = '设备不支持该格式'; }
   }
   function closeSv() {
+    if (SV_CLOSE_ARM) { clearTimeout(SV_CLOSE_ARM); SV_CLOSE_ARM = 0; }
+    const _svMask = document.getElementById('sv-mask');
+    // 全屏（影院模式）下退出：必须走这里，否则 APP 壳会一直横屏 + 常亮
+    if (_svMask) { try { videoFsSet(_svMask, false); } catch (e) {} }
+    fpPopGuard();
     fpClose();
     if (SV && SV.video) {
       try { SV.video.pause(); } catch (e) {}
@@ -7221,6 +7281,7 @@ function momFutureTasks() {
         </div>
       </div>`;
     document.getElementById('modal-root').appendChild(mask);
+    fpPushGuard();
     videoFsSet(mask, true);
   }
 
@@ -7284,6 +7345,7 @@ function momFutureTasks() {
   }
   /** 关任何视频弹窗都走这里：先退出全屏（不然壳会一直横屏 + 常亮），再移除。 */
   function closeVideoModal(el) {
+    fpPopGuard();
     fpClose();
     const mask = el && el.closest ? el.closest('.modal-mask') : null;
     if (mask) { try { videoFsSet(mask, false); } catch (e) {} mask.remove(); }
@@ -8246,7 +8308,7 @@ function momFutureTasks() {
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     modal.innerHTML = `
       <div class="modal video-modal">
-        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+        <button class="icon-btn close" onclick="closeVideoModal(this)">✕</button>
         <h3>${esc(title)}</h3>
         <div class="video-wrap">
           <video controls controlsList="nodownload" playsinline webkit-playsinline preload="metadata"
@@ -8260,6 +8322,7 @@ function momFutureTasks() {
       </div>
     `;
     document.getElementById('modal-root').appendChild(modal);
+    fpPushGuard();
   }
 
   // 内嵌直链音频播放（audio 标签，不跳转）
@@ -8270,7 +8333,7 @@ function momFutureTasks() {
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     modal.innerHTML = `
       <div class="modal video-modal">
-        <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
+        <button class="icon-btn close" onclick="closeVideoModal(this)">✕</button>
         <h3>${esc(title)}</h3>
         <div style="background:var(--gray-100);border-radius:10px;padding:28px 16px;text-align:center">
           <div style="font-size:40px;margin-bottom:14px">🎵</div>
@@ -8283,6 +8346,7 @@ function momFutureTasks() {
       </div>
     `;
     document.getElementById('modal-root').appendChild(modal);
+    fpPushGuard();
   }
 
   /**
