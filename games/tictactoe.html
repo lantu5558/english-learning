@@ -30,12 +30,17 @@
   .grid{position:absolute;left:8px;right:8px;top:8px;bottom:8px;
     display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:7px}
   .cl{background:#f1f6fd;border-radius:10px;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer}
+  .cl.last{background:#dbe8ff}
   .cl.win{background:#fff3d1}
   .mk{position:relative;width:60%;height:60%;animation:pop .18s ease}
-  .mk.x i{position:absolute;left:5%;top:44%;width:90%;height:12%;border-radius:6px;background:#ff7a59}
+  .mk.x i{position:absolute;left:5%;top:40%;width:90%;height:0.12em;border-radius:6px;background:#ff7a59}
+  /* top:40% = (100% - 20%) / 2：杠粗是格子的 12%、方块高是格子的 60%，即方块高的 20%，居中就是 40% */
   .mk.x i:first-child{transform:rotate(45deg)}
   .mk.x i:last-child{transform:rotate(-45deg)}
-  .mk.o{width:56%;height:56%;border:12% solid #3f8efc;border-radius:50%;box-sizing:border-box}
+  /* border-width 不支持百分比（写了会被整条丢弃、○ 变成全透明），
+     所以用 em —— #board 的 font-size 由 fit() 设成「一格的大小」，棋子随棋盘缩放 */
+  .mk.o{width:56%;height:56%;border:0.12em solid #3f8efc;border-radius:50%;box-sizing:border-box;
+    background:transparent}
   @keyframes pop{0%{transform:scale(.35);opacity:0}100%{transform:scale(1);opacity:1}}
   .wl{position:absolute;height:6px;border-radius:3px;transform-origin:0 0;pointer-events:none;z-index:6;
     background:linear-gradient(90deg,#ffca4a,#ff9f43);box-shadow:0 0 8px rgba(255,170,60,.55)}
@@ -205,7 +210,7 @@ var TTT = (function () {
   var b, turn, over, winLine, aiMark, humanMark, aiTimer = 0, gameNo = 0;
   var mode = 'pvp', level = 'normal', firstMode = 'alt';
   var sc = { x: 0, o: 0, d: 0 };
-  var cellsEl = [], wl = null;
+  var cellsEl = [], wl = null, lastMove = -1;
 
   var prefs = load('pref', '').split('|');
   if (prefs[0] === 'pve' || prefs[0] === 'pvp') mode = prefs[0];
@@ -274,7 +279,9 @@ var TTT = (function () {
         c.innerHTML = '';
         if (b[i]) c.appendChild(mk(b[i]));
       }
-      c.className = 'cl' + (winLine && winLine.indexOf(i) >= 0 ? ' win' : '');
+      // 高亮最后一手：电脑走得快，孩子容易看漏它下在哪
+      c.className = 'cl' + (i === lastMove ? ' last' : '')
+        + (winLine && winLine.indexOf(i) >= 0 ? ' win' : '');
     }
     updateTurn();
     updateScore();
@@ -303,6 +310,7 @@ var TTT = (function () {
 
   function place(i, m) {
     b[i] = m;
+    lastMove = i;
     turn = (m === 'X') ? 'O' : 'X';
   }
 
@@ -360,6 +368,7 @@ var TTT = (function () {
     b = ['', '', '', '', '', '', '', '', ''];
     over = false;
     winLine = null;
+    lastMove = -1;
     elOver.classList.add('hide');
     if (mode === 'pve') {
       aiMark = (firstMode === 'ai' || (firstMode === 'alt' && gameNo % 2 === 1)) ? 'X' : 'O';
@@ -411,6 +420,11 @@ var TTT = (function () {
     if (!s || s < 120) s = 240;
     board.style.width = s + 'px';
     board.style.height = s + 'px';
+    // 关键：#board 的 font-size = 一格的大小，棋子的 em 粗细才有依据。
+    // 棋盘有多小就画多细，大屏上也不会变成一根头发丝。
+    // （格子 = (棋盘 - 左右各8px内边距 - 2个7px间隙) / 3）
+    var cell = (s - 16 - 14) / 3;
+    board.style.fontSize = Math.max(10, Math.round(cell)) + 'px';
     drawLine();
   }
 
