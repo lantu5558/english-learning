@@ -238,6 +238,7 @@
     .gc-bar { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
     .gc-bar .t { font-size:14px; font-weight:700; flex:1; }
     .gc-stage { position:relative; width:100%; height:60vh; min-height:280px; background:#f5f5f5; border-radius:12px; overflow:hidden; }
+    .gc-stage.tall { height:74vh; min-height:340px; background:#141413; }
     .gc-stage iframe { position:absolute; top:0; right:0; bottom:0; left:0; width:100%; height:100%; border:0; }
 
     /* ===== 算 24 点 ===== */
@@ -871,6 +872,10 @@
     wheelLogs: [],
     homeworks: [],
     schedules: [],
+    // 小游戏存档：{ '游戏id@孩子id': { __t: 最后写入时间, d: { 存档键: 值 } } }
+    // 游戏自己只会写 localStorage（只认这一台设备），靠这层「共享抽屉」把进度挂进平台数据，
+    // 于是换平板、换电脑、重装 APP，孩子练了半天的进度都跟着账号走。
+    gameSaves: {},
     // 好习惯清单：长期约定，每天自动出现。习惯本身不带日期，只有「做到了」的记录带日期
     habits: [],
     habitLogs: [],
@@ -908,7 +913,12 @@
       scheduleSyncPush();
     } catch (e) {} // 首次初始化时 SYNC 尚未定义，忽略即可
   }
-  function saveLocalOnly(d) { localStorage.setItem(LS_KEY, JSON.stringify(d)); }
+  function saveLocalOnly(d) {
+    localStorage.setItem(LS_KEY, JSON.stringify(d));
+    // 云端拉回来的新存档（别的设备刚玩的）也要刷进镜像，
+    // 不然 iframe 里的游戏读到的还是这台设备的旧进度。
+    try { gsFlush(); } catch (e) {}
+  }
   function gcRecords() {
     const TTL = 180 * 86400000;
     const cut = Date.now() - TTL;
@@ -1138,6 +1148,22 @@
       }
       out[key] = merged;
     }
+    // 游戏存档是「对象」不是数组，走不了上面的按 id 合并，单独按槽位判定：
+    // 每个槽（游戏@孩子）整体 last-write-wins，谁最后玩谁的版本赢。
+    // 不做字段级合并 —— 一次只有一台设备在玩，拆开合反而会把存档拼坏。
+    {
+      const la = (base && base.gameSaves && typeof base.gameSaves === 'object') ? base.gameSaves : {};
+      const lb = (incoming.gameSaves && typeof incoming.gameSaves === 'object') ? incoming.gameSaves : {};
+      const out2 = {};
+      Object.keys(lb).forEach(k => { out2[k] = lb[k]; });
+      Object.keys(la).forEach(k => {
+        const a = la[k], b = lb[k];
+        if (!b) { out2[k] = a; return; }
+        const at = Number(a && a.__t) || 0, bt = Number(b && b.__t) || 0;
+        out2[k] = bt > at ? b : a;
+      });
+      if (Object.keys(out2).length) out.gameSaves = out2;
+    }
     // 墓碑过滤：删掉的条目即使被别的设备推回来也不收
     for (let i = 0; i < TOMB_KEYS.length; i++) {
       const k = TOMB_KEYS[i];
@@ -1250,6 +1276,7 @@
     if (!Array.isArray(d.safeDomains)) d.safeDomains = JSON.parse(JSON.stringify(DEFAULT_DATA.safeDomains));
     if (!Array.isArray(d.habits)) d.habits = [];
     if (!Array.isArray(d.habitLogs)) d.habitLogs = [];
+    if (!d.gameSaves || typeof d.gameSaves !== 'object' || Array.isArray(d.gameSaves)) d.gameSaves = {};
     (d.habits || []).forEach(h => {
       if (h.kind !== 'penalty') h.kind = 'reward';
       if (h.points == null) h.points = 2;
@@ -1705,6 +1732,8 @@
     { id:'tictactoe',  file:'games/tictactoe.html',  emoji:'⭕', name:'井字棋',         desc:'三连一线，能跟电脑下',           cat:'棋类' },
     { id:'math',       file:'games/math.html',       emoji:'➕', name:'口算闯关',       desc:'一二三年级口算，10 题一关',     cat:'学科' },
     { id:'typing',     file:'games/typing.html',     emoji:'⌨️', name:'单词打字',       desc:'看中文打英文，边玩边背',         cat:'学科' },
+    // tall:true = 这类游戏原本按整屏设计，塞进小舞台会把菜单切掉，给它更高的舞台 + 更宽的弹窗
+    { id:'football',   file:'games/football.html',   emoji:'⚽', name:'街头之王·足球生涯', desc:'选球队踢联赛，转会争金靴',     cat:'运动', tall:true },
   ];
   function gameById(id) { return GAME_LIST.filter(g => g.id === id)[0] || null; }
   /** 这条游戏乐园奖励能玩多少分钟（老数据没填就按 30 分钟） */
@@ -9363,7 +9392,56 @@ function momFutureTasks() {
      不做后台计时，孩子切去背单词不会偷偷扣时间。
      剩余秒数存在兑换记录 rd.left 上，每 20 秒落一次盘（太频繁会不停触发同步）。
      ================================================================== */
-  let GC = null;   // { rdId, left, preview, gameId, timer, sinceSave }
+  /* ---------- 游戏存档桥接 ----------
+     游戏跑在 iframe 里，只会读写 localStorage —— 那玩意儿只认「一台设备 + 一个浏览器」，
+     换台平板、重装 APP、清个缓存，孩子练了半天的生涯/最高分就全没了。
+     这里开一个共享抽屉：
+       游戏写 → postMessage 给平台 → 存进 DATA.gameSaves（跟着同步走，全家设备都有）
+       平台把 DATA.gameSaves 镜像进 localStorage（GS_MIRROR），游戏启动时同步读回
+     为什么镜像：postMessage 是异步的，游戏启动时要「同步」拿到存档，只能读 localStorage。
+     为什么按「游戏@孩子」分槽：姐姐的足球生涯不能串到弟弟那边去。
+  */
+  const GS_MIRROR = 'lebao-gamesaves-v1';
+  const GS_MAX = 200000;        // 存档总量上限（字符）。超了只许改不许加，免得把同步包撑爆
+  let gsPushTimer = 0;
+  function gsFlush() {
+    try { localStorage.setItem(GS_MIRROR, JSON.stringify(DATA.gameSaves || {})); } catch (e) {}
+  }
+  function gsSize() {
+    try { return JSON.stringify(DATA.gameSaves || {}).length; } catch (e) { return 0; }
+  }
+  function gsPushNow() {
+    if (gsPushTimer) { clearTimeout(gsPushTimer); gsPushTimer = 0; }
+    try { saveData(DATA); } catch (e) {}
+  }
+  function gsPushSoon() {
+    // 游戏存盘很勤（走一步存一次），不能存一次就推一次云端，攒 3 秒一起推
+    if (gsPushTimer) return;
+    gsPushTimer = setTimeout(() => { gsPushTimer = 0; try { saveData(DATA); } catch (e) {} }, 3000);
+  }
+  /** 收下游戏的一次存盘。gid/kid/k/v 由 iframe 通过 postMessage 送上来 */
+  function gsApply(gid, kid, k, v) {
+    if (!gid || !kid || typeof k !== 'string' || k === '__t') return;
+    const key = String(gid) + '@' + String(kid);
+    if (!DATA.gameSaves) DATA.gameSaves = {};
+    let slot = DATA.gameSaves[key];
+    if (!slot || typeof slot !== 'object') slot = { __t: 0, d: {} };
+    if (!slot.d || typeof slot.d !== 'object') slot.d = {};
+    if (slot.d[k] === String(v)) return;   // 没变就别白写，省得反复触发同步
+    if (slot.d[k] == null && gsSize() > GS_MAX) return;  // 放不下了：只许改，不许再加
+    slot.d[k] = String(v);
+    slot.__t = Date.now();
+    DATA.gameSaves[key] = slot;
+    gsFlush();
+    gsPushSoon();
+  }
+  window.addEventListener('message', (e) => {
+    const m = e && e.data;
+    if (!m || m.__flp !== 'gsave') return;
+    gsApply(m.gid, m.kid, m.k, m.v);
+  });
+
+  let GC = null;   // { rdId, left, preview, gameId, timer, sinceSave, kid }
 
   /** 这条兑换还剩多少秒（老记录没有 left 就是 0） */
   function gcLeft(rd) { return Math.max(0, Math.round((rd && rd.left) || 0)); }
@@ -9399,6 +9477,7 @@ function momFutureTasks() {
   }
   function gcStop() { if (GC && GC.timer) { clearInterval(GC.timer); GC.timer = 0; } }
   function closeGameCenter() {
+    if (gsPushTimer) gsPushNow();   // 攒着的存档别因为关掉弹窗就丢了
     gcSaveLeft(); gcStop(); GC = null;
     fpPopGuard();
     const m = document.getElementById('gc-mask'); if (m) m.remove();
@@ -9419,8 +9498,12 @@ function momFutureTasks() {
           <button type="button" class="btn-secondary" style="padding:6px 12px;font-size:12px;margin:0;width:auto" onclick="gcBack()">‹ 换个游戏</button>
           <span class="t">${g.emoji} ${esc(g.name)}</span>
         </div>
-        <div class="gc-stage"><iframe src="${escA(g.file)}" title="${esc(g.name)}"></iframe></div>`;
+        <div class="gc-stage${g.tall ? ' tall' : ''}"><iframe src="${escA(g.file)}#gid=${encodeURIComponent(g.id)}&kid=${encodeURIComponent((GC && GC.kid) || 'mom')}" title="${esc(g.name)}"></iframe></div>`;
     }
+    // 全屏型游戏：弹窗放宽，不然画面挤成一条
+    const mk = document.getElementById('gc-mask');
+    const md = (mk && mk.querySelector) ? mk.querySelector('.modal') : null;
+    if (md) md.style.maxWidth = g.tall ? '760px' : '560px';
   }
   /** 回到游戏列表：清空 iframe 内容，别把游戏留在后台继续跑 */
   function gcBack() {
@@ -9428,6 +9511,9 @@ function momFutureTasks() {
     const play = document.getElementById('gc-play');
     if (play) { play.innerHTML = ''; play.style.display = 'none'; }
     if (list) list.style.display = 'block';
+    const mk2 = document.getElementById('gc-mask');
+    const md2 = (mk2 && mk2.querySelector) ? mk2.querySelector('.modal') : null;
+    if (md2) md2.style.maxWidth = '560px';
     if (GC) GC.gameId = null;
   }
   /**
@@ -9476,7 +9562,9 @@ function momFutureTasks() {
       </div>`;
     document.getElementById('modal-root').appendChild(mask);
     fpPushGuard();
-    GC = { rdId: rdId || null, left: left, preview: preview, gameId: null, timer: 0, sinceSave: 0 };
+    GC = { rdId: rdId || null, left: left, preview: preview, gameId: null, timer: 0, sinceSave: 0,
+           kid: rd ? (rd.childId || 'c0') : 'mom' };
+    gsFlush();   // 开乐园前刷新一次镜像，保证游戏读到的是最新存档
     if (!preview) GC.timer = setInterval(gcTick, 1000);
   }
   // 视频/音频类奖励：限看 MAX_REWARD_VIEWS 次，每次播放记一次数，不重复扣积分

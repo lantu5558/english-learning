@@ -90,6 +90,50 @@
   </div></div>
 
 <script>
+/* 存档桥接：把 localStorage 换成「跟着家里账号走」的共享抽屉，换设备进度不丢。
+   单独打开这个文件时（地址栏没有 #gid=&kid=）行为跟以前一样，照旧存本机。 */
+(function () {
+  var MIRROR = 'lebao-gamesaves-v1';
+  var GID = 'typing', KID = '';
+  function parse(s) { try { return JSON.parse(s); } catch (e) { return null; } }
+  try {
+    var h = String(location.hash || '').replace(/^#/, '');
+    var a = h.match(/(?:^|&)gid=([^&]*)/); if (a) GID = decodeURIComponent(a[1]) || GID;
+    var b = h.match(/(?:^|&)kid=([^&]*)/); if (b) KID = decodeURIComponent(b[1]) || '';
+  } catch (e) {}
+  function readAll() {
+    var o = null;
+    try { var p = window.parent; if (p && p.localStorage) { var r = p.localStorage.getItem(MIRROR); if (r) o = parse(r); } } catch (e) {}
+    if (!o) { try { var r2 = localStorage.getItem(MIRROR); if (r2) o = parse(r2); } catch (e) {} }
+    return (o && typeof o === 'object') ? o : {};
+  }
+  function writeAll(o, k, v) {
+    var s = null;
+    try { s = JSON.stringify(o); } catch (e) { return; }
+    try { localStorage.setItem(MIRROR, s); } catch (e) {}
+    try { window.parent.localStorage.setItem(MIRROR, s); } catch (e) {}
+    // 通知平台把这条存进 DATA —— 只有这样它才会跟着账号同步到别的设备
+    try { window.parent.postMessage({ __flp: 'gsave', gid: GID, kid: KID || 'mom', k: k, v: String(v) }, '*'); } catch (e) {}
+  }
+  window.gsGet = function (k) {
+    if (!KID) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+    var s = readAll()[GID + '@' + KID];
+    if (!s || !s.d || typeof s.d !== 'object') return null;
+    var v = s.d[k];
+    return (v === undefined || v === null) ? null : v;
+  };
+  window.gsSet = function (k, v) {
+    if (!KID) { try { localStorage.setItem(k, String(v)); } catch (e) {} return; }
+    var o = readAll(), sk = GID + '@' + KID;
+    if (!o[sk] || typeof o[sk] !== 'object') o[sk] = {};
+    if (!o[sk].d || typeof o[sk].d !== 'object') o[sk].d = {};
+    o[sk].d[k] = String(v);
+    o[sk].__t = Date.now();
+    writeAll(o, k, v);
+  };
+})();
+</script>
+<script>
 var WORDS = [
   ['cat','猫',0],['dog','狗',0],['pig','猪',0],['cow','奶牛',0],['hen','母鸡',0],['duck','鸭子',0],['bird','鸟',0],
   ['fish','鱼',0],['bear','熊',0],['lion','狮子',0],['frog','青蛙',0],['goat','山羊',0],['wolf','狼',0],
@@ -143,9 +187,9 @@ var CATS = ['全部', '动物', '食物', '颜色', '数字', '学校', '家庭'
   var TOTAL = 10;
   var K = 'lgame_typing_';
   function load(k, d) {
-    try { var v = localStorage.getItem(K + k); return (v === null || v === undefined) ? d : v; } catch (e) { return d; }
+    try { var v = window.gsGet ? window.gsGet(K + k) : null; return (v === null || v === undefined) ? d : v; } catch (e) { return d; }
   }
-  function save(k, v) { try { localStorage.setItem(K + k, v); } catch (e) {} }
+  function save(k, v) { try { if (window.gsSet) window.gsSet(K + k, v); } catch (e) {} }
 
   var elInp = document.getElementById('inp');
   var elWord = document.getElementById('word');
