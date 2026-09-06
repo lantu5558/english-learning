@@ -1,4 +1,4 @@
-const CACHE = 'lebao-v10';
+const CACHE = 'lebao-v11';
 // 动态计算基准路径，兼容根目录和子目录部署（如 /english-learning/）
 const BASE = self.location.pathname.replace(/sw\.js$/, '');
 const ASSETS = [BASE, BASE + 'index.html', BASE + 'manifest.json', BASE + 'icon.svg'];
@@ -52,6 +52,20 @@ self.addEventListener('fetch', e => {
   // 一眼看上去像文件坏了，实际只是没配跨域。让它原样失败，页面才好给出准确的提示。
   if (url.origin !== self.location.origin) {
     e.respondWith(fetch(e.request));
+    return;
+  }
+
+  // games/ 下的小游戏：网络优先。
+  // 这些文件只有几十 KB，走网络既不影响速度，又能保证我改了游戏立刻生效；
+  // 万一断网（比如车上、乡下），才退回缓存里那份 —— 离线照样能玩。
+  if (url.pathname.indexOf(BASE + 'games/') === 0) {
+    e.respondWith(
+      fetch(e.request).then(res => {
+        const clone = res.clone();
+        caches.open(CACHE).then(c => c.put(e.request, clone)).catch(() => {});
+        return res;
+      }).catch(() => caches.match(e.request))
+    );
     return;
   }
 
