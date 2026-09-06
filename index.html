@@ -219,6 +219,27 @@
     .game-card .ginfo p { margin:2px 0 0; font-size:12px; color:var(--gray-600); }
     .game-card .cost { font-size:12px; font-weight:600; color:var(--amber-600); background:var(--amber-50); border-radius:8px; padding:4px 8px; white-space:nowrap; }
 
+    /* ===== 游戏乐园 =====
+       游戏是同域的独立 html 文件（仓库 games/ 目录），用 iframe 装进来。
+       高度给 60vh：够放下棋盘，又不至于把弹窗撑出屏幕。 */
+    .gc-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+    .gc-time { font-size:13px; font-weight:700; color:var(--green-600); background:var(--green-50); border-radius:9px; padding:5px 11px; white-space:nowrap; }
+    .gc-time.low { color:var(--red-600); background:#FFEBEE; }
+    .gc-time.prev { color:var(--gray-600); background:var(--gray-100); }
+    .gc-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(132px,1fr)); gap:10px; }
+    .gc-item { display:flex; flex-direction:column; align-items:center; gap:5px; background:var(--bg-card);
+      border:0.5px solid var(--border-soft); border-radius:var(--radius-lg); padding:14px 10px;
+      cursor:pointer; text-align:center; font-family:inherit; color:inherit; }
+    .gc-item:active { transform:scale(.97); }
+    .gc-em { font-size:30px; line-height:1.2; }
+    .gc-name { font-size:13px; font-weight:700; }
+    .gc-desc { font-size:11px; color:var(--gray-600); line-height:1.5; }
+    .gc-tag { font-size:10px; color:var(--gray-600); background:var(--gray-100); border-radius:6px; padding:1px 6px; }
+    .gc-bar { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+    .gc-bar .t { font-size:14px; font-weight:700; flex:1; }
+    .gc-stage { position:relative; width:100%; height:60vh; min-height:280px; background:#f5f5f5; border-radius:12px; overflow:hidden; }
+    .gc-stage iframe { position:absolute; top:0; right:0; bottom:0; left:0; width:100%; height:100%; border:0; }
+
     /* ===== 算 24 点 ===== */
     .m24-nums { display:flex; gap:12px; justify-content:center; margin:14px 0 8px; }
     .m24-num { width:62px; height:62px; border-radius:16px; background:linear-gradient(135deg,#FFF3E0,#FFE0B2); color:#E65100; font-size:30px; font-weight:800; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(230,81,0,.18); }
@@ -1671,7 +1692,23 @@
     comic:   { name: '漫画',   emoji: '📚', color: 'amber' },
     listen:  { name: '听说',   emoji: '🎧', color: 'cyan' },
     promise: { name: '妈妈许诺', emoji: '🤝', color: 'rose' },
+    // 游戏乐园：不填链接，改成填「能玩多少分钟」。孩子兑换后才能进，里面自己挑游戏
+    playground: { name: '游戏乐园', emoji: '🎮', color: 'purple' },
   };
+  // 游戏清单：仓库 games/ 目录下的独立 html，跟平台同域，无广告无追踪、可被离线缓存。
+  // 以后想加游戏 = 丢一个 html 文件进 games/ + 在这里加一行，不用动别的地方。
+  const GAME_LIST = [
+    { id:'2048',       file:'games/2048.html',       emoji:'🔢', name:'2048 数字合并', desc:'滑动合并相同数字，看能凑到多大', cat:'益智' },
+    { id:'sudoku',     file:'games/sudoku.html',     emoji:'🧩', name:'数独',           desc:'九宫格填数字，三档难度',         cat:'益智' },
+    { id:'huarongdao', file:'games/huarongdao.html', emoji:'🧱', name:'数字华容道',     desc:'滑动方块，按顺序排好',           cat:'益智' },
+    { id:'gomoku',     file:'games/gomoku.html',     emoji:'⚫', name:'五子棋',         desc:'双人轮流下，也能跟电脑下',       cat:'棋类' },
+    { id:'tictactoe',  file:'games/tictactoe.html',  emoji:'⭕', name:'井字棋',         desc:'三连一线，能跟电脑下',           cat:'棋类' },
+    { id:'math',       file:'games/math.html',       emoji:'➕', name:'口算闯关',       desc:'一二三年级口算，10 题一关',     cat:'学科' },
+    { id:'typing',     file:'games/typing.html',     emoji:'⌨️', name:'单词打字',       desc:'看中文打英文，边玩边背',         cat:'学科' },
+  ];
+  function gameById(id) { return GAME_LIST.filter(g => g.id === id)[0] || null; }
+  /** 这条游戏乐园奖励能玩多少分钟（老数据没填就按 30 分钟） */
+  function gcPlayMins(r) { const m = parseInt(r && r.minutes); return (isFinite(m) && m > 0) ? m : 30; }
   function toast(msg) {
     const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
     document.getElementById('toast-root').appendChild(t);
@@ -2507,8 +2544,9 @@
               <div class="thumb">${r.emoji}</div>
               <div class="info">
                 <div class="name">${esc(r.title)}${(r.eps&&r.eps.length>=2)?`<span class="text-mute" style="font-size:12px"> · 共${r.eps.length}集</span>`:''}</div>
-                <div class="threshold">${rc.emoji} ${rc.name} · 兑换花费 <strong>${r.cost}</strong> 积分${r.cat==='promise'?' · 妈妈许诺':''}${(r.eps&&r.eps.length>=2)?' · 每集各限看 5 次':''}</div>
+                <div class="threshold">${rc.emoji} ${rc.name} · 兑换花费 <strong>${r.cost}</strong> 积分${r.cat==='promise'?' · 妈妈许诺':''}${r.cat==='playground'?(' · 可玩 '+gcPlayMins(r)+' 分钟'):''}${(r.eps&&r.eps.length>=2)?' · 每集各限看 5 次':''}</div>
               </div>
+              ${r.cat==='playground'?`<button class="icon-btn" style="background:var(--purple-50);color:var(--purple-600)" title="预览游戏乐园" onclick="openGameCenter('')">▶</button>`:''}
               <button class="icon-btn" onclick="delReward('${r.id}')">${ICN.trash}</button>
             </div>
           `}).join('')}
@@ -3509,7 +3547,7 @@
                 <div class="thumb">${r.emoji}</div>
                 <div class="info">
                   <div class="name">${esc(r.title)}${(r.eps&&r.eps.length>=2)?`<span class="text-mute" style="font-size:12px"> · 共${r.eps.length}集</span>`:''}</div>
-                  <div class="threshold">兑换花费 ${r.cost} 积分 ${can?'':('· 还差 '+(r.cost-c.points)+' 分')}${(r.eps&&r.eps.length>=2)?' · 一次兑换看全部':''}</div>
+                  <div class="threshold">兑换花费 ${r.cost} 积分 ${can?'':('· 还差 '+(r.cost-c.points)+' 分')}${(r.eps&&r.eps.length>=2)?' · 一次兑换看全部':''}${r.cat==='playground'?(' · 可玩 '+gcPlayMins(r)+' 分钟'):''}</div>
                 </div>
                 <button class="btn-primary" style="padding:6px 12px;font-size:12px" ${can?'':'disabled'} onclick="${can?`redeemReward('${r.id}')`:`''`}">${can?('兑换 -'+r.cost):'积分不够'}</button>
               </div>`;
@@ -3536,9 +3574,13 @@
                 <div class="name">${esc(r.rewardTitle)}</div>
                 <div class="threshold">${r.cost} 积分 · ${r.at?fmtClock(r.at):''} · ${r.status==='pending'?'<span style="color:var(--red-600)">待妈妈兑现</span>':'已兑换'}${shown}</div>
               </div>
-              ${r.status==='pending' ? '' : (rewatchable
+              ${r.cat === 'playground'
+                ? (gcLeft(r) > 0
+                    ? `<button class="btn-primary" style="padding:6px 12px;font-size:12px" onclick="openGameCenter('${r.id}')">🎮 去玩 · 剩 ${gcMinTxt(gcLeft(r))}</button>`
+                    : `<span class="text-mute" style="font-size:12px">玩完啦，再兑换一次就能继续</span>`)
+                : (r.status==='pending' ? '' : (rewatchable
                 ? `<button class="btn-primary" style="padding:6px 12px;font-size:12px" onclick="${multi?`openRedeemEps('${r.id}')`:`playRedemption('${r.id}')`}">${multi?('选集 ▶ '+eps.length+'集'):('再观看 ▶ (剩'+left+')')}</button>`
-                : (hasUrl ? `<span class="text-mute" style="font-size:12px">${multi?'每集都已看满':'已达'+MAX_REWARD_VIEWS+'次上限'}</span>` : ''))}
+                : (hasUrl ? `<span class="text-mute" style="font-size:12px">${multi?'每集都已看满':'已达'+MAX_REWARD_VIEWS+'次上限'}</span>` : '')))}
             </div>`;
           }).join('') || '<div class="empty">还没有兑换记录</div>'}
         </div>
@@ -7128,12 +7170,14 @@ function momFutureTasks() {
   window.addEventListener('popstate', function () {
     SV_GUARD = 0;
     if (SV && document.getElementById('sv-mask')) { closeSv(); return; }
+    if (GC && document.getElementById('gc-mask')) { closeGameCenter(); return; }
     const m = document.querySelector('#lv-mask, .modal-mask.video-mask');
     if (m) closeVideoModal(m);
   });
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;
     if (SV && document.getElementById('sv-mask')) { closeSv(); return; }
+    if (GC && document.getElementById('gc-mask')) { closeGameCenter(); return; }
     const m = document.querySelector('#lv-mask, .modal-mask.video-mask');
     if (m) closeVideoModal(m);
   });
@@ -9212,6 +9256,11 @@ function momFutureTasks() {
           <p class="wq-hint" style="text-align:left;margin-top:6px">一部动画有很多集时，在这里一行贴一集（标题和链接用竖线隔开）。孩子兑换一次就能看全部集数，<b>每集各限看 5 次</b></p>
         </div>
         <p class="text-mute" id="rw-url-note" style="display:none;font-size:12px">「妈妈许诺」类（火锅/肯德基等）孩子兑换后进入待兑现，妈妈在后台确认，不用填链接。</p>
+        <div class="field" id="rw-min-field" style="display:none">
+          <label>能玩多少分钟</label>
+          <input id="rw-min" type="number" value="30" min="5" max="120" step="5" />
+          <p class="wq-hint" style="text-align:left;margin-top:6px">孩子要先用积分兑换才能进游戏乐园，进去后自己挑游戏。<b>时间用完就得再兑换一次</b>，中途退出会自动暂停、不清零。</p>
+        </div>
         <div class="field">
           <label>兑换花费（积分）</label>
           <input id="rw-cost" type="number" value="100" min="1" max="9999" />
@@ -9228,8 +9277,15 @@ function momFutureTasks() {
     const cat = document.getElementById('rw-cat').value;
     const uf = document.getElementById('rw-url-field');
     const un = document.getElementById('rw-url-note');
-    if (cat === 'promise') { if (uf) uf.style.display='none'; if (un) un.style.display='block'; }
-    else { if (uf) uf.style.display='block'; if (un) un.style.display='none'; }
+    const mf = document.getElementById('rw-min-field');
+    // 游戏乐园不用链接，改填「能玩几分钟」
+    if (cat === 'playground') {
+      if (uf) uf.style.display='none'; if (un) un.style.display='none'; if (mf) mf.style.display='block';
+    } else if (cat === 'promise') {
+      if (uf) uf.style.display='none'; if (un) un.style.display='block'; if (mf) mf.style.display='none';
+    } else {
+      if (uf) uf.style.display='block'; if (un) un.style.display='none'; if (mf) mf.style.display='none';
+    }
   }
   // 解析多行分集文本：一行一集。支持「标题 | 链接」「标题 链接」「只有链接」三种写法
   function parseEpsText(txt) {
@@ -9263,12 +9319,20 @@ function momFutureTasks() {
     const title = document.getElementById('rw-title').value.trim();
     const cat = document.getElementById('rw-cat') ? document.getElementById('rw-cat').value : 'cartoon';
     const cost = parseInt(document.getElementById('rw-cost').value) || 100;
-    const url = cat === 'promise' ? '' : document.getElementById('rw-url').value.trim();
-    const eps = cat === 'promise' ? [] : parseEpsText((document.getElementById('rw-eps') || {}).value || '');
+    const url = (cat === 'promise' || cat === 'playground') ? '' : document.getElementById('rw-url').value.trim();
+    const eps = (cat === 'promise' || cat === 'playground') ? [] : parseEpsText((document.getElementById('rw-eps') || {}).value || '');
     if (!title) { toast('标题要填'); return; }
-    if (cat !== 'promise' && !url && !eps.length) { toast('视频类奖励要填微云链接或分集'); return; }
+    if (cat !== 'promise' && cat !== 'playground' && !url && !eps.length) { toast('视频类奖励要填微云链接或分集'); return; }
     if (eps.length === 1 && !url) { toast('只有 1 集就直接填上面的链接'); return; }
+    // 游戏乐园：时长按秒存，5~120 分钟封顶，乱填就退回 30 分钟
+    let minutes = 0;
+    if (cat === 'playground') {
+      minutes = parseInt((document.getElementById('rw-min') || {}).value);
+      if (!isFinite(minutes) || minutes < 5) minutes = 5;
+      if (minutes > 120) minutes = 120;
+    }
     const rw = { id: 'rw'+Date.now(), title, emoji, cost, url, cat, modifiedAt: Date.now() };
+    if (minutes) rw.minutes = minutes;
     if (eps.length >= 2) { rw.eps = eps; if (!url) rw.url = eps[0].url; }
     DATA.rewards.push(rw);
     saveData(DATA); document.querySelector('.modal-mask').remove(); render();
@@ -9283,7 +9347,137 @@ function momFutureTasks() {
   function openReward(id) {
     const r = DATA.rewards.find(x => x.id === id);
     if (!r) return;
+    // 游戏乐园没有外链，妈妈点开是预览（不扣时间），孩子必须从兑换记录进
+    if (r.cat === 'playground') { openGameCenter(''); return; }
     openResourceLink(r.title, 'video', r.url);
+  }
+
+  /* ==================================================================
+     游戏乐园
+     ------------------------------------------------------------------
+     规则（用户定的）：平时娱乐页看不到游戏，孩子必须先用星星兑换；
+     兑换得到的是「一段可玩时间」，进去后自己挑游戏，时间用完为止。
+     中途退出会自动暂停并保存剩余时间，绝不因为关一下就清零。
+
+     计时只在这个弹窗打开时走：关掉弹窗就 clearInterval，
+     不做后台计时，孩子切去背单词不会偷偷扣时间。
+     剩余秒数存在兑换记录 rd.left 上，每 20 秒落一次盘（太频繁会不停触发同步）。
+     ================================================================== */
+  let GC = null;   // { rdId, left, preview, gameId, timer, sinceSave }
+
+  /** 这条兑换还剩多少秒（老记录没有 left 就是 0） */
+  function gcLeft(rd) { return Math.max(0, Math.round((rd && rd.left) || 0)); }
+  /** 秒数说人话：90 → 「1 分 30 秒」 */
+  function gcMinTxt(sec) {
+    sec = Math.max(0, Math.round(sec));
+    const m = Math.floor(sec / 60), s = sec % 60;
+    if (m <= 0) return s + ' 秒';
+    return m + ' 分' + (s ? (' ' + s + ' 秒') : '');
+  }
+  function gcSaveLeft() {
+    if (!GC || !GC.rdId) return;
+    const rd = (DATA.redemptions || []).find(x => x.id === GC.rdId);
+    if (rd) { rd.left = Math.max(0, Math.round(GC.left)); saveData(DATA); }
+  }
+  function gcTick() {
+    if (!GC || GC.preview) return;
+    GC.left -= 1;
+    if (GC.left <= 0) {
+      GC.left = 0; gcSaveLeft(); gcStop(); GC = null;
+      const m = document.getElementById('gc-mask'); if (m) m.remove();
+      try { render(); } catch (e) {}
+      toast('游戏时间用完啦，再兑换一次就能继续玩 🎮');
+      return;
+    }
+    GC.sinceSave++;
+    if (GC.sinceSave >= 20) { GC.sinceSave = 0; gcSaveLeft(); }
+    const el = document.getElementById('gc-time');
+    if (el) {
+      el.textContent = '⏳ 剩 ' + gcMinTxt(GC.left);
+      el.className = 'gc-time' + (GC.left <= 60 ? ' low' : '');
+    }
+  }
+  function gcStop() { if (GC && GC.timer) { clearInterval(GC.timer); GC.timer = 0; } }
+  function closeGameCenter() {
+    gcSaveLeft(); gcStop(); GC = null;
+    fpPopGuard();
+    const m = document.getElementById('gc-mask'); if (m) m.remove();
+    try { render(); } catch (e) {}
+  }
+  /** 打开某个游戏：把 iframe 挂上去。换游戏时整个重建，旧 iframe 直接释放 */
+  function gcStart(id) {
+    const g = gameById(id);
+    if (!g || !GC) return;
+    GC.gameId = id;
+    const list = document.getElementById('gc-list');
+    const play = document.getElementById('gc-play');
+    if (list) list.style.display = 'none';
+    if (play) {
+      play.style.display = 'block';
+      play.innerHTML = `
+        <div class="gc-bar">
+          <button type="button" class="btn-secondary" style="padding:6px 12px;font-size:12px;margin:0;width:auto" onclick="gcBack()">‹ 换个游戏</button>
+          <span class="t">${g.emoji} ${esc(g.name)}</span>
+        </div>
+        <div class="gc-stage"><iframe src="${escA(g.file)}" title="${esc(g.name)}"></iframe></div>`;
+    }
+  }
+  /** 回到游戏列表：清空 iframe 内容，别把游戏留在后台继续跑 */
+  function gcBack() {
+    const list = document.getElementById('gc-list');
+    const play = document.getElementById('gc-play');
+    if (play) { play.innerHTML = ''; play.style.display = 'none'; }
+    if (list) list.style.display = 'block';
+    if (GC) GC.gameId = null;
+  }
+  /**
+   * 打开游戏乐园。
+   * @param rdId 兑换记录 id；传空字符串 = 妈妈端预览（不计时、不落盘）
+   */
+  function openGameCenter(rdId) {
+    if (GC) closeGameCenter();
+    const isMom = !!sessionStorage.getItem('mom-auth');
+    let rd = null, left = 0, preview = false;
+    if (rdId) {
+      rd = (DATA.redemptions || []).find(x => x.id === rdId);
+      if (!rd) { toast('找不到这条兑换记录'); return; }
+      left = gcLeft(rd);
+      if (left <= 0) { toast('游戏时间已经用完啦，再兑换一次就能继续玩'); return; }
+      const c = kidCheck();
+      if (c && rd.childId !== c.id && !isMom) { toast('这是别人兑换的'); return; }
+    } else {
+      if (!isMom) { toast('要先用积分兑换才能进游戏乐园'); return; }
+      preview = true;
+    }
+    const mask = document.createElement('div');
+    mask.className = 'modal-mask';
+    mask.id = 'gc-mask';
+    mask.onclick = (e) => { if (e.target === mask) closeGameCenter(); };
+    mask.innerHTML = `
+      <div class="modal" style="max-width:560px">
+        <button class="icon-btn close" type="button" onclick="closeGameCenter()">✕</button>
+        <h3 style="padding-right:34px">🎮 游戏乐园</h3>
+        <div class="gc-head">
+          <span class="text-mute" style="font-size:12px">${preview ? '妈妈预览模式，不扣时间' : '退出会自动暂停计时，剩下的时间不会丢'}</span>
+          <span class="gc-time ${preview ? 'prev' : ''}" id="gc-time">${preview ? '妈妈预览' : ('⏳ 剩 ' + gcMinTxt(left))}</span>
+        </div>
+        <div id="gc-list">
+          <div class="gc-grid">
+            ${GAME_LIST.map(g => `
+              <button type="button" class="gc-item" onclick="gcStart('${g.id}')">
+                <span class="gc-em">${g.emoji}</span>
+                <span class="gc-name">${esc(g.name)}</span>
+                <span class="gc-desc">${esc(g.desc)}</span>
+                <span class="gc-tag">${esc(g.cat)}</span>
+              </button>`).join('')}
+          </div>
+        </div>
+        <div id="gc-play" style="display:none"></div>
+      </div>`;
+    document.getElementById('modal-root').appendChild(mask);
+    fpPushGuard();
+    GC = { rdId: rdId || null, left: left, preview: preview, gameId: null, timer: 0, sinceSave: 0 };
+    if (!preview) GC.timer = setInterval(gcTick, 1000);
   }
   // 视频/音频类奖励：限看 MAX_REWARD_VIEWS 次，每次播放记一次数，不重复扣积分
   const MAX_REWARD_VIEWS = 5;
@@ -9359,9 +9553,16 @@ function momFutureTasks() {
     c.points -= r.cost;
     const isPromise = r.cat === 'promise';
     const rd = { id: 'rd'+Date.now(), childId: c.id, rewardId: id, rewardTitle: r.title, emoji: r.emoji, cost: r.cost, cat: r.cat, at: Date.now(), status: isPromise ? 'pending' : 'done', views: 0 };
+    // 游戏乐园：兑换即充入「可玩秒数」，孩子从「我的兑换」里进去玩，用完为止
+    if (r.cat === 'playground') {
+      const mins = parseInt(r.minutes);
+      const sec = (isFinite(mins) && mins > 0 ? mins : 30) * 60;
+      rd.left = sec; rd.total = sec;
+    }
     DATA.redemptions.unshift(rd);
     DATA.pointsHistory.unshift({ id: 'h'+Date.now(), childId: c.id, date: TODAY, title: '兑换：'+r.title, points: -r.cost, at: Date.now() });
     saveData(DATA); render();
+    if (r.cat === 'playground') { toast('兑换成功！在下面「我的兑换」里点「去玩」🎮'); return; }
     if (isPromise) toast('已申请！等妈妈带你去 ' + r.emoji);
     else if (rwEpsOf(r).length >= 2) { saveData(DATA); render(); openRedeemEps(rd.id); }
     else playRedemption(rd.id);

@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>井字棋</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{width:100%;height:100%;overflow:hidden}
+  body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    background:linear-gradient(160deg,#f3fbf7,#eaf2ff);color:#33455e;user-select:none;-webkit-user-select:none;
+    display:flex;flex-direction:column;align-items:center;padding:8px;gap:6px}
+  .top{width:100%;max-width:520px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex:0 0 auto}
+  .title{font-size:19px;font-weight:800;white-space:nowrap}
+  .scores{display:flex;gap:5px}
+  .sc{background:#fff;border-radius:8px;padding:3px 8px;text-align:center;min-width:54px;box-shadow:0 1px 4px rgba(60,90,140,.10)}
+  .sc b{display:block;font-size:15px;line-height:1.25;color:#2f3b52}
+  .sc span{font-size:10px;color:#93a0b8}
+  .turn{width:100%;max-width:520px;font-size:14px;font-weight:800;text-align:center;padding:5px 8px;border-radius:9px;
+    background:#fff;flex:0 0 auto;box-shadow:0 1px 4px rgba(60,90,140,.08)}
+  .bar{width:100%;max-width:520px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;flex:0 0 auto}
+  .btn{background:#4f8ff7;color:#fff;border:0;border-radius:9px;padding:7px 11px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+  .btn:active{transform:scale(.96)}
+  .btn.alt{background:#e3ecfb;color:#40537a}
+  .btn.on{background:#2f6fe0;color:#fff}
+  .btn.go{background:#2fa36b}
+  .hint{font-size:11px;color:#93a0b8;line-height:1.4;flex:1;min-width:70px;text-align:right}
+  #stage{flex:1 1 auto;width:100%;display:flex;align-items:center;justify-content:center;min-height:0}
+  #board{position:relative;background:#fff;border-radius:14px;box-shadow:0 3px 14px rgba(70,110,170,.14)}
+  .grid{position:absolute;left:8px;right:8px;top:8px;bottom:8px;
+    display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:7px}
+  .cl{background:#f1f6fd;border-radius:10px;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer}
+  .cl.win{background:#fff3d1}
+  .mk{position:relative;width:60%;height:60%;animation:pop .18s ease}
+  .mk.x i{position:absolute;left:5%;top:44%;width:90%;height:12%;border-radius:6px;background:#ff7a59}
+  .mk.x i:first-child{transform:rotate(45deg)}
+  .mk.x i:last-child{transform:rotate(-45deg)}
+  .mk.o{width:56%;height:56%;border:12% solid #3f8efc;border-radius:50%;box-sizing:border-box}
+  @keyframes pop{0%{transform:scale(.35);opacity:0}100%{transform:scale(1);opacity:1}}
+  .wl{position:absolute;height:6px;border-radius:3px;transform-origin:0 0;pointer-events:none;z-index:6;
+    background:linear-gradient(90deg,#ffca4a,#ff9f43);box-shadow:0 0 8px rgba(255,170,60,.55)}
+  .over{position:absolute;inset:0;background:rgba(255,255,255,.88);border-radius:14px;z-index:20;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:12px;text-align:center}
+  .over h2{font-size:24px;font-weight:800}
+  .over p{font-size:13px;color:#7b8aa5;line-height:1.7}
+  .hide{display:none!important}
+</style>
+</head>
+<body>
+  <div class="top">
+    <div class="title">井字棋</div>
+    <div class="scores">
+      <div class="sc"><b id="s1">0</b><span id="l1">玩家 ✕</span></div>
+      <div class="sc"><b id="s2">0</b><span id="l2">玩家 ○</span></div>
+      <div class="sc"><b id="s3">0</b><span>平局</span></div>
+    </div>
+  </div>
+  <div class="turn" id="turn">轮到 ✕ 走</div>
+  <div class="bar">
+    <button class="btn on" id="mPvp" type="button">双人对战</button>
+    <button class="btn alt" id="mPve" type="button">人机对战</button>
+    <button class="btn alt hide" id="mDiff" type="button">难度：普通</button>
+    <button class="btn alt hide" id="mFirst" type="button">先手：轮流</button>
+  </div>
+  <div class="bar">
+    <button class="btn go" id="restart" type="button">重新开始</button>
+    <button class="btn alt" id="clear" type="button">清空比分</button>
+    <div class="hint">横、竖、斜连成三个就赢啦</div>
+  </div>
+  <div id="stage"><div id="board">
+    <div class="grid" id="grid"></div>
+    <div class="over hide" id="over">
+      <h2 id="overT">结果</h2>
+      <p id="overP"></p>
+      <button class="btn" id="again" type="button">再来一局</button>
+    </div>
+  </div></div>
+
+<script>
+/* 纯规则 + AI，不碰 DOM，方便单独测试 */
+var TTT = (function () {
+  'use strict';
+  var LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+
+  function winInfo(b) {
+    var i, L, a;
+    for (i = 0; i < 8; i++) {
+      L = LINES[i];
+      a = b[L[0]];
+      if (a && a === b[L[1]] && a === b[L[2]]) return { p: a, line: L };
+    }
+    return null;
+  }
+  function isFull(b) {
+    for (var i = 0; i < 9; i++) if (!b[i]) return false;
+    return true;
+  }
+  function empties(b) {
+    var o = [], i;
+    for (i = 0; i < 9; i++) if (!b[i]) o.push(i);
+    return o;
+  }
+  function other(p) { return p === 'X' ? 'O' : 'X'; }
+
+  // 站在 me 的角度打分：赢 (10-depth)，输 (depth-10)，平 0
+  function minimax(b, me, turn, alpha, beta, depth) {
+    var w = winInfo(b);
+    if (w) return w.p === me ? (10 - depth) : (depth - 10);
+    if (isFull(b)) return 0;
+    var es = empties(b), i, v;
+    var best = (turn === me) ? -1000 : 1000;
+    if (turn === me) {
+      for (i = 0; i < es.length; i++) {
+        b[es[i]] = turn;
+        v = minimax(b, me, other(turn), alpha, beta, depth + 1);
+        b[es[i]] = '';
+        if (v > best) best = v;
+        if (best > alpha) alpha = best;
+        if (alpha >= beta) break;
+      }
+    } else {
+      for (i = 0; i < es.length; i++) {
+        b[es[i]] = turn;
+        v = minimax(b, me, other(turn), alpha, beta, depth + 1);
+        b[es[i]] = '';
+        if (v < best) best = v;
+        if (best < beta) beta = best;
+        if (alpha >= beta) break;
+      }
+    }
+    return best;
+  }
+
+  // 一步就能赢/必须堵的位置，-1 表示没有
+  function urgent(b, turn) {
+    var es = empties(b), i, w;
+    for (i = 0; i < es.length; i++) {
+      b[es[i]] = turn;
+      w = winInfo(b);
+      b[es[i]] = '';
+      if (w) return es[i];
+    }
+    return -1;
+  }
+
+  function pickBest(b, turn, rnd) {
+    var es = empties(b), i, v, best = -1000, list = [];
+    for (i = 0; i < es.length; i++) {
+      b[es[i]] = turn;
+      v = minimax(b, turn, other(turn), -1000, 1000, 1);
+      b[es[i]] = '';
+      if (v > best) { best = v; list = [es[i]]; }
+      else if (v === best) { list.push(es[i]); }
+    }
+    return list[Math.floor(rnd() * list.length)];
+  }
+
+  // level: 'hard' 全搜索，一步不漏，不会输
+  //        'normal' 平时一样认真下（会赢会堵、全搜索），
+  //                 但轮到自己已经赢定的时候，有 EASY 的概率不急着赢，随手下一子把机会还给孩子。
+  //                 这样孩子才有赢的机会；对手一步不漏时它永远是平局。
+  var EASY = 0.45;
+  function aiMove(b, turn, level, rnd) {
+    var es = empties(b), m;
+    if (!es.length) return -1;
+    if (level === 'hard') return pickBest(b, turn, rnd);
+    m = urgent(b, turn);
+    if (m >= 0) {
+      if (rnd() < EASY) return es[Math.floor(rnd() * es.length)];
+      return m;
+    }
+    m = urgent(b, other(turn));
+    if (m >= 0) return m;
+    if (rnd() < EASY && minimax(b, turn, turn, -1000, 1000, 0) > 0) {
+      return es[Math.floor(rnd() * es.length)];
+    }
+    return pickBest(b, turn, rnd);
+  }
+
+  return {
+    LINES: LINES, winInfo: winInfo, isFull: isFull, empties: empties,
+    minimax: minimax, pickBest: pickBest, aiMove: aiMove, EASY: EASY
+  };
+})();
+</script>
+
+<script>
+(function () {
+  'use strict';
+  var K = 'lgame_tictactoe_';
+  function load(k, d) {
+    try { var v = localStorage.getItem(K + k); return (v === null || v === undefined) ? d : v; } catch (e) { return d; }
+  }
+  function save(k, v) { try { localStorage.setItem(K + k, v); } catch (e) {} }
+
+  var grid = document.getElementById('grid');
+  var board = document.getElementById('board');
+  var elTurn = document.getElementById('turn');
+  var elOver = document.getElementById('over');
+  var elOverT = document.getElementById('overT');
+  var elOverP = document.getElementById('overP');
+  var els = [document.getElementById('s1'), document.getElementById('s2'), document.getElementById('s3')];
+  var ell = [document.getElementById('l1'), document.getElementById('l2')];
+
+  var b, turn, over, winLine, aiMark, humanMark, aiTimer = 0, gameNo = 0;
+  var mode = 'pvp', level = 'normal', firstMode = 'alt';
+  var sc = { x: 0, o: 0, d: 0 };
+  var cellsEl = [], wl = null;
+
+  var prefs = load('pref', '').split('|');
+  if (prefs[0] === 'pve' || prefs[0] === 'pvp') mode = prefs[0];
+  if (prefs[1] === 'hard' || prefs[1] === 'normal') level = prefs[1];
+  if (prefs[2] === 'alt' || prefs[2] === 'me' || prefs[2] === 'ai') firstMode = prefs[2];
+  var raw = load('score', '0|0|0').split('|');
+  sc.x = parseInt(raw[0], 10) || 0;
+  sc.o = parseInt(raw[1], 10) || 0;
+  sc.d = parseInt(raw[2], 10) || 0;
+  gameNo = parseInt(load('games', '0'), 10) || 0;
+
+  function saveScore() { save('score', sc.x + '|' + sc.o + '|' + sc.d); }
+  function savePref() { save('pref', mode + '|' + level + '|' + firstMode); }
+
+  function mk(t) {
+    var d = document.createElement('div');
+    d.className = 'mk ' + (t === 'X' ? 'x' : 'o');
+    if (t === 'X') { d.appendChild(document.createElement('i')); d.appendChild(document.createElement('i')); }
+    return d;
+  }
+
+  for (var i = 0; i < 9; i++) {
+    (function (i) {
+      var d = document.createElement('div');
+      d.className = 'cl';
+      d.setAttribute('data-m', '');
+      d.onclick = function () { onCell(i); };
+      grid.appendChild(d);
+      cellsEl.push(d);
+    })(i);
+  }
+
+  function markName(m) {
+    if (mode === 'pve') return m === humanMark ? '你（' + m + '）' : '电脑（' + m + '）';
+    return '玩家 ' + m;
+  }
+
+  function updateTurn() {
+    if (over) return;
+    elTurn.textContent = '轮到 ' + markName(turn) + ' 走';
+    elTurn.style.color = turn === 'X' ? '#ff7a59' : '#3f8efc';
+  }
+
+  function updateScore() {
+    var a, c;
+    if (mode === 'pve') {
+      a = (humanMark === 'X') ? sc.x : sc.o;
+      c = (humanMark === 'X') ? sc.o : sc.x;
+      ell[0].textContent = '我';
+      ell[1].textContent = '电脑';
+    } else {
+      a = sc.x; c = sc.o;
+      ell[0].textContent = '玩家 ✕';
+      ell[1].textContent = '玩家 ○';
+    }
+    els[0].textContent = a;
+    els[1].textContent = c;
+    els[2].textContent = sc.d;
+  }
+
+  function render() {
+    for (var i = 0; i < 9; i++) {
+      var c = cellsEl[i];
+      if (c.getAttribute('data-m') !== b[i]) {
+        c.setAttribute('data-m', b[i]);
+        c.innerHTML = '';
+        if (b[i]) c.appendChild(mk(b[i]));
+      }
+      c.className = 'cl' + (winLine && winLine.indexOf(i) >= 0 ? ' win' : '');
+    }
+    updateTurn();
+    updateScore();
+    drawLine();
+  }
+
+  function drawLine() {
+    if (!winLine) { if (wl) wl.style.display = 'none'; return; }
+    if (!wl) {
+      wl = document.createElement('div');
+      wl.className = 'wl';
+      grid.appendChild(wl);
+    }
+    var a = cellsEl[winLine[0]], z = cellsEl[winLine[2]];
+    var x1 = a.offsetLeft + a.offsetWidth / 2, y1 = a.offsetTop + a.offsetHeight / 2;
+    var x2 = z.offsetLeft + z.offsetWidth / 2, y2 = z.offsetTop + z.offsetHeight / 2;
+    var dx = x2 - x1, dy = y2 - y1;
+    var dist = Math.sqrt(dx * dx + dy * dy);
+    var ext = Math.min(a.offsetWidth, a.offsetHeight) * 0.42;
+    wl.style.display = 'block';
+    wl.style.left = (x1 - ext / 2) + 'px';
+    wl.style.top = y1 + 'px';
+    wl.style.width = (dist + ext) + 'px';
+    wl.style.transform = 'rotate(' + (Math.atan2(dy, dx) * 180 / Math.PI) + 'deg) translateY(-50%)';
+  }
+
+  function place(i, m) {
+    b[i] = m;
+    turn = (m === 'X') ? 'O' : 'X';
+  }
+
+  function onCell(i) {
+    if (over || b[i]) return;
+    if (mode === 'pve' && turn !== humanMark) return;
+    place(i, turn);
+    render();
+    if (!checkEnd() && mode === 'pve' && turn === aiMark) aiTurn();
+  }
+
+  function aiTurn() {
+    if (aiTimer) clearTimeout(aiTimer);
+    aiTimer = setTimeout(function () {
+      aiTimer = 0;
+      if (over) return;
+      var m = TTT.aiMove(b, aiMark, level, Math.random);
+      if (m >= 0) { place(m, aiMark); render(); checkEnd(); }
+    }, 200 + Math.floor(Math.random() * 200));
+  }
+
+  function showOver(t, p) {
+    elOverT.textContent = t;
+    elOverP.innerHTML = p;
+    elOver.classList.remove('hide');
+  }
+
+  function checkEnd() {
+    var w = TTT.winInfo(b);
+    if (w) {
+      over = true;
+      winLine = w.line;
+      if (w.p === 'X') sc.x++; else sc.o++;
+      saveScore();
+      render();
+      var win = (mode === 'pve') ? (w.p === humanMark) : true;
+      var who = (mode === 'pve') ? (win ? '你' : '电脑') : ('玩家 ' + w.p);
+      showOver(win ? '赢啦！真棒 🎉' : '这局没赢，再试一次',
+        who + '把三个棋子连成一条线啦<br>比分 ' + els[0].textContent + ' : ' + els[1].textContent + ' : ' + els[2].textContent);
+      return true;
+    }
+    if (TTT.isFull(b)) {
+      over = true;
+      sc.d++;
+      saveScore();
+      render();
+      showOver('平局，势均力敌！', '棋盘填满啦，谁都没连成三个<br>再来一局说不定就赢咯');
+      return true;
+    }
+    return false;
+  }
+
+  function reset() {
+    if (aiTimer) { clearTimeout(aiTimer); aiTimer = 0; }
+    b = ['', '', '', '', '', '', '', '', ''];
+    over = false;
+    winLine = null;
+    elOver.classList.add('hide');
+    if (mode === 'pve') {
+      aiMark = (firstMode === 'ai' || (firstMode === 'alt' && gameNo % 2 === 1)) ? 'X' : 'O';
+      humanMark = (aiMark === 'X') ? 'O' : 'X';
+    } else {
+      aiMark = null;
+      humanMark = null;
+    }
+    turn = 'X';
+    gameNo++;
+    save('games', String(gameNo % 1000));
+    render();
+    if (mode === 'pve' && aiMark === 'X') aiTurn();
+  }
+
+  var bPvp = document.getElementById('mPvp');
+  var bPve = document.getElementById('mPve');
+  var bDiff = document.getElementById('mDiff');
+  var bFirst = document.getElementById('mFirst');
+
+  function syncButtons() {
+    bPvp.className = 'btn ' + (mode === 'pvp' ? 'on' : 'alt');
+    bPve.className = 'btn ' + (mode === 'pve' ? 'on' : 'alt');
+    bDiff.textContent = '难度：' + (level === 'hard' ? '高手' : '普通');
+    bFirst.textContent = '先手：' + (firstMode === 'alt' ? '轮流' : (firstMode === 'me' ? '我先' : '电脑先'));
+    bDiff.className = 'btn alt' + (mode === 'pve' ? '' : ' hide');
+    bFirst.className = 'btn alt' + (mode === 'pve' ? '' : ' hide');
+  }
+
+  bPvp.onclick = function () { mode = 'pvp'; savePref(); syncButtons(); reset(); };
+  bPve.onclick = function () { mode = 'pve'; savePref(); syncButtons(); reset(); };
+  bDiff.onclick = function () { level = (level === 'hard') ? 'normal' : 'hard'; savePref(); syncButtons(); };
+  bFirst.onclick = function () {
+    firstMode = (firstMode === 'alt') ? 'me' : ((firstMode === 'me') ? 'ai' : 'alt');
+    savePref();
+    syncButtons();
+  };
+  document.getElementById('restart').onclick = reset;
+  document.getElementById('again').onclick = reset;
+  document.getElementById('clear').onclick = function () {
+    sc.x = sc.o = sc.d = 0;
+    saveScore();
+    updateScore();
+  };
+
+  function fit() {
+    var st = document.getElementById('stage');
+    var s = Math.min(st.clientWidth, st.clientHeight) - 2;
+    if (!s || s < 120) s = 240;
+    board.style.width = s + 'px';
+    board.style.height = s + 'px';
+    drawLine();
+  }
+
+  if (window.ResizeObserver) { new ResizeObserver(fit).observe(document.getElementById('stage')); }
+  window.addEventListener('resize', fit);
+
+  syncButtons();
+  reset();
+  fit();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="zh-CN" data-page-node-id="6hMBQ408bm7PKaCMbUpYPF">
+<head data-page-node-id="xUFCSPYebmNAvWf0ytmCtM">
+<meta charset="utf-8" data-page-node-id="fgYUPOXRef5BgzwY427V87">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" data-page-node-id="cePJBMblO6KJzbPbSiijQx">
+<title>五子棋</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{width:100%;height:100%;overflow:hidden}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    background:#f5efe3;color:#4a3f35;user-select:none;-webkit-user-select:none;
+    display:flex;flex-direction:column;align-items:center;padding:8px;gap:8px;
+  }
+  .top{width:100%;max-width:560px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex:0 0 auto}
+  .turn{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700}
+  .dot{width:20px;height:20px;border-radius:50%;border:1px solid rgba(0,0,0,.25);flex:0 0 auto}
+  .dot.b{background:radial-gradient(circle at 35% 32%,#7a7a7a,#111)}
+  .dot.w{background:radial-gradient(circle at 35% 32%,#fff,#cfc6ba)}
+  .sc{background:#e3d8c6;color:#6b5b49;border-radius:8px;padding:4px 9px;font-size:11px;min-width:56px;text-align:center}
+  .sc b{display:block;font-size:14px;line-height:1.2}
+  .bar{width:100%;max-width:560px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;flex:0 0 auto}
+  .btn{background:#8f7a66;color:#f9f6f2;border:0;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+  .btn:active{transform:scale(.96)}
+  .btn.alt{background:#e3d8c6;color:#6b5b49}
+  .hint{font-size:11px;color:#a29587;line-height:1.5;flex:1;min-width:120px}
+  #stage{flex:1 1 auto;width:100%;display:flex;align-items:center;justify-content:center;min-height:0}
+  canvas{background:#e8c896;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.12);touch-action:none;display:block}
+  .over{position:fixed;inset:0;background:rgba(40,30,20,.55);display:flex;align-items:center;justify-content:center;z-index:30}
+  .card{background:#fffdf7;border-radius:14px;padding:22px 26px;text-align:center;min-width:210px}
+  .card h2{font-size:22px;margin-bottom:6px}
+  .card p{font-size:13px;color:#8a7a66;margin-bottom:16px}
+  .hide{display:none!important}
+</style>
+</head>
+<body data-page-node-id="Avr3A7ar9edeAgVHgWin8H">
+  <div class="top" data-page-node-id="ABA7w7PUGOQ9xMTi74bGIw">
+    <div class="turn" data-page-node-id="ic34N6ug8ubePYLaXybitu"><span class="dot b" id="dot" data-page-node-id="jp2x29pEVRjK3aN5Tq9vBl"></span><span id="turnTxt" data-page-node-id="Ff9OCndTbXEuz1Zdc4jqnV">黑棋（先手）走</span></div>
+    <div class="sc" data-page-node-id="pwwC8Juqe4OzCmOStzuS0d"><b id="scB" data-page-node-id="J5hWyCBAx8GGQMtoMHPp0X">0 : 0</b><span data-page-node-id="OSVLfChsZwsbysnbbBrFvk">黑 : 白</span></div>
+  </div>
+  <div class="bar" data-page-node-id="253brFasrUKVLfmW3I1KBQ">
+    <button class="btn" id="mode" data-page-node-id="g1BzG0hOpH4AwWyMDDSKhA">模式：双人对战</button>
+    <button class="btn alt" id="undo" data-page-node-id="3iiy1M2yB3uu4TPvvu11Go">悔棋</button>
+    <button class="btn alt" id="reset" data-page-node-id="FFSwAU2lAOS8dPI5SV0EiD">重新开始</button>
+    <span class="hint" id="hint" data-page-node-id="1XFEUM8ALH4ojZFkBXgj05">棋盘上点一下就落子，先把五颗连成一线的一方赢。</span>
+  </div>
+  <div id="stage" data-page-node-id="GeShaSgVKk90lwNHMje0tR"><canvas id="cv" data-page-node-id="nLeyQoOuSI5GDcYi1u8GoB"></canvas></div>
+  <div class="over hide" id="over" data-page-node-id="QwzwmLrEkm3NhXqoGItjAB"><div class="card" data-page-node-id="Kiu5InbBJmmM8c7apl5z1F">
+    <h2 id="overT" data-page-node-id="EZlUMDsLJwXqJpFQtWwb8I">黑棋赢啦</h2>
+    <p id="overP" data-page-node-id="rjoG0rT3HIbQ3WL12et6oI"></p>
+    <button class="btn" id="again" data-page-node-id="aTPtuRkRPt7oF2lgEW4YHU">再来一局</button>
+  </div></div>
+
+<script>
+(function () {
+  'use strict';
+  var N = 15;                     // 15x15 棋盘
+  var cv = document.getElementById('cv');
+  var ctx = cv.getContext('2d');
+  var elDot = document.getElementById('dot');
+  var elTurn = document.getElementById('turnTxt');
+  var elScore = document.getElementById('scB');
+  var elMode = document.getElementById('mode');
+  var elHint = document.getElementById('hint');
+  var elOver = document.getElementById('over');
+  var elOverT = document.getElementById('overT');
+  var elOverP = document.getElementById('overP');
+
+  var grid, hist, turn, over, cell, pad, vsAI, winB, winW, thinking;
+  winB = 0; winW = 0;
+
+  function reset() {
+    grid = []; hist = []; turn = 1; over = false; thinking = false;
+    for (var i = 0; i < N * N; i++) grid.push(0);
+    elOver.classList.add('hide');
+    fit(); paint(); status();
+  }
+
+  function fit() {
+    var stage = document.getElementById('stage');
+    var s = Math.min(stage.clientWidth, stage.clientHeight);
+    if (!s || s < 80) s = 280;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    cv.style.width = s + 'px';
+    cv.style.height = s + 'px';
+    cv.width = Math.round(s * dpr);
+    cv.height = Math.round(s * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    cell = s / (N + 1);
+    pad = cell;
+    paint();
+  }
+
+  function paint() {
+    var s = parseFloat(cv.style.width) || 280;
+    ctx.clearRect(0, 0, s, s);
+    ctx.fillStyle = '#e8c896';
+    ctx.fillRect(0, 0, s, s);
+    ctx.strokeStyle = 'rgba(90,60,30,.55)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (var i = 0; i < N; i++) {
+      var p = pad + i * cell;
+      ctx.moveTo(pad, p); ctx.lineTo(pad + (N - 1) * cell, p);
+      ctx.moveTo(p, pad); ctx.lineTo(p, pad + (N - 1) * cell);
+    }
+    ctx.stroke();
+    // 星位
+    ctx.fillStyle = 'rgba(90,60,30,.75)';
+    var stars = [3, 7, 11];
+    for (var a = 0; a < 3; a++) {
+      for (var b = 0; b < 3; b++) {
+        ctx.beginPath();
+        ctx.arc(pad + stars[a] * cell, pad + stars[b] * cell, Math.max(2, cell * 0.11), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    for (var k = 0; k < grid.length; k++) {
+      if (grid[k]) stone(k % N, Math.floor(k / N), grid[k], hist.length ? k === hist[hist.length - 1] : false);
+    }
+  }
+
+  function stone(c, r, who, last) {
+    var x = pad + c * cell, y = pad + r * cell, rad = cell * 0.44;
+    ctx.beginPath();
+    ctx.arc(x, y, rad, 0, Math.PI * 2);
+    var g = ctx.createRadialGradient(x - rad * 0.32, y - rad * 0.34, rad * 0.1, x, y, rad);
+    if (who === 1) { g.addColorStop(0, '#7c7c7c'); g.addColorStop(1, '#0d0d0d'); }
+    else { g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#c9c0b3'); }
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,.22)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    if (last) {
+      ctx.strokeStyle = '#e0453a';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, rad * 0.42, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  function status() {
+    if (over) return;
+    elDot.className = 'dot ' + (turn === 1 ? 'b' : 'w');
+    elTurn.textContent = (turn === 1 ? '黑棋' : '白棋') + '走';
+    elScore.textContent = winB + ' : ' + winW;
+  }
+
+  function place(c, r) {
+    if (over || grid[r * N + c]) return false;
+    grid[r * N + c] = turn;
+    hist.push(r * N + c);
+    paint();
+    if (winAt(c, r, turn)) {
+      over = true;
+      if (turn === 1) winB++; else winW++;
+      elScore.textContent = winB + ' : ' + winW;
+      var who = turn === 1 ? '黑棋' : '白棋';
+      elOverT.textContent = who + '赢啦 🎉';
+      elOverP.textContent = (vsAI && turn === 2) ? '电脑赢了，再来一局试试' : '用了 ' + hist.length + ' 手';
+      elOver.classList.remove('hide');
+      return true;
+    }
+    if (hist.length === N * N) {
+      over = true;
+      elOverT.textContent = '和棋';
+      elOverP.textContent = '棋盘下满了';
+      elOver.classList.remove('hide');
+      return true;
+    }
+    turn = turn === 1 ? 2 : 1;
+    status();
+    return true;
+  }
+
+  function countDir(c, r, dc, dr, who) {
+    var n = 0, i = c + dc, j = r + dr;
+    while (i >= 0 && i < N && j >= 0 && j < N && grid[j * N + i] === who) { n++; i += dc; j += dr; }
+    return n;
+  }
+  function winAt(c, r, who) {
+    var dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
+    for (var d = 0; d < 4; d++) {
+      if (1 + countDir(c, r, dirs[d][0], dirs[d][1], who) + countDir(c, r, -dirs[d][0], -dirs[d][1], who) >= 5) return true;
+    }
+    return false;
+  }
+
+  // ---------- 电脑对手：对每个候选空位按棋型打分，攻守兼顾 ----------
+  function shapeScore(n, open) {
+    if (n >= 5) return 100000;
+    if (n === 4) return open === 2 ? 12000 : (open === 1 ? 1200 : 0);
+    if (n === 3) return open === 2 ? 1500 : (open === 1 ? 150 : 0);
+    if (n === 2) return open === 2 ? 200 : (open === 1 ? 20 : 0);
+    return open === 2 ? 6 : 1;
+  }
+  // 假设 (c,r) 已经放了 who 的子，算出这个点在四个方向上的棋型总分
+  function pointScore(c, r, who) {
+    var dirs = [[1, 0], [0, 1], [1, 1], [1, -1]], total = 0;
+    for (var d = 0; d < 4; d++) {
+      var dc = dirs[d][0], dr = dirs[d][1];
+      var n = 1, open = 0;
+      var i = c + dc, j = r + dr;
+      while (i >= 0 && i < N && j >= 0 && j < N && grid[j * N + i] === who) { n++; i += dc; j += dr; }
+      if (i >= 0 && i < N && j >= 0 && j < N && grid[j * N + i] === 0) open++;
+      i = c - dc; j = r - dr;
+      while (i >= 0 && i < N && j >= 0 && j < N && grid[j * N + i] === who) { n++; i -= dc; j -= dr; }
+      if (i >= 0 && i < N && j >= 0 && j < N && grid[j * N + i] === 0) open++;
+      total += shapeScore(n, open);
+    }
+    return total;
+  }
+  function aiMove() {
+    var me = turn, op = me === 1 ? 2 : 1, best = -1, bc = -1, br = -1, c, r, k;
+    var cand = [];
+    for (k = 0; k < grid.length; k++) {
+      if (grid[k]) continue;
+      c = k % N; r = Math.floor(k / N);
+      var near = false;
+      for (var a = -2; a <= 2 && !near; a++) {
+        for (var b = -2; b <= 2 && !near; b++) {
+          var i = c + a, j = r + b;
+          if (i >= 0 && i < N && j >= 0 && j < N && grid[j * N + i]) near = true;
+        }
+      }
+      if (near) cand.push(k);
+    }
+    if (!cand.length) { cand.push(Math.floor(N * N / 2)); }
+    for (var x = 0; x < cand.length; x++) {
+      c = cand[x] % N; r = Math.floor(cand[x] / N);
+      var s = pointScore(c, r, me) + pointScore(c, r, op) * 0.92;
+      if (s > best) { best = s; bc = c; br = r; }
+    }
+    return [bc, br];
+  }
+
+  function playerMove(c, r) {
+    if (over || thinking) return;
+    if (!place(c, r)) return;
+    if (!over && vsAI && turn === 2) {
+      thinking = true;
+      elTurn.textContent = '电脑在想…';
+      setTimeout(function () {
+        thinking = false;
+        if (over) return;
+        var m = aiMove();
+        place(m[0], m[1]);
+      }, 260);
+    }
+  }
+
+  cv.addEventListener('click', function (e) {
+    var rect = cv.getBoundingClientRect();
+    var x = e.clientX - rect.left, y = e.clientY - rect.top;
+    var c = Math.round((x - pad) / cell), r = Math.round((y - pad) / cell);
+    if (c < 0 || c >= N || r < 0 || r >= N) return;
+    playerMove(c, r);
+  });
+  cv.addEventListener('touchstart', function (e) {
+    if (!e.touches || e.touches.length !== 1) return;
+    var rect = cv.getBoundingClientRect();
+    var x = e.touches[0].clientX - rect.left, y = e.touches[0].clientY - rect.top;
+    var c = Math.round((x - pad) / cell), r = Math.round((y - pad) / cell);
+    if (c < 0 || c >= N || r < 0 || r >= N) return;
+    e.preventDefault();
+    playerMove(c, r);
+  }, { passive: false });
+
+  document.getElementById('mode').onclick = function () {
+    vsAI = !vsAI;
+    elMode.textContent = '模式：' + (vsAI ? '人机对战' : '双人对战');
+    elHint.textContent = vsAI ? '你执黑先手，电脑执白。棋盘上点一下落子。' : '两位轮流点棋盘落子，五子连线就赢。';
+    reset();
+  };
+  document.getElementById('reset').onclick = reset;
+  document.getElementById('again').onclick = reset;
+  document.getElementById('undo').onclick = function () {
+    if (thinking) return;
+    var steps = (vsAI && hist.length >= 2) ? 2 : 1;   // 人机模式连撤电脑那一手
+    for (var i = 0; i < steps; i++) {
+      if (!hist.length) break;
+      grid[hist.pop()] = 0;
+    }
+    over = false;
+    turn = 1 + (hist.length % 2);                      // 黑先手，按手数推回来
+    elOver.classList.add('hide');
+    paint(); status();
+  };
+
+  vsAI = false;
+  if (window.ResizeObserver) { new ResizeObserver(fit).observe(document.body); }
+  window.addEventListener('resize', fit);
+  reset();
+})();
+</script>
+</body>
+</html>

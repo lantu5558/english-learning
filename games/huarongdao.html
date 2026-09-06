@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>数字华容道</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{width:100%;height:100%;overflow:hidden}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    background:linear-gradient(160deg,#fff4ec,#fdfaff);color:#42304f;user-select:none;-webkit-user-select:none;
+    display:flex;flex-direction:column;align-items:center;padding:8px;gap:6px;
+  }
+  .row{width:100%;max-width:520px;display:flex;align-items:center;gap:6px;flex:0 0 auto;flex-wrap:wrap}
+  .title{font-size:19px;font-weight:800;white-space:nowrap}
+  .stats{display:flex;gap:5px;margin-left:auto}
+  .sc{background:#fff;border:0.5px solid #ecdff0;border-radius:8px;padding:3px 8px;text-align:center;min-width:52px}
+  .sc b{display:block;font-size:15px;line-height:1.2;color:#42304f}
+  .sc span{font-size:10px;color:#9a8aa3}
+  .btn{background:#a06cd5;color:#fff;border:0;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;
+    cursor:pointer;font-family:inherit}
+  .btn:active{transform:scale(.96)}
+  .btn.alt{background:#f0e6f7;color:#6b4f88}
+  .btn.on{background:#7e4fb8;color:#fff}
+  .tip{width:100%;max-width:520px;font-size:11px;color:#a494ad;min-height:15px;line-height:15px;
+    flex:0 0 auto;text-align:center}
+  .tip.good{color:#2fa36b;font-weight:700}
+  .tip.bad{color:#e06a5a;font-weight:700}
+  #stage{flex:1 1 auto;width:100%;display:flex;align-items:center;justify-content:center;min-height:0}
+  #board{position:relative;background:#5d3f7a;border-radius:12px;overflow:hidden;
+    box-shadow:0 4px 14px rgba(93,63,122,.28)}
+  #layer{position:absolute;left:0;top:0;right:0;bottom:0}
+  .tile{position:absolute;left:0;top:0;display:flex;align-items:center;justify-content:center;
+    color:#fff;font-weight:800;line-height:1;background:linear-gradient(170deg,#b98ce8,#8e5cc8);
+    box-shadow:0 2px 5px rgba(60,35,90,.35);transition:transform .13s ease-out}
+  .tile.hi{background:linear-gradient(170deg,#ffd977,#f7b32b);color:#7a4b00;
+    box-shadow:0 0 0 3px #ffb703,0 2px 6px rgba(0,0,0,.2);animation:bl 1s infinite;z-index:5}
+  @keyframes bl{0%,100%{opacity:1}50%{opacity:.5}}
+  .over{position:fixed;inset:0;background:rgba(50,35,65,.5);display:flex;align-items:center;justify-content:center;z-index:30}
+  .card{background:#fff;border-radius:16px;padding:22px 26px;text-align:center;min-width:216px}
+  .card h2{font-size:22px;margin-bottom:6px}
+  .card p{font-size:13px;color:#8a7a93;line-height:1.8;margin-bottom:14px}
+  .hide{display:none!important}
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="title">数字华容道</div>
+    <div class="stats">
+      <div class="sc"><b id="sMove">0</b><span>步数</span></div>
+      <div class="sc"><b id="sTime">0:00</b><span>用时</span></div>
+      <div class="sc"><b id="sBest">—</b><span>最佳</span></div>
+    </div>
+  </div>
+  <div class="row">
+    <button class="btn alt on" data-n="3" type="button">3 × 3</button>
+    <button class="btn alt" data-n="4" type="button">4 × 4</button>
+    <button class="btn" id="bHint" type="button">提示</button>
+    <button class="btn" id="bNew" type="button">重开</button>
+  </div>
+  <div class="tip" id="tip">点空格旁边的数字块，把它推进去</div>
+  <div id="stage"><div id="board"><div id="layer"></div></div></div>
+  <div class="over hide" id="over"><div class="card">
+    <h2 id="overT">拼好啦</h2>
+    <p id="overP"></p>
+    <button class="btn" id="again" type="button" style="padding:10px 22px;font-size:14px">再来一局</button>
+  </div></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var PFX = 'lgame_huarongdao_';
+
+  /* ALGO:BEGIN —— 纯算法区，不碰 DOM，可被测试脚本单独抽出 */
+  function isSolved(g, n) {
+    var i;
+    for (i = 0; i < g.length - 1; i++) if (g[i] !== i + 1) return false;
+    return g[g.length - 1] === 0;
+  }
+  function neighbors(z, n) {
+    var r = Math.floor(z / n), c = z % n, out = [];
+    if (r > 0) out.push(z - n);
+    if (r < n - 1) out.push(z + n);
+    if (c > 0) out.push(z - 1);
+    if (c < n - 1) out.push(z + 1);
+    return out;
+  }
+  // 从完成态出发随机走合法步来打乱：这样得到的一定是可解的
+  // （随机排列会有一半概率无解，孩子会永远拼不出来）
+  function shuffleBoard(n) {
+    var total = n * n, g = [], i, s, nb, opts, to, last;
+    for (i = 0; i < total - 1; i++) g.push(i + 1);
+    g.push(0);
+    var blank = total - 1;
+    last = -1;
+    var steps = (n === 3) ? 60 : 150;
+    for (s = 0; s < steps; s++) {
+      nb = neighbors(blank, n);
+      opts = [];
+      for (i = 0; i < nb.length; i++) if (nb[i] !== last) opts.push(nb[i]);
+      if (!opts.length) opts = nb;
+      to = opts[Math.floor(Math.random() * opts.length)];
+      g[blank] = g[to];
+      g[to] = 0;
+      last = blank;
+      blank = to;
+    }
+    // 万一刚好走回完成态，再多走几步
+    var guard = 0;
+    while (isSolved(g, n) && guard < 20) {
+      guard++;
+      nb = neighbors(blank, n);
+      to = nb[Math.floor(Math.random() * nb.length)];
+      g[blank] = g[to];
+      g[to] = 0;
+      last = blank;
+      blank = to;
+    }
+    return g;
+  }
+  // 逆序数判可解：奇数宽看逆序数奇偶，偶数宽还要看空格在第几行
+  function solvable(g, n) {
+    var inv = 0, i, j, a, b, z = 0;
+    for (i = 0; i < g.length; i++) {
+      a = g[i];
+      if (a === 0) continue;
+      for (j = i + 1; j < g.length; j++) { b = g[j]; if (b !== 0 && a > b) inv++; }
+    }
+    if (n % 2 === 1) return inv % 2 === 0;
+    while (g[z] !== 0) z++;
+    return (inv + (n - Math.floor(z / n))) % 2 === 1;
+  }
+  function manhattan(g, n) {
+    var d = 0, i, v, tr, tc, r, c;
+    for (i = 0; i < g.length; i++) {
+      v = g[i];
+      if (v === 0) continue;
+      tr = Math.floor((v - 1) / n); tc = (v - 1) % n;
+      r = Math.floor(i / n); c = i % n;
+      d += (tr > r ? tr - r : r - tr) + (tc > c ? tc - c : c - tc);
+    }
+    return d;
+  }
+  function mkHeap() {
+    var a = [];
+    return {
+      size: function () { return a.length; },
+      push: function (f, g, k, s) {
+        a.push([f, g, k, s]);
+        var i = a.length - 1, p, t;
+        while (i > 0) {
+          p = (i - 1) >> 1;
+          if (a[p][0] <= a[i][0]) break;
+          t = a[p]; a[p] = a[i]; a[i] = t; i = p;
+        }
+      },
+      pop: function () {
+        var top = a[0], last = a.pop(), i = 0, len, l, r, m, t;
+        if (a.length) {
+          a[0] = last;
+          len = a.length;
+          for (;;) {
+            l = i * 2 + 1; r = l + 1; m = i;
+            if (l < len && a[l][0] < a[m][0]) m = l;
+            if (r < len && a[r][0] < a[m][0]) m = r;
+            if (m === i) break;
+            t = a[m]; a[m] = a[i]; a[i] = t; i = m;
+          }
+        }
+        return top;
+      }
+    };
+  }
+  // A* / 加权 A*：w=1 最短路，w>1 更快但步数多一点。返回「依次该点哪一块」的下标数组
+  function solvePath(start, n, w, cap, deadline) {
+    var total = n * n, goal = [], i, z, nb, to, ns, nkey, ng;
+    for (i = 0; i < total - 1; i++) goal.push(i + 1);
+    goal.push(0);
+    var goalKey = goal.join(',');
+    var startKey = start.join(',');
+    if (startKey === goalKey) return [];
+    if (!solvable(start, n)) return null;
+    var heap = mkHeap(), best = {}, came = {}, nodes = 0, cur, key, gg, st, out, k;
+    best[startKey] = 0;
+    came[startKey] = null;
+    heap.push(manhattan(start, n) * w, 0, startKey, start.slice());
+    while (heap.size()) {
+      nodes++;
+      if ((nodes & 255) === 0 && Date.now() > deadline) return null;
+      if (nodes > cap) return null;
+      cur = heap.pop();
+      key = cur[2]; gg = cur[1]; st = cur[3];
+      if (best[key] !== undefined && gg > best[key]) continue;
+      if (key === goalKey) {
+        out = []; k = key;
+        while (came[k] !== null && came[k] !== undefined) { out.push(came[k].m); k = came[k].p; }
+        out.reverse();
+        return out;
+      }
+      z = 0;
+      while (st[z] !== 0) z++;
+      nb = neighbors(z, n);
+      for (i = 0; i < nb.length; i++) {
+        to = nb[i];
+        ns = st.slice();
+        ns[z] = ns[to];
+        ns[to] = 0;
+        nkey = ns.join(',');
+        ng = gg + 1;
+        if (best[nkey] !== undefined && best[nkey] <= ng) continue;
+        best[nkey] = ng;
+        came[nkey] = { p: key, m: to };
+        heap.push(manhattan(ns, n) * w + ng, ng, nkey, ns);
+      }
+    }
+    return null;
+  }
+  // 提示用：3×3 直接求最短路，4×4 先用快一点的加权搜索
+  function findPath(start, n) {
+    var p = null, t = Date.now();
+    // 3×3：先求最短路（很快），求不出来再退而求其次
+    if (n === 3) {
+      p = solvePath(start.slice(), n, 1, 200000, t + 800);
+      if (p) return p;
+      return solvePath(start.slice(), n, 3, 250000, t + 2000);
+    }
+    // 4×4：最优解太慢，先用权重高的快搜索，实在不行再逐步逼近最优
+    p = solvePath(start.slice(), n, 3, 250000, t + 1200);
+    if (p) return p;
+    p = solvePath(start.slice(), n, 2, 250000, t + 2200);
+    if (p) return p;
+    p = solvePath(start.slice(), n, 1.5, 250000, t + 3200);
+    if (p) return p;
+    return solvePath(start.slice(), n, 1, 250000, t + 4200);
+  }
+  /* ALGO:END */
+
+  // ---- DOM ----
+  var elBoard = document.getElementById('board');
+  var elLayer = document.getElementById('layer');
+  var elStage = document.getElementById('stage');
+  var elTip = document.getElementById('tip');
+  var elMove = document.getElementById('sMove');
+  var elTime = document.getElementById('sTime');
+  var elBest = document.getElementById('sBest');
+  var elOver = document.getElementById('over');
+  var elOverT = document.getElementById('overT');
+  var elOverP = document.getElementById('overP');
+
+  var N = 3, g = [], tiles = [], blank = 8, moves = 0, t0 = 0, timer = 0, running = false, done = false;
+  var path = null, hintOn = false, pad = 6, gap = 6, cell = 60, busy = false;
+
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
+  function showTip(s, cls) {
+    elTip.className = 'tip' + (cls ? ' ' + cls : '');
+    elTip.textContent = s;
+  }
+  function fmt(ms) {
+    var s = Math.floor(ms / 1000);
+    var m = Math.floor(s / 60);
+    s = s % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+  function blankOf(arr) { var i = 0; while (arr[i] !== 0) i++; return i; }
+
+  function buildTiles() {
+    var i, d;
+    elLayer.innerHTML = '';
+    tiles = [];
+    tiles.push(null);
+    for (i = 1; i < N * N; i++) {
+      d = document.createElement('div');
+      d.className = 'tile';
+      d.textContent = String(i);
+      elLayer.appendChild(d);
+      tiles.push(d);
+    }
+  }
+
+  function layout() {
+    var st = elStage;
+    var s = Math.min(st.clientWidth, st.clientHeight);
+    if (!s || s < 90) s = 270;
+    s = Math.floor(s);
+    pad = Math.max(5, Math.round(s * 0.026));
+    gap = Math.max(4, Math.round(s * 0.022));
+    cell = (s - pad * 2 - gap * (N - 1)) / N;
+    elBoard.style.width = s + 'px';
+    elBoard.style.height = s + 'px';
+    place(false);
+  }
+
+  function place(animate) {
+    var i, v, t, r, c, x, y;
+    for (i = 0; i < g.length; i++) {
+      v = g[i];
+      if (v === 0) continue;
+      t = tiles[v];
+      r = Math.floor(i / N); c = i % N;
+      x = pad + c * (cell + gap);
+      y = pad + r * (cell + gap);
+      t.style.width = cell + 'px';
+      t.style.height = cell + 'px';
+      t.style.fontSize = Math.round(cell * (N === 3 ? 0.46 : 0.40)) + 'px';
+      t.style.borderRadius = Math.round(cell * 0.16) + 'px';
+      if (!animate) t.style.transition = 'none';
+      t.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+      if (!animate) {
+        /* 关掉过渡再打开，避免重排时乱飞 */
+        (function (el) {
+          setTimeout(function () { el.style.transition = 'transform .13s ease-out'; }, 20);
+        })(t);
+      }
+    }
+  }
+
+  function updateBest() {
+    var b = parseInt(lsGet(PFX + 'best_' + N), 10) || 0;
+    elBest.textContent = b ? (b + ' 步') : '—';
+  }
+
+  function startTimer() {
+    stopTimer();
+    timer = setInterval(function () {
+      if (running && !done) elTime.textContent = fmt(Date.now() - t0);
+    }, 500);
+  }
+  function stopTimer() { if (timer) { clearInterval(timer); timer = 0; } }
+
+  function clearHint() {
+    hintOn = false;
+    for (var i = 1; i < tiles.length; i++) tiles[i].className = 'tile';
+  }
+
+  function paintHint() {
+    var i;
+    for (i = 1; i < tiles.length; i++) tiles[i].className = 'tile';
+    if (!hintOn || !path || !path.length) return;
+    var v = g[path[0]];
+    if (v) tiles[v].className = 'tile hi';
+  }
+
+  function finish() {
+    done = true;
+    running = false;
+    stopTimer();
+    clearHint();
+    var ms = Date.now() - t0;
+    elTime.textContent = fmt(ms);
+    var sec = Math.round(ms / 1000);
+    var kb = PFX + 'best_' + N, kt = PFX + 'bestt_' + N;
+    var ob = parseInt(lsGet(kb), 10) || 0;
+    var ot = parseInt(lsGet(kt), 10) || 0;
+    var isNew = (!ob) || moves < ob || (moves === ob && sec < ot);
+    if (isNew) { lsSet(kb, String(moves)); lsSet(kt, String(sec)); }
+    elOverT.textContent = isNew ? '新纪录！🏆' : '拼好啦 🎉';
+    elOverP.innerHTML = N + ' × ' + N + ' · 用了 ' + moves + ' 步 · 用时 ' + fmt(ms) + '<br>' +
+      (isNew ? '这是你的最好成绩！' : '最好成绩 ' + ob + ' 步，再挑战一下');
+    elOver.classList.remove('hide');
+    updateBest();
+  }
+
+  function adjacent(a, b) {
+    if (a < 0 || b < 0 || a >= g.length || b >= g.length) return false;
+    var ar = Math.floor(a / N), ac = a % N, br = Math.floor(b / N), bc = b % N;
+    return (ar > br ? ar - br : br - ar) + (ac > bc ? ac - bc : bc - ac) === 1;
+  }
+
+  function slide(i, quiet) {
+    var v;
+    if (done || busy) return false;
+    if (i < 0 || i >= g.length || i === blank) return false;
+    if (!adjacent(i, blank)) {
+      if (!quiet) showTip('只能推动挨着空格的那一块哦');
+      return false;
+    }
+    v = g[i];
+    g[blank] = v;
+    g[i] = 0;
+    blank = i;
+    moves++;
+    elMove.textContent = String(moves);
+    if (!running) { running = true; t0 = Date.now(); startTimer(); }
+    // 提示路径：跟着走就接着用，走偏了就作废
+    if (path && path.length) {
+      if (path[0] === i) path.shift();
+      else path = null;
+    }
+    if (!path || !path.length) clearHint();
+    place(true);
+    paintHint();
+    if (isSolved(g, N)) finish();
+    else if (hintOn && path && path.length) showTip('对，就推亮着的那一块');
+    return true;
+  }
+
+  function newGame() {
+    stopTimer();
+    g = shuffleBoard(N);
+    blank = blankOf(g);
+    moves = 0;
+    running = false;
+    done = false;
+    path = null;
+    hintOn = false;
+    t0 = Date.now();
+    elMove.textContent = '0';
+    elTime.textContent = '0:00';
+    elOver.classList.add('hide');
+    buildTiles();
+    layout();
+    updateBest();
+    showTip(N === 3 ? '把 1 到 8 按顺序排好，空格留在右下角' : '把 1 到 15 按顺序排好，空格留在右下角');
+  }
+
+  function doHint() {
+    if (done || busy) return;
+    if (!path || !path.length) {
+      busy = true;
+      showTip('让我想一想…');
+      setTimeout(function () {
+        path = findPath(g.slice(), N);
+        busy = false;
+        if (!path || !path.length) {
+          clearHint();
+          showTip('这一步我也没想到，你试试看别的走法', 'bad');
+          return;
+        }
+        hintOn = true;
+        paintHint();
+        showTip('把亮着的那一块推过去');
+      }, 30);
+      return;
+    }
+    hintOn = true;
+    paintHint();
+    showTip('把亮着的那一块推过去');
+  }
+
+  // ---- 输入：点一下 / 滑一下 ----
+  function idxAt(x, y) {
+    var r = elBoard.getBoundingClientRect();
+    var lx = x - r.left - pad, ly = y - r.top - pad;
+    var c = Math.floor(lx / (cell + gap)), rr = Math.floor(ly / (cell + gap));
+    if (c < 0 || rr < 0 || c >= N || rr >= N) return -1;
+    return rr * N + c;
+  }
+
+  var sx = 0, sy = 0, moved = false, touchAt = 0;
+  elBoard.addEventListener('touchstart', function (e) {
+    if (e.touches.length !== 1) return;
+    sx = e.touches[0].clientX; sy = e.touches[0].clientY; moved = false;
+  }, { passive: true });
+  elBoard.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
+  elBoard.addEventListener('touchend', function (e) {
+    var t = e.changedTouches && e.changedTouches[0];
+    if (!t) return;
+    e.preventDefault();
+    touchAt = Date.now();
+    var dx = t.clientX - sx, dy = t.clientY - sy;
+    if (Math.abs(dx) < 20 && Math.abs(dy) < 20) {
+      slide(idxAt(t.clientX, t.clientY));
+      return;
+    }
+    var src;
+    if (Math.abs(dx) > Math.abs(dy)) src = blank + (dx > 0 ? -1 : 1);
+    else src = blank + (dy > 0 ? -N : N);
+    if (!adjacent(src, blank)) return;
+    slide(src, true);
+  }, { passive: false });
+  elBoard.addEventListener('click', function (e) {
+    if (Date.now() - touchAt < 800) return;
+    slide(idxAt(e.clientX, e.clientY));
+  });
+
+  // 电脑上也能用方向键推（老 WebView 没有 e.key，退回 keyCode）
+  function keyOf(e) {
+    var k = e.key, c;
+    if (k) return k;
+    c = e.keyCode || 0;
+    if (c === 37) return 'ArrowLeft';
+    if (c === 38) return 'ArrowUp';
+    if (c === 39) return 'ArrowRight';
+    if (c === 40) return 'ArrowDown';
+    return '';
+  }
+  document.addEventListener('keydown', function (e) {
+    var k = keyOf(e), src;
+    if (k === 'ArrowLeft') src = blank + 1;
+    else if (k === 'ArrowRight') src = blank - 1;
+    else if (k === 'ArrowUp') src = blank + N;
+    else if (k === 'ArrowDown') src = blank - N;
+    else return;
+    e.preventDefault();
+    if (!adjacent(src, blank)) return;
+    slide(src, true);
+  });
+
+  document.getElementById('bHint').onclick = doHint;
+  document.getElementById('bNew').onclick = newGame;
+  document.getElementById('again').onclick = newGame;
+
+  var nBtns = document.querySelectorAll('[data-n]');
+  for (var q = 0; q < nBtns.length; q++) {
+    nBtns[q].onclick = (function (btn) {
+      return function () {
+        var v = parseInt(btn.getAttribute('data-n'), 10);
+        if (v !== N) {
+          N = v;
+          lsSet(PFX + 'size', String(N));
+          for (var j = 0; j < nBtns.length; j++) nBtns[j].className = 'btn alt' + (nBtns[j] === btn ? ' on' : '');
+        }
+        newGame();
+      };
+    })(nBtns[q]);
+  }
+
+  var lastN = parseInt(lsGet(PFX + 'size'), 10);
+  if (lastN === 4) {
+    N = 4;
+    for (var z = 0; z < nBtns.length; z++) {
+      nBtns[z].className = 'btn alt' + (parseInt(nBtns[z].getAttribute('data-n'), 10) === 4 ? ' on' : '');
+    }
+  }
+
+  if (window.ResizeObserver) { new ResizeObserver(layout).observe(document.body); }
+  window.addEventListener('resize', layout);
+  newGame();
+})();
+</script>
+</body>
+</html>

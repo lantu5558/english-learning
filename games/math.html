@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="zh-CN" data-page-node-id="LCQQJJzYS2NTOx0CRJEc8G">
+<head data-page-node-id="dYRNTNKnEZnMOBFnBlqD5u">
+<meta charset="utf-8" data-page-node-id="tz5MlmayZwEsAZBgsudhZx">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" data-page-node-id="qAAMbw9MIko7d8mgzTTMdV">
+<title>口算闯关</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{width:100%;height:100%;overflow:hidden}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    background:linear-gradient(160deg,#eef4ff,#f7fbff);color:#2f3b52;user-select:none;-webkit-user-select:none;
+    display:flex;flex-direction:column;align-items:center;padding:10px;gap:8px;
+  }
+  .wrap{width:100%;max-width:520px;display:flex;flex-direction:column;gap:8px;flex:1 1 auto;min-height:0}
+  .bar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;flex:0 0 auto}
+  .btn{background:#5a7fd6;color:#fff;border:0;border-radius:9px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+  .btn:active{transform:scale(.96)}
+  .btn.alt{background:#dde6f7;color:#40537a}
+  .btn.on{background:#3f63c0}
+  .stat{display:flex;gap:6px;margin-left:auto}
+  .sc{background:#fff;border:0.5px solid #d7e0f0;border-radius:9px;padding:4px 9px;font-size:10px;color:#7b8aa5;text-align:center;min-width:52px}
+  .sc b{display:block;font-size:15px;color:#2f3b52;line-height:1.2}
+  .prog{height:7px;background:#dde6f7;border-radius:4px;overflow:hidden;flex:0 0 auto}
+  .prog i{display:block;height:100%;background:linear-gradient(90deg,#6aa0ff,#4b7fe0);width:0;transition:width .25s}
+  .card{flex:1 1 auto;background:#fff;border-radius:16px;box-shadow:0 3px 14px rgba(80,110,180,.12);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px;min-height:0;gap:10px}
+  .q{font-size:clamp(30px,9vw,52px);font-weight:800;letter-spacing:1px;text-align:center;line-height:1.25}
+  .tip{font-size:12px;color:#93a0b8;min-height:17px}
+  .tip.good{color:#2fa36b;font-weight:700}
+  .tip.bad{color:#e06a5a;font-weight:700}
+  .opts{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:9px;flex:0 0 auto}
+  .opt{background:#f2f6ff;border:1.5px solid #d7e2f5;border-radius:12px;padding:14px 6px;font-size:22px;font-weight:800;
+    color:#33456b;cursor:pointer;font-family:inherit}
+  .opt:active{transform:scale(.97)}
+  .opt.ok{background:#dcf5e6;border-color:#7fd3a2;color:#1f8a55}
+  .opt.no{background:#fde7e2;border-color:#f0ab9c;color:#c94f3a}
+  .opt.dim{opacity:.55}
+  .over{position:fixed;inset:0;background:rgba(30,45,75,.5);display:flex;align-items:center;justify-content:center;z-index:30}
+  .card2{background:#fff;border-radius:16px;padding:24px 28px;text-align:center;min-width:220px}
+  .card2 h2{font-size:22px;margin-bottom:6px}
+  .card2 p{font-size:13px;color:#7b8aa5;line-height:1.8;margin-bottom:16px}
+  .hide{display:none!important}
+</style>
+</head>
+<body data-page-node-id="OP7k6szWMmWCqvgdQLrQT2">
+  <div class="wrap" data-page-node-id="R33HNAhN3LZt959HkjutlX">
+    <div class="bar" data-page-node-id="kqjKACEbLQlYv447en5Icf">
+      <button class="btn alt on" data-lv="1" data-page-node-id="H2BLbc9iJkMOHGd191mJiJ">一年级</button>
+      <button class="btn alt" data-lv="2" data-page-node-id="66lVzqqItZVU8hxtfgfEdK">二年级</button>
+      <button class="btn alt" data-lv="3" data-page-node-id="MhIfei6bZ4DMqYaz9WHkXW">三年级</button>
+      <div class="stat" data-page-node-id="g010nq7uTMoJ51yhWn1lh8">
+        <div class="sc" data-page-node-id="d2OKMlVd1QKyEDPd6V92HK"><b id="sRight" data-page-node-id="CVyY0o29QGqUjp9dMiOtJq">0</b>答对</div>
+        <div class="sc" data-page-node-id="hifD1xKp2doOmANGUcXZzL"><b id="sScore" data-page-node-id="whTs41DMeubg4uVdF8Y7aH">0</b>得分</div>
+        <div class="sc" data-page-node-id="saiQTRD8Bv5qH9jOptrAMP"><b id="sTime" data-page-node-id="YFMAGJRYn0gbEkPRpXdFV6">0"</b>用时</div>
+      </div>
+    </div>
+    <div class="prog" data-page-node-id="vH3zwBMOhDpxAj6Tcl0Zst"><i id="bar" data-page-node-id="mEzGRTxUb6Te7KkYaR3aPV"></i></div>
+    <div class="card" data-page-node-id="R9leZUBNc4EGHKY8rnaWnT">
+      <div class="q" id="q" data-page-node-id="GakojF44kDCJGCIGCrL7Sc">准备开始</div>
+      <div class="tip" id="tip" data-page-node-id="z0crwCw8q7UZ8qna8bueHQ">选好年级，点下面的答案就行</div>
+      <div class="opts" id="opts" data-page-node-id="OaIcDurWGbBhOcncPE1ZGn"></div>
+    </div>
+  </div>
+  <div class="over hide" id="over" data-page-node-id="eJgECcCbze8IDyXK5uuzdi"><div class="card2" data-page-node-id="5LQyj7ehMCdd7GTs3H20Jv">
+    <h2 id="overT" data-page-node-id="HGybaQfnKIPuXXKFh9xTgA">闯关成功</h2>
+    <p id="overP" data-page-node-id="KOxCf8USUrOj3IvmAxEOiA"></p>
+    <button class="btn" id="again" style="padding:10px 22px;font-size:14px" data-page-node-id="CzRZY90oHKw3iOUk5aYLCc">再来一局</button>
+  </div></div>
+
+<script>
+(function () {
+  'use strict';
+  var TOTAL = 10;
+  var elQ = document.getElementById('q'), elTip = document.getElementById('tip'), elOpts = document.getElementById('opts');
+  var elRight = document.getElementById('sRight'), elScore = document.getElementById('sScore'), elTime = document.getElementById('sTime');
+  var elBar = document.getElementById('bar'), elOver = document.getElementById('over');
+  var elOverT = document.getElementById('overT'), elOverP = document.getElementById('overP');
+
+  var lv = 1, idx = 0, right = 0, score = 0, t0 = 0, ans = 0, locked = false, timer = 0;
+  var combo = 0;
+
+  function ri(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
+  function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+  // 出题：返回 {q, a}
+  function make() {
+    var a, b, op;
+    if (lv === 1) {
+      if (Math.random() < 0.5) { a = ri(2, 19); b = ri(1, 20 - a); return { q: a + ' + ' + b, a: a + b }; }
+      a = ri(3, 20); b = ri(1, a - 1); return { q: a + ' − ' + b, a: a - b };
+    }
+    if (lv === 2) {
+      op = pick(['+', '-', 'x']);
+      if (op === '+') { a = ri(11, 79); b = ri(5, 99 - a); return { q: a + ' + ' + b, a: a + b }; }
+      if (op === '-') { a = ri(20, 99); b = ri(5, a - 3); return { q: a + ' − ' + b, a: a - b }; }
+      a = ri(2, 9); b = ri(2, 9); return { q: a + ' × ' + b, a: a * b };
+    }
+    op = pick(['+', '-', 'x', '/']);
+    if (op === '+') { a = ri(35, 89); b = ri(15, 99 - a); return { q: a + ' + ' + b, a: a + b }; }
+    if (op === '-') { a = ri(40, 99); b = ri(11, a - 5); return { q: a + ' − ' + b, a: a - b }; }
+    if (op === 'x') { a = ri(11, 29); b = ri(3, 9); return { q: a + ' × ' + b, a: a * b }; }
+    b = ri(2, 9); a = b * ri(2, 12); return { q: a + ' ÷ ' + b, a: a / b };
+  }
+
+  // 三个干扰项：贴近正确答案，去重、不为负
+  function options(ans) {
+    var set = [ans], guard = 0;
+    var deltas = [1, -1, 2, -2, 10, -10, 3, -3, 5, -5, 20, -20, 4, -4];
+    while (set.length < 4 && guard < 200) {
+      guard++;
+      var v = ans + pick(deltas);
+      if (v < 0) continue;
+      if (set.indexOf(v) < 0) set.push(v);
+    }
+    // 兜底：加得太少就随便补
+    var k = 1;
+    while (set.length < 4) { if (set.indexOf(ans + k * 7) < 0) set.push(ans + k * 7); k++; }
+    // 打乱
+    for (var i = set.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1)), t = set[i]; set[i] = set[j]; set[j] = t;
+    }
+    return set;
+  }
+
+  function next() {
+    locked = false;
+    var p = make();
+    ans = p.a;
+    elQ.textContent = p.q + ' = ?';
+    elTip.className = 'tip';
+    elTip.textContent = '第 ' + (idx + 1) + ' 题 / 共 ' + TOTAL + ' 题';
+    var os = options(ans);
+    elOpts.innerHTML = '';
+    os.forEach(function (v) {
+      var b = document.createElement('button');
+      b.className = 'opt';
+      b.type = 'button';
+      b.textContent = v;
+      b.onclick = function () { choose(b, v); };
+      elOpts.appendChild(b);
+    });
+    elBar.style.width = (idx / TOTAL * 100) + '%';
+  }
+
+  function choose(btn, v) {
+    if (locked) return;
+    locked = true;
+    var ok = (v === ans);
+    var all = elOpts.children;
+    for (var i = 0; i < all.length; i++) {
+      all[i].disabled = true;
+      if (parseInt(all[i].textContent, 10) === ans) all[i].className = 'opt ok';
+      else all[i].className = 'opt dim';
+    }
+    if (ok) {
+      combo++;
+      right++;
+      score += 10 + Math.min(combo - 1, 5) * 2;
+      elTip.className = 'tip good';
+      elTip.textContent = combo >= 3 ? '答对啦！连对 ' + combo + ' 题 🎉' : '答对啦！';
+    } else {
+      combo = 0;
+      btn.className = 'opt no';
+      elTip.className = 'tip bad';
+      elTip.textContent = '不对哦，正确答案是 ' + ans;
+    }
+    elRight.textContent = right;
+    elScore.textContent = score;
+    idx++;
+    elBar.style.width = (idx / TOTAL * 100) + '%';
+    setTimeout(function () {
+      if (idx >= TOTAL) finish();
+      else next();
+    }, ok ? 520 : 1250);
+  }
+
+  function tick() {
+    elTime.textContent = Math.round((Date.now() - t0) / 1000) + '"';
+  }
+
+  function finish() {
+    clearInterval(timer);
+    var sec = Math.round((Date.now() - t0) / 1000);
+    var pass = right >= 8;
+    elOverT.textContent = right === TOTAL ? '全对！太棒了 🏆' : (pass ? '闯关成功 🎉' : '差一点点');
+    elOverP.innerHTML = '答对 ' + right + ' / ' + TOTAL + ' 题<br>得分 ' + score + ' 分 · 用时 ' + sec + ' 秒' +
+      (pass ? '' : '<br>答对 8 题就能过关，再试一次');
+    elOver.classList.remove('hide');
+  }
+
+  function start() {
+    clearInterval(timer);
+    idx = 0; right = 0; score = 0; combo = 0; t0 = Date.now();
+    elRight.textContent = '0'; elScore.textContent = '0'; elTime.textContent = '0"';
+    elOver.classList.add('hide');
+    timer = setInterval(tick, 250);
+    next();
+  }
+
+  var lvBtns = document.querySelectorAll('[data-lv]');
+  for (var i = 0; i < lvBtns.length; i++) {
+    lvBtns[i].onclick = (function (btn) {
+      return function () {
+        lv = parseInt(btn.getAttribute('data-lv'), 10);
+        for (var j = 0; j < lvBtns.length; j++) lvBtns[j].className = 'btn alt' + (lvBtns[j] === btn ? ' on' : '');
+        start();
+      };
+    })(lvBtns[i]);
+  }
+  document.getElementById('again').onclick = start;
+
+  // 键盘 1-4 也能选，方便用电脑玩
+  document.addEventListener('keydown', function (e) {
+    var n = parseInt(e.key, 10);
+    if (n >= 1 && n <= 4 && elOpts.children[n - 1]) elOpts.children[n - 1].click();
+  });
+
+  start();
+})();
+</script>
+</body>
+</html>

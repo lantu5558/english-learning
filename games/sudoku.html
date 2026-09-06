@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>数独小达人</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{width:100%;height:100%;overflow:hidden}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    background:linear-gradient(160deg,#eef4ff,#f7fbff);color:#2f3b52;user-select:none;-webkit-user-select:none;
+    display:flex;flex-direction:column;align-items:center;padding:8px;gap:6px;
+  }
+  .row{width:100%;max-width:560px;display:flex;align-items:center;gap:6px;flex:0 0 auto;flex-wrap:wrap}
+  .title{font-size:19px;font-weight:800;white-space:nowrap}
+  .stats{display:flex;gap:5px;margin-left:auto}
+  .sc{background:#fff;border:0.5px solid #d7e0f0;border-radius:8px;padding:3px 8px;text-align:center;min-width:52px}
+  .sc b{display:block;font-size:15px;line-height:1.2;color:#2f3b52}
+  .sc span{font-size:10px;color:#7b8aa5}
+  .btn{background:#5a7fd6;color:#fff;border:0;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;
+    cursor:pointer;font-family:inherit}
+  .btn:active{transform:scale(.96)}
+  .btn.alt{background:#dde6f7;color:#40537a}
+  .btn.on{background:#3f63c0;color:#fff}
+  .tip{width:100%;max-width:560px;font-size:11px;color:#93a0b8;min-height:15px;line-height:15px;
+    flex:0 0 auto;text-align:center}
+  .tip.good{color:#2fa36b;font-weight:700}
+  .tip.bad{color:#e06a5a;font-weight:700}
+  #stage{flex:1 1 auto;width:100%;display:flex;align-items:center;justify-content:center;min-height:0}
+  #board{background:#4a5d80;border:3px solid #4a5d80;border-radius:7px;overflow:hidden;
+    display:grid;grid-template-columns:repeat(9,1fr);grid-template-rows:repeat(9,1fr)}
+  .c{background:#fff;border-right:1px solid #c3cfe6;border-bottom:1px solid #c3cfe6;
+    display:flex;align-items:center;justify-content:center;color:#3f63c0;font-weight:700;line-height:1}
+  .c.br{border-right-width:2px;border-right-color:#4a5d80}
+  .c.bb{border-bottom-width:2px;border-bottom-color:#4a5d80}
+  .c.eR{border-right:0}
+  .c.eB{border-bottom:0}
+  .c.given{color:#2f3b52;font-weight:800}
+  .c.peer{background:#f5f8ff}
+  .c.same{background:#e4ecff}
+  .c.sel{background:#ffe9a8}
+  .c.bad{background:#ffe3de;color:#e0513c}
+  .c.pop{animation:pp .18s ease}
+  @keyframes pp{0%{transform:scale(.55);opacity:.35}100%{transform:scale(1);opacity:1}}
+  #pad{width:100%;max-width:560px;height:44px;flex:0 0 auto;display:flex;align-items:center}
+  .phint{width:100%;text-align:center;font-size:12px;color:#93a0b8}
+  .keys{width:100%;height:100%;display:none;grid-template-columns:repeat(10,1fr);gap:4px}
+  .keys.on{display:grid}
+  .k{background:#f2f6ff;border:1.5px solid #d7e2f5;border-radius:9px;font-size:19px;font-weight:800;color:#33456b;
+    font-family:inherit;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center}
+  .k:active{transform:scale(.93);background:#dde8ff}
+  .k.del{font-size:12px;background:#fdece9;border-color:#f5c8bf;color:#c94f3a}
+  .k.off{opacity:.4}
+  .over{position:fixed;inset:0;background:rgba(30,45,75,.5);display:flex;align-items:center;justify-content:center;z-index:30}
+  .card{background:#fff;border-radius:16px;padding:22px 26px;text-align:center;min-width:216px}
+  .card h2{font-size:22px;margin-bottom:6px}
+  .card p{font-size:13px;color:#7b8aa5;line-height:1.8;margin-bottom:14px}
+  .hide{display:none!important}
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="title">数独小达人</div>
+    <div class="stats">
+      <div class="sc"><b id="sLv">简单</b><span>难度</span></div>
+      <div class="sc"><b id="sTime">0:00</b><span>用时</span></div>
+      <div class="sc"><b id="sErr">0</b><span>错误</span></div>
+    </div>
+  </div>
+  <div class="row">
+    <button class="btn alt on" data-lv="0" type="button">简单</button>
+    <button class="btn alt" data-lv="1" type="button">中等</button>
+    <button class="btn alt" data-lv="2" type="button">困难</button>
+    <button class="btn" id="bUndo" type="button">撤销</button>
+    <button class="btn" id="bClear" type="button">清除</button>
+    <button class="btn" id="bCheck" type="button">检查</button>
+    <button class="btn" id="bNew" type="button">重开</button>
+  </div>
+  <div class="tip" id="tip">点一个空格，再选数字填进去</div>
+  <div id="stage"><div id="board"></div></div>
+  <div id="pad">
+    <div class="phint" id="phint">先点上面一个空格吧</div>
+    <div class="keys" id="keys"></div>
+  </div>
+  <div class="over hide" id="over"><div class="card">
+    <h2 id="overT">太棒了</h2>
+    <p id="overP"></p>
+    <button class="btn" id="again" type="button" style="padding:10px 22px;font-size:14px">再来一局</button>
+  </div></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var LEVELS = [
+    { k: 'easy', n: '简单', holes: 30 },
+    { k: 'mid', n: '中等', holes: 42 },
+    { k: 'hard', n: '困难', holes: 52 }
+  ];
+  var PFX = 'lgame_sudoku_';
+
+  /* ALGO:BEGIN —— 纯算法区，不碰 DOM，可被测试脚本单独抽出 */
+  function shuf(a) {
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1)), t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+  function okAt(g, idx, v) {
+    var r = Math.floor(idx / 9), c = idx % 9, i, j;
+    for (i = 0; i < 9; i++) {
+      if (g[r * 9 + i] === v) return false;
+      if (g[i * 9 + c] === v) return false;
+    }
+    var br = r - r % 3, bc = c - c % 3;
+    for (i = 0; i < 3; i++) {
+      for (j = 0; j < 3; j++) if (g[(br + i) * 9 + bc + j] === v) return false;
+    }
+    return true;
+  }
+  function candsAt(g, idx) {
+    var out = [], v;
+    for (v = 1; v <= 9; v++) if (okAt(g, idx, v)) out.push(v);
+    return out;
+  }
+  // 回溯填满整盘，候选数字顺序随机
+  function fillFrom(g, pos) {
+    var k, cs;
+    if (pos >= 81) return true;
+    if (g[pos] !== 0) return fillFrom(g, pos + 1);
+    cs = shuf(candsAt(g, pos));
+    for (k = 0; k < cs.length; k++) {
+      g[pos] = cs[k];
+      if (fillFrom(g, pos + 1)) return true;
+      g[pos] = 0;
+    }
+    return false;
+  }
+  function fullBoard() {
+    var g = [], i;
+    for (i = 0; i < 81; i++) g.push(0);
+    fillFrom(g, 0);
+    return g;
+  }
+  // 数解的个数，数到 limit 就提前收工（判唯一解用 limit=2）
+  function countSolutions(g, limit) {
+    var best = -1, bestCs = null, i, k, cs, total = 0;
+    for (i = 0; i < 81; i++) {
+      if (g[i] !== 0) continue;
+      cs = candsAt(g, i);
+      if (cs.length === 0) return 0;
+      if (bestCs === null || cs.length < bestCs.length) {
+        best = i; bestCs = cs;
+        if (cs.length === 1) break;
+      }
+    }
+    if (best < 0) return 1;
+    for (k = 0; k < bestCs.length; k++) {
+      g[best] = bestCs[k];
+      total += countSolutions(g, limit - total);
+      g[best] = 0;
+      if (total >= limit) return total;
+    }
+    return total;
+  }
+  function hasUniqueSolution(g) {
+    return countSolutions(g.slice(), 2) === 1;
+  }
+  // 对称挖空：每挖一个都用求解器验证解仍然唯一，不唯一就填回去。
+  // 第一轮成对挖（i 与 80-i），不够再用单格补齐，保证挖空数正好等于 target。
+  function digHoles(g, target) {
+    var order = [], i, a, b, va, vb, p, vp, dug = 0;
+    for (i = 0; i < 81; i++) order.push(i);
+    shuf(order);
+    for (i = 0; i < 81 && dug + 2 <= target; i++) {
+      a = order[i]; b = 80 - a;
+      if (g[a] === 0 || g[b] === 0) continue;
+      va = g[a]; vb = g[b];
+      g[a] = 0; g[b] = 0;
+      if (hasUniqueSolution(g)) dug += (a === b ? 1 : 2);
+      else { g[a] = va; g[b] = vb; }
+    }
+    for (i = 0; i < 81 && dug < target; i++) {
+      p = order[i];
+      if (g[p] === 0) continue;
+      vp = g[p];
+      g[p] = 0;
+      if (hasUniqueSolution(g)) dug++;
+      else g[p] = vp;
+    }
+    return dug;
+  }
+  function makePuzzle(target) {
+    var bestP = null, bestS = null, bestDug = -1, t, sol, p, d;
+    for (t = 0; t < 30; t++) {
+      sol = fullBoard();
+      p = sol.slice();
+      d = digHoles(p, target);
+      if (d === target) return { puzzle: p, solution: sol };
+      if (d > bestDug) { bestDug = d; bestP = p.slice(); bestS = sol; }
+    }
+    return { puzzle: bestP, solution: bestS };
+  }
+  /* ALGO:END */
+
+  // ---- DOM ----
+  var elBoard = document.getElementById('board');
+  var elStage = document.getElementById('stage');
+  var elTip = document.getElementById('tip');
+  var elLv = document.getElementById('sLv');
+  var elTime = document.getElementById('sTime');
+  var elErr = document.getElementById('sErr');
+  var elKeys = document.getElementById('keys');
+  var elPhint = document.getElementById('phint');
+  var elOver = document.getElementById('over');
+  var elOverT = document.getElementById('overT');
+  var elOverP = document.getElementById('overP');
+
+  var lv = 0, val = [], given = [], sol = [], wrong = [], cells = [], hist = [];
+  var sel = -1, errors = 0, t0 = 0, timer = 0, done = false, busy = false, popIdx = -1;
+
+  // localStorage 在部分 WebView / 无痕模式下会直接抛异常，一律包起来
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
+  function showTip(s, cls) {
+    elTip.className = 'tip' + (cls ? ' ' + cls : '');
+    elTip.textContent = s;
+  }
+  function fmt(ms) {
+    var s = Math.floor(ms / 1000);
+    var m = Math.floor(s / 60);
+    s = s % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  function buildDom() {
+    var i, r, c, d, cls;
+    elBoard.innerHTML = '';
+    cells = [];
+    for (i = 0; i < 81; i++) {
+      r = Math.floor(i / 9); c = i % 9;
+      cls = 'c';
+      if (c % 3 === 2 && c !== 8) cls += ' br';
+      if (r % 3 === 2 && r !== 8) cls += ' bb';
+      if (c === 8) cls += ' eR';
+      if (r === 8) cls += ' eB';
+      d = document.createElement('div');
+      d.className = cls;
+      d.setAttribute('data-i', String(i));
+      elBoard.appendChild(d);
+      cells.push(d);
+    }
+    elKeys.innerHTML = '';
+    for (i = 1; i <= 9; i++) {
+      d = document.createElement('button');
+      d.className = 'k';
+      d.type = 'button';
+      d.textContent = String(i);
+      d.setAttribute('data-v', String(i));
+      elKeys.appendChild(d);
+    }
+    d = document.createElement('button');
+    d.className = 'k del';
+    d.type = 'button';
+    d.textContent = '擦掉';
+    d.setAttribute('data-v', '0');
+    elKeys.appendChild(d);
+  }
+
+  function clsOf(i) {
+    var r = Math.floor(i / 9), c = i % 9, cls = 'c';
+    if (c % 3 === 2 && c !== 8) cls += ' br';
+    if (r % 3 === 2 && r !== 8) cls += ' bb';
+    if (c === 8) cls += ' eR';
+    if (r === 8) cls += ' eB';
+    if (i === sel) cls += ' sel';
+    else if (sel >= 0 && val[sel] !== 0 && val[i] === val[sel]) cls += ' same';
+    else if (sel >= 0 && (Math.floor(sel / 9) === r || sel % 9 === c ||
+        ((Math.floor(sel / 9) - Math.floor(sel / 9) % 3) === (r - r % 3) &&
+         ((sel % 9) - (sel % 9) % 3) === (c - c % 3)))) cls += ' peer';
+    if (wrong[i]) cls += ' bad';
+    if (given[i]) cls += ' given';
+    if (i === popIdx) cls += ' pop';
+    return cls;
+  }
+
+  function render() {
+    var i, v;
+    for (i = 0; i < 81; i++) {
+      v = val[i];
+      cells[i].textContent = v === 0 ? '' : String(v);
+      cells[i].className = clsOf(i);
+    }
+    popIdx = -1;
+  }
+
+  function fit() {
+    var s = Math.min(elStage.clientWidth, elStage.clientHeight);
+    if (!s || s < 90) s = 270;
+    s = Math.floor(s);
+    elBoard.style.width = s + 'px';
+    elBoard.style.height = s + 'px';
+    elBoard.style.fontSize = Math.max(11, Math.round(s / 9 * 0.56)) + 'px';
+  }
+
+  function startTimer() {
+    stopTimer();
+    timer = setInterval(function () {
+      if (!done) elTime.textContent = fmt(Date.now() - t0);
+    }, 500);
+  }
+  function stopTimer() { if (timer) { clearInterval(timer); timer = 0; } }
+
+  function showPad() {
+    elPhint.classList.add('hide');
+    elKeys.classList.add('on');
+  }
+  function hidePad() {
+    elPhint.classList.remove('hide');
+    elKeys.classList.remove('on');
+  }
+
+  function pick(i) {
+    if (done || busy) return;
+    if (i < 0 || i > 80) return;
+    if (sel === i) { sel = -1; hidePad(); render(); return; }
+    sel = i;
+    popIdx = -1;
+    if (given[i]) { showTip('这是题目给好的数字，不能改哦'); showPad(); }
+    else { showTip('选一个数字填进去'); showPad(); }
+    render();
+  }
+
+  function putIn(v) {
+    if (done || busy) return;
+    if (sel < 0) { showTip('先点一个空格吧'); return; }
+    if (given[sel]) { showTip('这是题目给好的数字，不能改哦'); return; }
+    if (val[sel] === v) { wrong[sel] = false; render(); return; }
+    hist.push({ i: sel, v: val[sel] });
+    val[sel] = v;
+    wrong[sel] = false;
+    popIdx = sel;
+    render();
+    checkWin();
+  }
+
+  function undo() {
+    if (done || busy || !hist.length) { showTip('还没有可以撤销的步骤'); return; }
+    var h = hist.pop();
+    val[h.i] = h.v;
+    wrong[h.i] = false;
+    sel = h.i;
+    popIdx = h.i;
+    render();
+    showTip('撤回了上一步');
+  }
+
+  function clearSel() {
+    if (done || busy) return;
+    if (sel < 0) { showTip('先点一个要擦掉的格子'); return; }
+    if (given[sel]) { showTip('这是题目给好的数字，不能改哦'); return; }
+    if (val[sel] === 0) return;
+    hist.push({ i: sel, v: val[sel] });
+    val[sel] = 0;
+    wrong[sel] = false;
+    popIdx = sel;
+    render();
+  }
+
+  // 检查：只把填错的数字标红，不告诉正确答案
+  function checkErrors() {
+    var i, n = 0, filled = 0;
+    if (done || busy) return;
+    for (i = 0; i < 81; i++) {
+      if (val[i] === 0) continue;
+      filled++;
+      if (given[i] || val[i] === sol[i]) continue;
+      if (!wrong[i]) n++;
+      wrong[i] = true;
+    }
+    if (n > 0) {
+      errors += n;
+      elErr.textContent = String(errors);
+      render();
+      showTip('有 ' + n + ' 个数字不太对，红色的改一改', 'bad');
+    } else if (filled === 81) {
+      showTip('全都填对啦！', 'good');
+    } else {
+      render();
+      showTip('现在没有错误，继续加油！', 'good');
+    }
+  }
+
+  function checkWin() {
+    var i;
+    for (i = 0; i < 81; i++) {
+      if (val[i] === 0) return;
+      if (val[i] !== sol[i]) return;
+    }
+    done = true;
+    stopTimer();
+    var ms = Date.now() - t0;
+    elTime.textContent = fmt(ms);
+    var sec = Math.round(ms / 1000);
+    var key = PFX + 'best_' + LEVELS[lv].k;
+    var old = parseInt(lsGet(key), 10) || 0;
+    var isNew = (!old || sec < old);
+    if (isNew) lsSet(key, String(sec));
+    elOverT.textContent = errors === 0 ? '完美通关 🏆' : '全部填对啦 🎉';
+    elOverP.innerHTML = LEVELS[lv].n + '难度 · 用时 ' + fmt(ms) + ' · 错误 ' + errors + ' 次<br>' +
+      (isNew ? '这是新纪录，太厉害了！' : '最好成绩 ' + fmt(old * 1000) + '，再挑战一下');
+    elOver.classList.remove('hide');
+  }
+
+  function doNew() {
+    var p = makePuzzle(LEVELS[lv].holes);
+    sol = p.solution;
+    val = p.puzzle.slice();
+    given = []; wrong = []; hist = [];
+    for (var i = 0; i < 81; i++) { given.push(val[i] !== 0); wrong.push(false); }
+    sel = -1; errors = 0; done = false;
+    elErr.textContent = '0';
+    elLv.textContent = LEVELS[lv].n;
+    elOver.classList.add('hide');
+    hidePad();
+    t0 = Date.now();
+    elTime.textContent = '0:00';
+    render();
+    fit();
+    startTimer();
+    showTip('点一个空格，再选数字填进去');
+  }
+
+  function newGame() {
+    busy = true;
+    showTip('正在出题，请稍等一下…');
+    setTimeout(function () {
+      doNew();
+      busy = false;
+    }, 30);
+  }
+
+  // ---- 输入 ----
+  function targetIndex(el) {
+    while (el && el !== elBoard) {
+      if (el.getAttribute && el.getAttribute('data-i') !== null) return parseInt(el.getAttribute('data-i'), 10);
+      el = el.parentNode;
+    }
+    return -1;
+  }
+
+  var touchAt = 0;
+  function tapBind(el, fn) {
+    var sx = 0, sy = 0, moved = false;
+    el.addEventListener('touchstart', function (e) {
+      moved = false;
+      if (e.touches.length === 1) { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }
+    }, { passive: true });
+    el.addEventListener('touchmove', function (e) {
+      if (e.touches.length !== 1) return;
+      if (Math.abs(e.touches[0].clientX - sx) > 12 || Math.abs(e.touches[0].clientY - sy) > 12) moved = true;
+    }, { passive: true });
+    el.addEventListener('touchend', function (e) {
+      var t = e.changedTouches && e.changedTouches[0];
+      if (!t || moved) return;
+      e.preventDefault();
+      touchAt = Date.now();
+      var hit = document.elementFromPoint(t.clientX, t.clientY);
+      fn(hit || e.target);
+    }, { passive: false });
+    el.addEventListener('click', function (e) {
+      if (Date.now() - touchAt < 800) return;
+      fn(e.target);
+    });
+  }
+
+  tapBind(elBoard, function (el) {
+    var i = targetIndex(el);
+    if (i >= 0) pick(i);
+  });
+  tapBind(elKeys, function (el) {
+    var node = el;
+    while (node && node !== elKeys) {
+      if (node.getAttribute && node.getAttribute('data-v') !== null) {
+        putIn(parseInt(node.getAttribute('data-v'), 10));
+        return;
+      }
+      node = node.parentNode;
+    }
+  });
+
+  document.getElementById('bUndo').onclick = undo;
+  document.getElementById('bClear').onclick = clearSel;
+  document.getElementById('bCheck').onclick = checkErrors;
+  document.getElementById('bNew').onclick = newGame;
+  document.getElementById('again').onclick = newGame;
+
+  var lvBtns = document.querySelectorAll('[data-lv]');
+  for (var q = 0; q < lvBtns.length; q++) {
+    lvBtns[q].onclick = (function (btn) {
+      return function () {
+        var v = parseInt(btn.getAttribute('data-lv'), 10);
+        if (v === lv && !done) { newGame(); return; }
+        lv = v;
+        lsSet(PFX + 'level', String(lv));
+        for (var j = 0; j < lvBtns.length; j++) lvBtns[j].className = 'btn alt' + (lvBtns[j] === btn ? ' on' : '');
+        newGame();
+      };
+    })(lvBtns[q]);
+  }
+
+  // 老 WebView 里 e.key 可能是空的，退回 keyCode
+  function keyOf(e) {
+    var k = e.key, c;
+    if (k) return k;
+    c = e.keyCode || 0;
+    if (c === 8 || c === 46) return 'Backspace';
+    if (c >= 49 && c <= 57) return String(c - 48);
+    if (c === 37) return 'ArrowLeft';
+    if (c === 38) return 'ArrowUp';
+    if (c === 39) return 'ArrowRight';
+    if (c === 40) return 'ArrowDown';
+    return '';
+  }
+
+  // 键盘：数字键填数，方向键移动，退格擦掉（电脑上也能玩）
+  document.addEventListener('keydown', function (e) {
+    var k = keyOf(e), n, i;
+    if (k >= '1' && k <= '9') {
+      n = parseInt(k, 10);
+      if (sel < 0) showTip('先点一个空格吧');
+      else putIn(n);
+      return;
+    }
+    if (k === 'Backspace' || k === 'Delete' || k === '0') { clearSel(); return; }
+    if (k === 'ArrowUp' || k === 'ArrowDown' || k === 'ArrowLeft' || k === 'ArrowRight') {
+      e.preventDefault();
+      i = sel < 0 ? 40 : sel;
+      var r = Math.floor(i / 9), c = i % 9;
+      if (k === 'ArrowUp') r = (r + 8) % 9;
+      if (k === 'ArrowDown') r = (r + 1) % 9;
+      if (k === 'ArrowLeft') c = (c + 8) % 9;
+      if (k === 'ArrowRight') c = (c + 1) % 9;
+      pick(r * 9 + c);
+    }
+  });
+
+  var lastLv = parseInt(lsGet(PFX + 'level'), 10);
+  if (!(lastLv >= 0 && lastLv <= 2)) lastLv = 0;
+  lv = lastLv;
+  for (var z = 0; z < lvBtns.length; z++) {
+    lvBtns[z].className = 'btn alt' + (parseInt(lvBtns[z].getAttribute('data-lv'), 10) === lv ? ' on' : '');
+  }
+
+  buildDom();
+  newGame();
+
+  if (window.ResizeObserver) { new ResizeObserver(fit).observe(document.body); }
+  window.addEventListener('resize', fit);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>英文单词打字</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{width:100%;height:100%;overflow:hidden}
+  body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    background:linear-gradient(160deg,#fffaf0,#f2f8ff);color:#33455e;user-select:none;-webkit-user-select:none;
+    display:flex;flex-direction:column;align-items:center;padding:8px;gap:6px}
+  .wrap{width:100%;max-width:560px;display:flex;flex-direction:column;gap:6px;flex:1 1 auto;min-height:0}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:0 0 auto}
+  .title{font-size:18px;font-weight:800;white-space:nowrap}
+  .stat{display:flex;gap:5px}
+  .sc{background:#fff;border-radius:8px;padding:3px 7px;text-align:center;min-width:48px;box-shadow:0 1px 4px rgba(60,90,140,.10)}
+  .sc b{display:block;font-size:14px;line-height:1.25;color:#2f3b52}
+  .sc span{font-size:10px;color:#93a0b8}
+  .bar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;flex:0 0 auto}
+  .btn{background:#f5a25d;color:#fff;border:0;border-radius:9px;padding:7px 11px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+  .btn:active{transform:scale(.96)}
+  .btn.alt{background:#eef2fa;color:#5b6b8a}
+  .btn.on{background:#ef8a3c;color:#fff}
+  .btn.go{background:#2fa36b}
+  select{font-family:inherit;font-size:12px;font-weight:700;color:#5b6b8a;background:#eef2fa;border:0;border-radius:9px;padding:7px 8px}
+  .prog{height:7px;background:#e6ecf7;border-radius:4px;overflow:hidden;flex:0 0 auto}
+  .prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ffc46b,#f58a3c);transition:width .25s}
+  .inrow{display:flex;gap:6px;flex:0 0 auto}
+  #inp{flex:1;min-width:0;font-family:inherit;font-size:17px;font-weight:700;color:#2f3b52;letter-spacing:1px;
+    border:2px solid #dfe7f3;border-radius:10px;padding:9px 10px;background:#fff;outline:none;-webkit-user-select:text;user-select:text}
+  #inp:focus{border-color:#f5a25d}
+  #inp.err{border-color:#e06a5a;animation:shk .3s}
+  @keyframes shk{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+  .card{flex:1 1 auto;background:#fff;border-radius:14px;box-shadow:0 3px 14px rgba(80,110,180,.12);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:10px;min-height:0}
+  .zh{font-size:16px;font-weight:800;color:#5b6b8a}
+  .word{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;font-weight:800}
+  .sl{display:inline-flex;align-items:center;justify-content:center;min-width:1.05em;padding:2px 0;
+    border-bottom:3px solid #e6ecf7;color:#33455e;font-family:"Courier New",monospace}
+  .sl.dim{color:#c3cddf}
+  .sl.ok{color:#2fa36b;border-bottom-color:#8fdcb2}
+  .sl.bad{color:#e06a5a;border-bottom-color:#f0ab9c}
+  .tip{font-size:12px;color:#93a0b8;text-align:center;line-height:1.6;min-height:18px}
+  .tip.good{color:#2fa36b;font-weight:700}
+  .tip.bad{color:#e06a5a;font-weight:700}
+  .over{position:fixed;inset:0;background:rgba(35,50,80,.5);display:flex;align-items:center;justify-content:center;z-index:30;padding:12px}
+  .card2{background:#fff;border-radius:16px;padding:20px 22px;text-align:center;min-width:240px;max-width:92%;max-height:92%;overflow:auto}
+  .card2 h2{font-size:21px;margin-bottom:6px}
+  .card2 p{font-size:13px;color:#7b8aa5;line-height:1.8}
+  .wlist{margin:10px 0 14px;text-align:left;font-size:12px;color:#5b6b8a;line-height:1.9}
+  .wlist b{color:#2f3b52;font-family:"Courier New",monospace}
+  .hide{display:none!important}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="title">单词打字</div>
+      <div class="stat">
+        <div class="sc"><b id="sProg">0/10</b><span>进度</span></div>
+        <div class="sc"><b id="sScore">0</b><span>得分</span></div>
+        <div class="sc"><b id="sCombo">0</b><span>连击</span></div>
+        <div class="sc"><b id="sTime">0"</b><span>用时</span></div>
+      </div>
+    </div>
+    <div class="bar">
+      <button class="btn alt" data-d="1" type="button">初级</button>
+      <button class="btn alt" data-d="2" type="button">中级</button>
+      <button class="btn alt" data-d="3" type="button">高级</button>
+      <select id="cat"></select>
+      <button class="btn go" id="restart" type="button">重新开始</button>
+    </div>
+    <div class="prog"><i id="bar"></i></div>
+    <div class="inrow">
+      <input id="inp" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="在这里打单词，按回车提交">
+      <button class="btn" id="ok" type="button">提交</button>
+    </div>
+    <div class="card" id="card">
+      <div class="zh" id="zh">准备好了吗？</div>
+      <div class="word" id="word"></div>
+      <div class="tip" id="tip">选好难度，照着上面的英文打出来就行</div>
+    </div>
+  </div>
+  <div class="over hide" id="over"><div class="card2">
+    <h2 id="overT">完成啦</h2>
+    <p id="overP"></p>
+    <div class="wlist" id="wlist"></div>
+    <button class="btn" id="again" type="button">再来一局</button>
+  </div></div>
+
+<script>
+var WORDS = [
+  ['cat','猫',0],['dog','狗',0],['pig','猪',0],['cow','奶牛',0],['hen','母鸡',0],['duck','鸭子',0],['bird','鸟',0],
+  ['fish','鱼',0],['bear','熊',0],['lion','狮子',0],['frog','青蛙',0],['goat','山羊',0],['wolf','狼',0],
+  ['tiger','老虎',0],['panda','熊猫',0],['horse','马',0],['sheep','绵羊',0],['mouse','老鼠',0],['snake','蛇',0],
+  ['monkey','猴子',0],['rabbit','兔子',0],['turtle','乌龟',0],['spider','蜘蛛',0],
+  ['elephant','大象',0],['giraffe','长颈鹿',0],
+
+  ['egg','鸡蛋',1],['milk','牛奶',1],['rice','米饭',1],['cake','蛋糕',1],['pear','梨',1],['soup','汤',1],
+  ['meat','肉',1],['corn','玉米',1],['bread','面包',1],['apple','苹果',1],['grape','葡萄',1],['water','水',1],
+  ['juice','果汁',1],['candy','糖果',1],['orange','橙子',1],['banana','香蕉',1],['peach','桃子',1],['lemon','柠檬',1],
+  ['cookie','曲奇饼',1],['potato','土豆',1],['tomato','西红柿',1],['carrot','胡萝卜',1],
+  ['hamburger','汉堡包',1],['sandwich','三明治',1],['vegetable','蔬菜',1],
+
+  ['red','红色',2],['blue','蓝色',2],['pink','粉色',2],['gray','灰色',2],
+  ['green','绿色',2],['black','黑色',2],['white','白色',2],['brown','棕色',2],['purple','紫色',2],['yellow','黄色',2],
+
+  ['one','一',3],['two','二',3],['six','六',3],['four','四',3],['five','五',3],['nine','九',3],['ten','十',3],['zero','零',3],
+  ['three','三',3],['seven','七',3],['eight','八',3],['twelve','十二',3],['eleven','十一',3],['twenty','二十',3],['fifteen','十五',3],
+  ['thirteen','十三',3],['fourteen','十四',3],['sixteen','十六',3],['eighteen','十八',3],['hundred','一百',3],
+
+  ['pen','钢笔',4],['book','书',4],['bag','书包',4],['desk','课桌',4],['ruler','尺子',4],['chair','椅子',4],
+  ['pencil','铅笔',4],['eraser','橡皮',4],['crayon','蜡笔',4],['class','班级',4],['school','学校',4],
+  ['teacher','老师',4],['student','学生',4],['science','科学',4],['English','英语',4],['Chinese','语文',4],
+  ['library','图书馆',4],['classroom','教室',4],['computer','电脑',4],['homework','作业',4],['exercise','练习',4],['picture','图画',4],
+
+  ['dad','爸爸',5],['mum','妈妈',5],['son','儿子',5],['aunt','阿姨',5],['baby','婴儿',5],
+  ['uncle','叔叔',5],['sister','姐妹',5],['father','父亲',5],['mother','母亲',5],['cousin','堂兄弟',5],['family','家庭',5],
+  ['brother','兄弟',5],['grandpa','爷爷',5],['grandma','奶奶',5],
+
+  ['run','跑',6],['eat','吃',6],['sit','坐',6],['fly','飞',6],['jump','跳',6],['walk','走',6],['swim','游泳',6],
+  ['sing','唱歌',6],['read','读',6],['draw','画',6],['play','玩',6],['write','写',6],['dance','跳舞',6],
+  ['drink','喝',6],['sleep','睡觉',6],['speak','说',6],['listen','听',6],['study','学习',6],['smile','微笑',6],
+  ['open','打开',6],['close','关上',6],
+
+  ['sun','太阳',7],['hot','热的',7],['cold','冷的',7],['rain','雨',7],['snow','雪',7],['wind','风',7],
+  ['warm','暖和的',7],['cool','凉爽的',7],['cloud','云',7],['sunny','晴朗的',7],['rainy','下雨的',7],
+  ['snowy','下雪的',7],['windy','有风的',7],['cloudy','多云的',7],['weather','天气',7],
+
+  ['home','家',8],['door','门',8],['time','时间',8],['year','年',8],['week','星期',8],['tree','树',8],
+  ['night','夜晚',8],['house','房子',8],['happy','快乐的',8],['music','音乐',8],['story','故事',8],
+  ['phone','电话',8],['clock','钟表',8],['shirt','衬衫',8],['shoes','鞋子',8],['month','月份',8],['today','今天',8],
+  ['flower','花',8],['garden','花园',8],['spring','春天',8],['summer','夏天',8],['autumn','秋天',8],['winter','冬天',8],
+  ['morning','早上',8],['evening','晚上',8],['tomorrow','明天',8],['birthday','生日',8],['hospital','医院',8],
+  ['holiday','假日',8],['mountain','高山',8],['present','礼物',8],['beautiful','美丽的',8]
+];
+
+var CATS = ['全部', '动物', '食物', '颜色', '数字', '学校', '家庭', '动作', '天气', '生活'];
+
+(function () {
+  'use strict';
+  var TOTAL = 10;
+  var K = 'lgame_typing_';
+  function load(k, d) {
+    try { var v = localStorage.getItem(K + k); return (v === null || v === undefined) ? d : v; } catch (e) { return d; }
+  }
+  function save(k, v) { try { localStorage.setItem(K + k, v); } catch (e) {} }
+
+  var elInp = document.getElementById('inp');
+  var elWord = document.getElementById('word');
+  var elZh = document.getElementById('zh');
+  var elTip = document.getElementById('tip');
+  var elProg = document.getElementById('sProg');
+  var elScore = document.getElementById('sScore');
+  var elCombo = document.getElementById('sCombo');
+  var elTime = document.getElementById('sTime');
+  var elBar = document.getElementById('bar');
+  var elOver = document.getElementById('over');
+  var elOverT = document.getElementById('overT');
+  var elOverP = document.getElementById('overP');
+  var elList = document.getElementById('wlist');
+  var elCat = document.getElementById('cat');
+  var elCard = document.getElementById('card');
+
+  var lv = 1, catIdx = 0, idx = 0, score = 0, combo = 0, bestCombo = 0, right = 0, tries = 0;
+  var t0 = 0, timer = 0, list = [], wrongs = [], slots = [], cur = null, running = false;
+
+  var prefs = load('pref', '').split('|');
+  lv = (parseInt(prefs[0], 10) === 2 || parseInt(prefs[0], 10) === 3) ? parseInt(prefs[0], 10) : 1;
+  catIdx = parseInt(prefs[1], 10) || 0;
+  if (catIdx < 0 || catIdx >= CATS.length) catIdx = 0;
+  var best = parseInt(load('best', '0'), 10) || 0;
+
+  var i;
+  for (i = 0; i < CATS.length; i++) {
+    var op = document.createElement('option');
+    op.value = String(i);
+    op.textContent = CATS[i];
+    elCat.appendChild(op);
+  }
+  elCat.value = String(catIdx);
+
+  function band(w) {
+    var n = w.length;
+    if (n <= 4) return 1;
+    if (n <= 6) return 2;
+    return 3;
+  }
+
+  function shuffle(a) {
+    for (var k = a.length - 1; k > 0; k--) {
+      var j = Math.floor(Math.random() * (k + 1)), t = a[k];
+      a[k] = a[j];
+      a[j] = t;
+    }
+    return a;
+  }
+
+  function pickList() {
+    var pool = [], j;
+    for (j = 0; j < WORDS.length; j++) {
+      if (band(WORDS[j][0]) !== lv) continue;
+      if (catIdx > 0 && WORDS[j][2] !== catIdx - 1) continue;
+      pool.push(WORDS[j]);
+    }
+    var note = '';
+    if (pool.length < TOTAL) {
+      pool = [];
+      for (j = 0; j < WORDS.length; j++) if (band(WORDS[j][0]) === lv) pool.push(WORDS[j]);
+      if (catIdx > 0) note = CATS[catIdx] + '这个词不多，从同难度里挑了 ' + TOTAL + ' 个';
+    }
+    shuffle(pool);
+    return { list: pool.slice(0, TOTAL), note: note };
+  }
+
+  function buildSlots() {
+    elWord.innerHTML = '';
+    slots = [];
+    for (var j = 0; j < cur[0].length; j++) {
+      var s = document.createElement('span');
+      s.className = 'sl dim';
+      elWord.appendChild(s);
+      slots.push(s);
+    }
+  }
+
+  function paint() {
+    var v = elInp.value.replace(/\s/g, '');
+    for (var j = 0; j < cur[0].length; j++) {
+      var t = v.charAt(j);
+      slots[j].textContent = t ? t : cur[0].charAt(j);
+      slots[j].className = 'sl ' + (t ? (t.toLowerCase() === cur[0].charAt(j).toLowerCase() ? 'ok' : 'bad') : 'dim');
+    }
+    fit();
+  }
+
+  function next() {
+    if (idx >= TOTAL) { finish(); return; }
+    cur = list[idx];
+    tries = 0;
+    elZh.textContent = cur[1] + '（' + CATS[cur[2] + 1] + '）';
+    elInp.value = '';
+    elInp.maxLength = cur[0].length;
+    elInp.className = '';
+    buildSlots();
+    paint();
+    elProg.textContent = (idx + 1) + '/' + TOTAL;
+    elBar.style.width = (idx / TOTAL * 100) + '%';
+    elTip.className = 'tip';
+    elTip.textContent = '第 ' + (idx + 1) + ' 个，共 ' + TOTAL + ' 个，照着打出来吧';
+    focusIn();
+  }
+
+  function focusIn() {
+    try { elInp.focus(); } catch (e) {}
+  }
+
+  function shake() {
+    elInp.className = 'err';
+    setTimeout(function () { elInp.className = ''; }, 320);
+  }
+
+  function firstDiff(v, w) {
+    var n = Math.min(v.length, w.length), j;
+    for (j = 0; j < n; j++) if (v.charAt(j).toLowerCase() !== w.charAt(j).toLowerCase()) return j;
+    return -1;
+  }
+
+  function submit() {
+    if (!running || !cur) return;
+    var v = elInp.value.replace(/\s/g, '');
+    if (!v) {
+      elTip.className = 'tip';
+      elTip.textContent = '先在上面的框里打单词，然后按回车';
+      shake();
+      focusIn();
+      return;
+    }
+    if (v.toLowerCase() === cur[0].toLowerCase()) {
+      combo++;
+      if (combo > bestCombo) bestCombo = combo;
+      right++;
+      score += 10 + Math.min(combo - 1, 5) * 2;
+      elScore.textContent = score;
+      elCombo.textContent = combo;
+      elTip.className = 'tip good';
+      elTip.textContent = combo >= 3 ? ('答对啦！连对 ' + combo + ' 个，真棒') : '答对啦！';
+      idx++;
+      elBar.style.width = (idx / TOTAL * 100) + '%';
+      setTimeout(function () { next(); }, 460);
+      return;
+    }
+    // 打错了：先说清楚错在哪，给一次重打的机会
+    combo = 0;
+    elCombo.textContent = '0';
+    tries++;
+    var w = cur[0], pos = firstDiff(v, w), msg;
+    if (v.length < w.length) msg = '还差一点点，第 ' + (v.length + 1) + ' 个字母是 “' + w.charAt(v.length) + '”';
+    else msg = '第 ' + (pos + 1) + ' 个字母写错啦，应该是 “' + w.charAt(pos) + '”';
+    shake();
+    paint();
+    if (tries >= 2) {
+      wrongs.push(cur);
+      elTip.className = 'tip bad';
+      elTip.textContent = '这个单词是 ' + w + '（' + cur[1] + '），记住它，我们继续';
+      idx++;
+      elBar.style.width = (idx / TOTAL * 100) + '%';
+      setTimeout(function () { next(); }, 1200);
+    } else {
+      elTip.className = 'tip bad';
+      elTip.textContent = msg + '，改一下再试试';
+      focusIn();
+    }
+  }
+
+  function tick() {
+    elTime.textContent = Math.round((Date.now() - t0) / 1000) + '"';
+  }
+
+  function finish() {
+    running = false;
+    clearInterval(timer);
+    var sec = Math.round((Date.now() - t0) / 1000);
+    var star = right >= 9 ? '太厉害啦 🏆' : (right >= 6 ? '完成啦，真棒 🎉' : '完成啦，继续加油');
+    elOverT.textContent = star;
+    elOverP.innerHTML = '答对 ' + right + ' / ' + TOTAL + ' 个 · 得分 ' + score + ' 分<br>用时 ' + sec + ' 秒 · 最高连对 ' + bestCombo + ' 个' +
+      (score > best ? '<br><b>新纪录！上一次最好成绩是 ' + best + ' 分</b>' : '<br>最好成绩 ' + Math.max(best, score) + ' 分');
+    if (score > best) { best = score; save('best', String(best)); }
+    elList.innerHTML = '';
+    if (wrongs.length) {
+      var h = document.createElement('div');
+      h.innerHTML = '<b>这几个再复习一下：</b>';
+      elList.appendChild(h);
+      for (var j = 0; j < wrongs.length; j++) {
+        var d = document.createElement('div');
+        d.innerHTML = '<b>' + wrongs[j][0] + '</b> ' + wrongs[j][1];
+        elList.appendChild(d);
+      }
+    } else {
+      elList.innerHTML = '<b>一个都没错，满分！</b>';
+    }
+    elOver.classList.remove('hide');
+  }
+
+  function start() {
+    clearInterval(timer);
+    var p = pickList();
+    list = p.list;
+    idx = 0; score = 0; combo = 0; bestCombo = 0; right = 0; wrongs = [];
+    t0 = Date.now();
+    running = true;
+    elScore.textContent = '0';
+    elCombo.textContent = '0';
+    elTime.textContent = '0"';
+    elOver.classList.add('hide');
+    timer = setInterval(tick, 250);
+    next();
+    if (p.note) {
+      elTip.className = 'tip';
+      elTip.textContent = p.note;
+    }
+  }
+
+  function fit() {
+    if (!cur) return;
+    var w = elCard.clientWidth, h = elCard.clientHeight;
+    if (!w) w = 300;
+    if (!h) h = 160;
+    var n = cur[0].length;
+    var fs = Math.floor(Math.min((w - 26) / (n * 0.74), h * 0.3));
+    if (fs < 15) fs = 15;
+    if (fs > 46) fs = 46;
+    elWord.style.fontSize = fs + 'px';
+    elZh.style.fontSize = Math.max(13, Math.min(20, Math.floor(h * 0.16))) + 'px';
+  }
+
+  elInp.oninput = function () { if (cur) paint(); };
+  elInp.onkeydown = function (e) { if (e.key === 'Enter' || e.keyCode === 13) { submit(); } };
+  document.getElementById('ok').onclick = submit;
+  document.getElementById('again').onclick = start;
+  document.getElementById('restart').onclick = start;
+
+  var db = document.querySelectorAll('[data-d]');
+  for (i = 0; i < db.length; i++) {
+    db[i].onclick = (function (btn) {
+      return function () {
+        lv = parseInt(btn.getAttribute('data-d'), 10);
+        for (var j = 0; j < db.length; j++) db[j].className = 'btn ' + (db[j] === btn ? 'on' : 'alt');
+        save('pref', lv + '|' + catIdx);
+        start();
+      };
+    })(db[i]);
+    if (parseInt(db[i].getAttribute('data-d'), 10) === lv) db[i].className = 'btn on';
+  }
+
+  elCat.onchange = function () {
+    catIdx = parseInt(elCat.value, 10) || 0;
+    save('pref', lv + '|' + catIdx);
+    start();
+  };
+
+  // 点空白处也把光标还给输入框，方便接着打
+  document.addEventListener('touchend', function () {
+    if (running && elOver.classList.contains('hide')) focusIn();
+  }, true);
+  document.addEventListener('click', function () {
+    if (running && elOver.classList.contains('hide')) focusIn();
+  }, true);
+
+  if (window.ResizeObserver) { new ResizeObserver(fit).observe(elCard); }
+  window.addEventListener('resize', fit);
+
+  start();
+  fit();
+})();
+</script>
+</body>
+</html>
