@@ -3665,19 +3665,25 @@
       if (t.proofData) { openProofView(t); return; }
     }
     t.done = !t.done;
+    const k = DATA.children.find(c => c.id === t.childId);
+    const kidId = (k && k.id) || t.childId;
     if (t.done) {
       t.doneAt = Date.now();
-      const k = DATA.children.find(c => c.id === t.childId);
-      k.earned = (k.earned || 0) + t.points; k.points += t.points;
-      DATA.pointsHistory.unshift({ id: 'h'+Date.now(), childId: k.id, date: t.date || TODAY, title: t.title, points: t.points, at: Date.now() });
-      fpAdd('task', t.title, { childId: k.id, pts: t.points });
-      toast(`+${t.points} 分 · 已记录给 ${k.name}`);
+      if (k) {
+        k.earned = (k.earned || 0) + t.points; k.points += t.points;
+        fpAdd('task', t.title, { childId: k.id, pts: t.points });
+        toast(`+${t.points} 分 · 已记录给 ${k.name}`);
+      }
+      DATA.pointsHistory.unshift({ id: 'h'+Date.now(), childId: kidId, date: t.date || TODAY, title: t.title, points: t.points, at: Date.now() });
     } else {
       t.doneAt = null;
-      const k = DATA.children.find(c => c.id === t.childId);
-      k.points = Math.max(0, k.points - t.points);
-      DATA.pointsHistory = DATA.pointsHistory.filter(h => !(h.childId===k.id && h.title===t.title && h.date===(t.date||TODAY)));
-      fpDrop(k.id, 'task', t.title, t.date || TODAY);
+      if (k) {
+        // 取消 = 完整反向：余额与累计获得都要减回去，否则误点会导致累计积分虚高
+        k.points = Math.max(0, (k.points || 0) - t.points);
+        k.earned = Math.max(0, (k.earned || 0) - t.points);
+        fpDrop(k.id, 'task', t.title, t.date || TODAY);
+      }
+      DATA.pointsHistory = DATA.pointsHistory.filter(h => !(h.childId===kidId && h.title===t.title && h.date===(t.date||TODAY)));
     }
     saveData(DATA); render();
   }
@@ -7650,6 +7656,16 @@ function momFutureTasks() {
             <p class="text-mute" style="margin-top:6px">只贴链接、不写标题也行（每行一个），会自动按「第1集、第2集…」命名。B站合集可复制每集的链接逐行粘贴。</p>
           </div>
         </div>
+        <div class="field" style="border-top:1px dashed var(--line,#eee);margin-top:12px;padding-top:10px">
+          <label>📖 绘本朗读配置（PDF 绘本专用，可选）</label>
+          <p class="text-mute" style="font-size:12px;margin-top:2px">把整本音频用切分工具切成 <code>sent_*.mp3</code> + <code>manifest.json</code>，连同 PDF 一起传上 OSS 同一文件夹。这里填音频文件夹地址、粘贴 manifest，再标一次「哪句是新页」即可。孩子翻到那页会自动播对应句子。</p>
+          <label style="margin-top:6px">音频文件夹地址（OSS 直链，末尾带 /）</label>
+          <input id="r-reader-base" placeholder="https://...oss-cn-shenzhen.aliyuncs.com/.../book01/" value="${ed&&ed.reader?escAttr(ed.reader.base):''}" />
+          <label style="margin-top:6px">manifest.json 内容（粘贴）</label>
+          <textarea id="r-reader-manifest" rows="4" placeholder='{"sents":[{"file":"sent_001.mp3","dur":3.2}],...} 或 {"segs":[...]}'>${ed&&ed.reader?escHtml(JSON.stringify(ed.reader.sents||[])):''}</textarea>
+          <button type="button" class="btn-secondary" onclick="bookParseManifest()" style="margin-top:6px;border:1px dashed var(--pink-300);background:var(--pink-50,#fff0f5);color:var(--pink-600,#d6336c)">🔍 解析句子 + 标页</button>
+          <div id="r-reader-list" style="margin-top:8px"></div>
+        </div>
         <div class="btn-row">
           <button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">取消</button>
           <button class="btn-primary" onclick="addResource()">${ed ? '保存' : '添加'}</button>
@@ -7657,7 +7673,32 @@ function momFutureTasks() {
       </div>
     `;
     document.getElementById('modal-root').appendChild(modal);
+    if (ed && ed.reader) {                       // 编辑已有绘本：把句子列表和已标的页预填好
+      window.__bookSents = ed.reader.sents || [];
+      window.__bookPM = ed.reader.pageMap || [];
+      setTimeout(bookParseManifest, 0);
+    }
   }
+
+  // 解析妈妈粘贴的 manifest，列出句子并支持「标记为新页」
+  function bookParseManifest() {
+    var ta = document.getElementById('r-reader-manifest');
+    if (!ta || !ta.value.trim()) { toast('先粘贴 manifest.json 内容'); return; }
+    var obj; try { obj = JSON.parse(ta.value); } catch (e) { toast('manifest 不是合法 JSON'); return; }
+    var arr = obj.segs || obj.sents || (Array.isArray(obj) ? obj : null);
+    if (!arr || !arr.length) { toast('找不到句子列表（需要 segs 或 sents 数组）'); return; }
+    var sents = arr.map(function (x) { return { file: x.file || '', start: +x.start || 0, end: +x.end || 0, dur: +x.dur || 0 }; });
+    window.__bookSents = sents;
+    var prev = window.__bookPM || [];
+    var box = document.getElementById('r-reader-list');
+    if (!box) return;
+    box.innerHTML = sents.map(function (s, i) {
+      var on = prev.indexOf(i + 1) >= 0 ? 'checked' : '';
+      return '<label style="display:block;font-size:13px;margin:3px 0"><input type="checkbox" data-sent="' + (i + 1) + '" ' + on + '/> 第' + (i + 1) + '句 · ' + esc(s.file) + ' ' + (s.dur ? s.dur + 's' : '') + '</label>';
+    }).join('') + '<p class="text-mute" style="font-size:12px;margin-top:4px">勾选某句 = 「这一句翻开了新的一页」。都不勾则整本当一页连播。</p>';
+    toast('已解析 ' + sents.length + ' 句');
+  }
+
   // ========== 挂字幕 ==========
   // 视频本身一个字节都不用动，字幕单独挂链接，播放器里可以开关。
   function resSubCount(r) {
@@ -7750,6 +7791,19 @@ function momFutureTasks() {
     const who = document.getElementById('r-who') ? document.getElementById('r-who').value : 'both';
     const col = document.getElementById('r-col') ? document.getElementById('r-col').value : inferResCol({ type, subject });
     const res = { type, col, subject, title, url, category: cat, who };
+    // 绘本朗读配置（妈妈端一次性标好，随资源一起存）
+    (function () {
+      var baseEl = document.getElementById('r-reader-base');
+      var manEl = document.getElementById('r-reader-manifest');
+      if (baseEl && baseEl.value.trim() && manEl && manEl.value.trim()) {
+        var sents = window.__bookSents || [];
+        var pm = [];
+        var list = document.getElementById('r-reader-list');
+        if (list) list.querySelectorAll('input[data-sent]').forEach(function (cb) { if (cb.checked) pm.push(parseInt(cb.getAttribute('data-sent'), 10)); });
+        if (sents.length) res.reader = { pdf: url, base: baseEl.value.trim(), sents: sents, pageMap: pm };
+      }
+    })();
+
     // B站自动识别的分集（妈妈贴一条链接时已异步拉取）
     if (window.__biliEps && window.__biliEps.length >= 2 && window.__biliEpsUrl === url && eps.length === 0) {
       const base = url.replace(/[?&]p=\d+/, '').replace(/#.*$/, '');
@@ -8029,6 +8083,8 @@ function momFutureTasks() {
     if ((r.category || 'learn') === 'fun' && kidCheck()) {
       if (!kidTasksDone(kidCheck())) { funLockedToast(); return; }
     }
+    // 绘本朗读资源：走专用阅读器（带音频分句）
+    if (r.reader && r.reader.pdf) { openBookReader(r); return; }
     // 多集/合集：先弹分集选择
     if (r.episodes && r.episodes.length >= 2) { openEpisodePicker(r); return; }
     openResourceLink(r.title, r.type, r.url);
@@ -8733,6 +8789,232 @@ function momFutureTasks() {
       </div>`;
     document.getElementById('modal-root').appendChild(modal);
     pdfStart(url, pageFrom);
+  }
+
+
+  /* ========== 绘本朗读阅读器 ==========
+     复用 PDF 阅读器的渲染（pdfStart / pdfRender / pdfGo 都操作模块级 PDF 全局），
+     只是在同一套 DOM（pdf-stage / pdf-canvas / pdf-num / pdf-total / pdf-tip）之外，
+     多一根「朗读控制条」。翻到某页后按 pageMap 自动播这页的句子。
+     reader 数据挂在资源对象上（由妈妈端一次性配置）：
+       r.reader = { pdf, base, sents:[{file,start,end,dur}], pageMap:[句子序号...] }
+     sents 来自切分工具导出的 manifest.json；pageMap 由妈妈端标「这句是新页」生成。 */
+  var BR = null;   // { res, sents, base, pageMap, mode, playing, queue, qi, audio, rec, childId, autoplay }
+
+  function bookEnsureStyle() {
+    if (document.getElementById('book-reader-style')) return;
+    var st = document.createElement('style');
+    st.id = 'book-reader-style';
+    st.textContent = `
+      .book-bar{border-top:1px solid var(--line,#eee);margin-top:10px;padding-top:10px}
+      .book-mode{display:flex;gap:8px;margin-bottom:8px}
+      .bb-mode{border:1px solid var(--line,#ddd);background:#fff;border-radius:20px;padding:6px 14px;font-size:13px;cursor:pointer}
+      .bb-mode.on{background:var(--pink-50,#fff0f5);border-color:var(--pink-400,#f48fb1);color:var(--pink-600,#d6336c);font-weight:600}
+      .book-ctrl{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+      .book-prog{margin-top:8px;font-size:13px;color:var(--mute,#888);min-height:18px}
+      .book-sent{display:inline-block;margin:3px 4px 0 0;padding:3px 8px;border-radius:12px;background:#f3f4f6;font-size:12px}
+      .book-sent.cur{background:var(--pink-100,#ffe3ec);color:var(--pink-600,#d6336c)}
+      .book-rec-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#e03131;margin-right:5px;vertical-align:middle;animation:bkblink 1s infinite}
+      @keyframes bkblink{50%{opacity:.25}}
+      .book-rec-btn{background:#fff0f0;border-color:#ffa8a8;color:#e03131}
+    `;
+    document.head.appendChild(st);
+  }
+
+  function bookSentUrl(res, s) { return (res.reader.base || '').replace(/\/$/, '') + '/' + s.file; }
+  function bookPageSents(res, page) {
+    var segs = res.reader.sents || [];
+    var pm = res.reader.pageMap || [];
+    if (!pm.length) return segs.slice();            // 没标页：整本算一「页」
+    if (pm[0] !== 1) pm = [1].concat(pm);           // 第 1 页永远从第 1 句开始（妈妈漏勾第 1 句也不丢）
+    var idx = page - 1;
+    if (idx < 0 || idx >= pm.length) return [];
+    var start = pm[idx] - 1;                        // 句子序号(1-based) 转 0-based
+    var end = (idx + 1 < pm.length) ? pm[idx + 1] - 1 : segs.length;
+    return segs.slice(Math.max(0, start), Math.max(0, end));
+  }
+
+  function openBookReader(res) {
+    bookEnsureStyle();
+    fpOpen('read', res.title, { meta: { type: 'pdf', book: 1 } });
+    var childId = (kidCheck() && kidCheck().id) || 'mom';
+    BR = { res: res, sents: res.reader.sents || [], base: res.reader.base || '',
+           pageMap: res.reader.pageMap || [], mode: 'read', playing: false, queue: [], qi: 0,
+           audio: null, rec: null, childId: childId, autoplay: true };
+    var modal = document.createElement('div');
+    modal.className = 'modal-mask video-mask pdf-mask book-mask';
+    modal.onclick = function (e) { if (e.target === modal) bookClose(modal); };
+    modal.innerHTML = `
+      <div class="modal video-modal">
+        <button class="icon-btn close" onclick="bookClose(this)">✕</button>
+        <button class="icon-btn" style="float:right;margin-top:-8px;margin-right:6px;font-size:15px" title="全屏阅读" onclick="pdfFsToggle(this)">⛶</button>
+        <h3>${esc(res.title)} <span style="font-size:12px;color:var(--mute)">📖 绘本朗读</span></h3>
+        <div class="pdf-stage" id="pdf-stage">
+          <div class="pdf-loading"><div class="pdf-spin"></div><div id="pdf-loadtext">正在准备阅读器…</div><div class="pdf-prog"><i id="pdf-progbar"></i></div></div>
+        </div>
+        <div class="pdf-bar">
+          <button class="pdf-btn" onclick="bookGo(-1)">‹ 上一页</button>
+          <span class="pdf-page"><input id="pdf-num" type="number" min="1" value="1" onchange="pdfJump(this.value)" oninput="pdfJump(this.value)" /> / <span id="pdf-total">?</span></span>
+          <button class="pdf-btn" onclick="bookGo(1)">下一页 ›</button>
+          <button class="pdf-btn" onclick="pdfZoom(-0.25)">－</button>
+          <button class="pdf-btn" onclick="pdfZoom(0.25)">＋</button>
+        </div>
+        <div class="book-bar" id="book-bar">
+          <div class="book-mode">
+            <button class="bb-mode on" id="bb-read" onclick="bookSetMode('read')">🔊 朗读</button>
+            <button class="bb-mode" id="bb-follow" onclick="bookSetMode('follow')">🎤 跟读</button>
+          </div>
+          <div class="book-ctrl" id="book-ctrl"></div>
+          <div class="book-prog" id="book-prog"></div>
+        </div>
+        <div class="pdf-tip" id="pdf-tip"></div>
+        <div class="btn-row" style="margin-top:10px">
+          <button class="btn-secondary" onclick="bookClose(this)">关闭</button>
+          <button class="btn-primary" onclick="window.open('${escA(res.reader.pdf || res.url)}','_blank')">⬇️ 下载</button>
+        </div>
+      </div>`;
+    document.getElementById('modal-root').appendChild(modal);
+    bookRenderCtrl();
+    pdfStart(res.reader.pdf || res.url, (res.reader.pageFrom) || 1);
+  }
+
+  function bookClose(el) {
+    if (BR && BR.audio) { try { BR.audio.pause(); } catch (e) {} }
+    if (BR && BR.rec) { try { BR.rec.stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {} }
+    BR = null;
+    pdfClose(el);
+  }
+
+  function bookGo(d) {
+    if (!BR || !PDF) return;
+    pdfGo(d);                 // PDF.num 已同步更新，渲染是异步但翻页判定即时
+    if (BR.mode === 'read' && BR.autoplay) bookPlayPage();
+    else bookRenderProg();
+  }
+
+  function bookSetMode(m) {
+    if (!BR) return;
+    BR.mode = m;
+    BR.playing = false;
+    if (BR.audio) { try { BR.audio.pause(); } catch (e) {} }
+    var rd = document.getElementById('bb-read'), fw = document.getElementById('bb-follow');
+    if (rd) rd.className = 'bb-mode' + (m === 'read' ? ' on' : '');
+    if (fw) fw.className = 'bb-mode' + (m === 'follow' ? ' on' : '');
+    bookRenderCtrl(); bookRenderProg();
+  }
+
+  // 朗读模式：播放当前页的句子；跟读模式：播当前句示范
+  function bookPlayPage() {
+    if (!BR) return;
+    var page = PDF ? PDF.num : 1;
+    var list = bookPageSents(BR.res, page);
+    if (!list.length) { BR.playing = false; bookRenderProg(); return; }
+    BR.queue = list; BR.qi = 0; BR.playing = true;
+    bookPlayNext();
+  }
+  function bookPlayNext() {
+    if (!BR || !BR.playing) return;
+    if (BR.qi >= BR.queue.length) { BR.playing = false; bookRenderProg(); if (BR.audio) try { BR.audio.pause(); } catch (e) {} return; }
+    var s = BR.queue[BR.qi];
+    var a = BR.audio || (BR.audio = new Audio());
+    a.src = bookSentUrl(BR.res, s);
+    a.onended = function () { BR.qi++; bookRenderProg(); bookPlayNext(); };
+    a.onerror = function () { BR.qi++; bookPlayNext(); };
+    a.play().catch(function () { BR.qi++; bookPlayNext(); });
+    bookRenderProg();
+  }
+  function bookTogglePlay() {
+    if (!BR) return;
+    if (BR.playing) { BR.playing = false; if (BR.audio) try { BR.audio.pause(); } catch (e) {} bookRenderProg(); return; }
+    if (BR.mode === 'follow') { bookPlayOne(BR.qi); return; }   // 跟读：先听当前句示范
+    if (BR.qi >= BR.queue.length || !BR.queue.length) { BR.queue = bookPageSents(BR.res, PDF ? PDF.num : 1); BR.qi = 0; }
+    BR.playing = true; bookPlayNext();
+  }
+  function bookPlayOne(i) {
+    if (!BR) return;
+    var list = (BR.mode === 'follow') ? BR.sents : bookPageSents(BR.res, PDF ? PDF.num : 1);
+    if (i < 0 || i >= list.length) return;
+    BR.qi = i; BR.playing = true; BR.queue = list;
+    BR.audio = BR.audio || new Audio();
+    BR.audio.src = bookSentUrl(BR.res, list[i]);
+    BR.audio.onended = function () { BR.playing = false; bookRenderProg(); };
+    BR.audio.play().catch(function () { BR.playing = false; bookRenderProg(); });
+    bookRenderProg();
+  }
+  function bookSentGo(d) {
+    if (!BR) return;
+    var list = (BR.mode === 'follow') ? BR.sents : bookPageSents(BR.res, PDF ? PDF.num : 1);
+    var ni = BR.qi + d;
+    if (ni < 0 || ni >= list.length) { if (BR.mode !== 'follow') bookRenderProg(); return; }
+    BR.qi = ni;
+    if (BR.mode === 'follow') { BR.playing = false; if (BR.audio) try { BR.audio.pause(); } catch (e) {} bookRenderProg(); }
+    else bookPlayOne(ni);
+  }
+
+  // 跟读录音：录完存本机（按 孩子+书+句），可回放。自动打分需另配台词，此处先做到「开口读+回听」
+  function bookRecKey() {
+    if (!BR) return '';
+    return 'lebao:bookrec:' + BR.childId + ':' + (BR.res.id || BR.res.title) + ':' + BR.qi;
+  }
+  function bookRecToggle() {
+    if (!BR) return;
+    if (BR.rec) { bookRecStop(); return; }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { toast('这台设备不支持录音'); return; }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+      if (!BR) { stream.getTracks().forEach(function (t) { t.stop(); }); return; }
+      var mr = new MediaRecorder(stream);
+      var chunks = [];
+      mr.ondataavailable = function (e) { if (e.data.size) chunks.push(e.data); };
+      mr.onstop = function () {
+        try { stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+        var blob = new Blob(chunks, { type: 'audio/webm' });
+        try { var reader = new FileReader(); reader.onload = function () { try { localStorage.setItem(bookRecKey(), reader.result); } catch (e) {} }; reader.readAsDataURL(blob); } catch (e) {}
+        BR.rec = null; bookRenderCtrl(); bookRenderProg();
+      };
+      BR.rec = { mr: mr, stream: stream };
+      mr.start();
+      bookRenderCtrl();
+    }).catch(function () { toast('麦克风权限被拒绝'); });
+  }
+  function bookRecStop() {
+    if (BR && BR.rec && BR.rec.mr && BR.rec.mr.state !== 'inactive') { try { BR.rec.mr.stop(); } catch (e) {} }
+  }
+  function bookPlayMine() {
+    if (!BR) return;
+    var k = bookRecKey();
+    var d; try { d = localStorage.getItem(k); } catch (e) { d = null; }
+    if (!d) { toast('还没有录音'); return; }
+    var a = BR.audio || (BR.audio = new Audio());
+    a.src = d; a.play().catch(function () {});
+  }
+
+  function bookRenderCtrl() {
+    if (!BR) return;
+    var c = document.getElementById('book-ctrl');
+    if (!c) return;
+    if (BR.mode === 'read') {
+      c.innerHTML = `<button class="pdf-btn" onclick="bookSentGo(-1)">⏮ 上一句</button>
+        <button class="pdf-btn" id="bb-play" onclick="bookTogglePlay()">${BR.playing ? '⏸ 暂停' : '▶ 播放本页'}</button>
+        <button class="pdf-btn" onclick="bookSentGo(1)">下一句 ⏭</button>`;
+    } else {
+      var recOn = BR.rec ? '⏹ 停止录音' : '🎤 录音';
+      c.innerHTML = `<button class="pdf-btn" onclick="bookSentGo(-1)">⏮ 上一句</button>
+        <button class="pdf-btn" onclick="bookPlayOne(BR.qi)">🔊 听示范</button>
+        <button class="pdf-btn ${BR.rec ? 'book-rec-btn' : ''}" onclick="bookRecToggle()">${BR.rec ? '<span class=book-rec-dot></span>停止' : '🎤 录音'}</button>
+        <button class="pdf-btn" onclick="bookPlayMine()">▶ 听我的</button>
+        <button class="pdf-btn" onclick="bookSentGo(1)">下一句 ⏭</button>`;
+    }
+  }
+  function bookRenderProg() {
+    if (!BR) return;
+    var p = document.getElementById('book-prog');
+    if (!p) return;
+    var list = (BR.mode === 'follow') ? BR.sents : bookPageSents(BR.res, PDF ? PDF.num : 1);
+    if (!list.length) { p.textContent = '（这本还没标句子分页，点「播放本页」会播全部句子）'; return; }
+    var cur = (BR.qi >= 0 && BR.qi < list.length) ? BR.qi : -1;
+    p.innerHTML = list.map(function (s, i) {
+      return '<span class="book-sent' + (i === cur ? ' cur' : '') + '">第' + (i + 1) + '句 ' + (s.dur ? s.dur + 's' : '') + '</span>';
+    }).join('');
   }
 
   function pdfSetProgress(pct) {
