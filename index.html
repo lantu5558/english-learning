@@ -2483,7 +2483,7 @@
   function viewMomResources() {
     if (!sessionStorage.getItem('mom-auth')) { location.hash='mom-pin'; return ''; }
     return `
-      <div class="topbar"><h1>📚 资源库</h1><div class="actions"><button class="icon-btn" onclick="openImportModal()" title="批量导入（粘贴AI识别好的导入码）" style="font-size:18px">📥</button><button class="icon-btn" onclick="openResourceModal()" title="添加资源">${ICN.add}</button></div></div>
+      <div class="topbar"><h1>📚 资源库</h1><div class="actions"><button class="icon-btn" onclick="openImportModal()" title="批量导入（粘贴AI识别好的导入码）" style="font-size:18px">📥</button><button class="icon-btn" onclick="openBookImportModal()" title="批量导入绘本（每行：标题|PDF链接|音频文件夹|manifest网址）" style="font-size:17px">📚</button><button class="icon-btn" onclick="openResourceModal()" title="添加资源">${ICN.add}</button></div></div>
       <div class="page">
         <div class="section">
           <h3>添加资源 <span class="badge">${DATA.resources.length} 个</span></h3>
@@ -7681,11 +7681,24 @@ function momFutureTasks() {
   }
 
   // 解析妈妈粘贴的 manifest，列出句子并支持「标记为新页」
-  function bookParseManifest() {
+    function bookParseManifest() {
     var ta = document.getElementById('r-reader-manifest');
-    if (!ta || !ta.value.trim()) { toast('先粘贴 manifest.json 内容'); return; }
-    var obj; try { obj = JSON.parse(ta.value); } catch (e) { toast('manifest 不是合法 JSON'); return; }
-    var arr = obj.segs || obj.sents || (Array.isArray(obj) ? obj : null);
+    if (!ta || !ta.value.trim()) { toast('先粘贴 manifest.json 内容，或填 manifest 网址'); return; }
+    var raw = ta.value.trim();
+    if (/^https?:\/\//i.test(raw)) {
+      toast('正在读取 manifest 网址…');
+      fetch(raw).then(function (r) { return r.json(); })
+        .then(function (obj) { bookApplyManifest(obj); })
+        .catch(function () { toast('manifest 网址读取失败，可改成粘贴内容'); });
+      return;
+    }
+    var obj;
+    try { obj = JSON.parse(raw); } catch (e) { toast('既不是合法 JSON，也不是网址'); return; }
+    bookApplyManifest(obj);
+  }
+
+  function bookApplyManifest(obj) {
+    var arr = obj && (obj.segs || obj.sents || (Array.isArray(obj) ? obj : null));
     if (!arr || !arr.length) { toast('找不到句子列表（需要 segs 或 sents 数组）'); return; }
     var sents = arr.map(function (x) { return { file: x.file || '', start: +x.start || 0, end: +x.end || 0, dur: +x.dur || 0 }; });
     window.__bookSents = sents;
@@ -7697,6 +7710,95 @@ function momFutureTasks() {
       return '<label style="display:block;font-size:13px;margin:3px 0"><input type="checkbox" data-sent="' + (i + 1) + '" ' + on + '/> 第' + (i + 1) + '句 · ' + esc(s.file) + ' ' + (s.dur ? s.dur + 's' : '') + '</label>';
     }).join('') + '<p class="text-mute" style="font-size:12px;margin-top:4px">勾选某句 = 「这一句翻开了新的一页」。都不勾则整本当一页连播。</p>';
     toast('已解析 ' + sents.length + ' 句');
+  }
+
+
+  // ========== 绘本批量导入（妈妈端一次导入多本） ==========
+  function bookImportClose() {
+    var m = document.getElementById('bimp-mask');
+    if (m) m.remove();
+  }
+
+  function openBookImportModal() {
+    var el = document.createElement('div');
+    el.className = 'modal-mask';
+    el.id = 'bimp-mask';
+    el.onclick = function (e) { if (e.target === el) bookImportClose(); };
+    el.innerHTML =
+      '<div class="modal" style="max-width:600px">' +
+        '<div class="modal-head"><h3>📚 批量导入绘本</h3>' +
+        '<button class="icon-btn" onclick="bookImportClose()">✕</button></div>' +
+        '<div class="modal-body">' +
+          '<p class="text-mute" style="font-size:13px;line-height:1.8;margin-bottom:8px">' +
+          '每行一本，用竖线 <b>|</b> 分隔四列：<br/>' +
+          '<code>标题 | PDF直链 | 音频文件夹 | manifest网址</code><br/>' +
+          '第 4 列也可以直接粘贴 manifest 的 JSON；留空则不加朗读（纯 PDF）。' +
+          '</p>' +
+          '<textarea id="bimp-text" rows="10" style="width:100%;font-size:12px" placeholder="每日晚读 101 | https://.../101/xxx.pdf | https://.../101/ | https://.../101/manifest.json"></textarea>' +
+          '<p id="bimp-tip" class="text-mute" style="font-size:12px;margin-top:8px"></p>' +
+        '</div>' +
+        '<div class="modal-foot">' +
+          '<button class="btn-ghost" onclick="bookImportClose()">取消</button>' +
+          '<button class="btn-primary" onclick="bookImportRun()">开始导入</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(el);
+  }
+
+  function bookManifestFrom(raw) {
+    raw = (raw || '').trim();
+    if (!raw) return Promise.resolve([]);
+    function norm(obj) {
+      return (obj.segs || obj.sents || []).map(function (x) {
+        return { file: x.file || '', start: +x.start || 0, end: +x.end || 0, dur: +x.dur || 0 };
+      });
+    }
+    if (/^https?:\/\//i.test(raw)) {
+      return fetch(raw).then(function (r) { return r.json(); }).then(norm);
+    }
+    try { return Promise.resolve(norm(JSON.parse(raw))); }
+    catch (e) { return Promise.reject(new Error('bad json')); }
+  }
+
+  function bookImportRun() {
+    var ta = document.getElementById('bimp-text');
+    var tip = document.getElementById('bimp-tip');
+    if (!ta) return;
+    var items = ta.value.split('\n').map(function (x) { return x.trim(); })
+      .filter(function (x) { return x && x.indexOf('//') !== 0; })
+      .map(function (ln) {
+        var p = ln.split('|').map(function (s) { return s.trim(); });
+        return { title: p[0] || '', pdf: p[1] || '', base: p[2] || '', man: p[3] || '' };
+      })
+      .filter(function (it) { return it.title && it.pdf; });
+    if (!items.length) { toast('没解析到有效行（至少要有「标题 | PDF链接」）'); return; }
+    var ok = 0, fail = [], i = 0;
+    function next() {
+      if (i >= items.length) {
+        saveData(DATA); render(); bookImportClose();
+        toast('导入完成：成功 ' + ok + ' 本' + (fail.length ? '；失败 ' + fail.length + ' 本：' + fail.slice(0, 3).join('、') : ''));
+        return;
+      }
+      var it = items[i++];
+      if (tip) tip.textContent = '正在处理 ' + i + '/' + items.length + '：' + it.title;
+      bookManifestFrom(it.man).then(function (sents) {
+        var res = {
+          id: 'r' + Date.now() + Math.random().toString(36).slice(2, 6),
+          type: 'pdf', col: 'book', subject: 'all',
+          title: it.title, url: it.pdf, category: 'learn', who: 'both',
+          modifiedAt: Date.now()
+        };
+        if (sents.length) {
+          res.reader = { pdf: it.pdf, base: it.base.replace(/\/+$/, ''), sents: sents, pageMap: [] };
+        } else if (it.base) {
+          fail.push(it.title + '(无句子)');
+          return;
+        }
+        DATA.resources.push(res);
+        ok++;
+      }).catch(function () { fail.push(it.title); }).then(function () { next(); });
+    }
+    next();
   }
 
   // ========== 挂字幕 ==========
