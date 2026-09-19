@@ -1164,6 +1164,18 @@
       });
       if (Object.keys(out2).length) out.gameSaves = out2;
     }
+    // 妈妈录的真人跟读原音（DATA.demoAudio）也是「对象」，同样走不了上面的按 id 合并。
+    // 坑：packForSync 会把它推上云，但 pull 回来时上面的标量循环遇到 object 直接 continue，
+    // 于是录音「传得上去、拉不回来」——妈妈在 A 设备录的原音，孩子端/别的设备永远看不到。
+    // 值就是音频 URL，同一句重录是覆盖仓库里同一个文件，所以冲突保留本地、不同句子天然并集。
+    {
+      const la = (base && base.demoAudio && typeof base.demoAudio === 'object') ? base.demoAudio : {};
+      const lb = (incoming.demoAudio && typeof incoming.demoAudio === 'object') ? incoming.demoAudio : {};
+      const out3 = {};
+      Object.keys(lb).forEach(k => { if (lb[k]) out3[k] = lb[k]; });
+      Object.keys(la).forEach(k => { if (la[k]) out3[k] = la[k]; });
+      if (Object.keys(out3).length) out.demoAudio = out3;
+    }
     // 墓碑过滤：删掉的条目即使被别的设备推回来也不收
     for (let i = 0; i < TOMB_KEYS.length; i++) {
       const k = TOMB_KEYS[i];
@@ -1737,6 +1749,17 @@
   ];
   function gameById(id) { return GAME_LIST.filter(g => g.id === id)[0] || null; }
   /** 这条游戏乐园奖励能玩多少分钟（老数据没填就按 30 分钟） */
+  // 这条奖励到底算不算「游戏乐园」？
+  // 老数据兜底（重要）：早期还没有 playground 分类时建的游戏奖励，分类标成了别的，
+  // 但妈妈填了「能玩几分钟」、也没给链接。这种如果只认 cat === 'playground'，
+  // 孩子兑换时会走到「播放」分支，弹出「这条奖励没有可播放的资源」—— 分扣了、还玩不了。
+  // 所以这里放宽：填了分钟数 + 没有链接/没有分集，一律按游戏乐园处理。
+  function rwIsPlayground(r) {
+    if (!r) return false;
+    if (r.cat === 'playground') return true;
+    const mins = parseInt(r.minutes);
+    return isFinite(mins) && mins > 0 && !r.url && !(rwEpsOf(r) || []).length;
+  }
   function gcPlayMins(r) { const m = parseInt(r && r.minutes); return (isFinite(m) && m > 0) ? m : 30; }
   function toast(msg) {
     const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
@@ -2483,7 +2506,7 @@
   function viewMomResources() {
     if (!sessionStorage.getItem('mom-auth')) { location.hash='mom-pin'; return ''; }
     return `
-      <div class="topbar"><h1>📚 资源库</h1><div class="actions"><button class="icon-btn" onclick="openImportModal()" title="批量导入（粘贴AI识别好的导入码）" style="font-size:18px">📥</button><button class="icon-btn" onclick="openBookImportModal()" title="批量导入绘本（每行：标题|PDF链接|音频文件夹|manifest网址）" style="font-size:17px">📚</button><button class="icon-btn" onclick="openResourceModal()" title="添加资源">${ICN.add}</button></div></div>
+      <div class="topbar"><h1>📚 资源库</h1><div class="actions"><button class="icon-btn" onclick="openBookImportModal()" title="批量导入绘本（每行：标题|PDF链接|音频文件夹|manifest网址）" style="font-size:18px">📚</button><button class="icon-btn" onclick="openImportModal()" title="批量导入资源（粘贴AI识别好的 WBEPS1: 导入码）" style="font-size:17px">📥</button><button class="icon-btn" onclick="openResourceModal()" title="添加资源">${ICN.add}</button></div></div>
       <div class="page">
         <div class="section">
           <h3>添加资源 <span class="badge">${DATA.resources.length} 个</span></h3>
@@ -2573,9 +2596,10 @@
               <div class="thumb">${r.emoji}</div>
               <div class="info">
                 <div class="name">${esc(r.title)}${(r.eps&&r.eps.length>=2)?`<span class="text-mute" style="font-size:12px"> · 共${r.eps.length}集</span>`:''}</div>
-                <div class="threshold">${rc.emoji} ${rc.name} · 兑换花费 <strong>${r.cost}</strong> 积分${r.cat==='promise'?' · 妈妈许诺':''}${r.cat==='playground'?(' · 可玩 '+gcPlayMins(r)+' 分钟'):''}${(r.eps&&r.eps.length>=2)?' · 每集各限看 5 次':''}</div>
+                <div class="threshold">${rc.emoji} ${rc.name} · 兑换花费 <strong>${r.cost}</strong> 积分${r.cat==='promise'?' · 妈妈许诺':''}${rwIsPlayground(r)?(' · 可玩 '+gcPlayMins(r)+' 分钟'):''}${(r.eps&&r.eps.length>=2)?' · 每集各限看 5 次':''}</div>
               </div>
-              ${r.cat==='playground'?`<button class="icon-btn" style="background:var(--purple-50);color:var(--purple-600)" title="预览游戏乐园" onclick="openGameCenter('')">▶</button>`:''}
+              ${rwIsPlayground(r)?`<button class="icon-btn" style="background:var(--purple-50);color:var(--purple-600)" title="预览游戏乐园" onclick="openGameCenter('')">▶</button>`:''}
+              <button class="icon-btn" title="编辑奖励" onclick="openRewardModal('${r.id}')">${ICN.edit}</button>
               <button class="icon-btn" onclick="delReward('${r.id}')">${ICN.trash}</button>
             </div>
           `}).join('')}
@@ -3576,7 +3600,7 @@
                 <div class="thumb">${r.emoji}</div>
                 <div class="info">
                   <div class="name">${esc(r.title)}${(r.eps&&r.eps.length>=2)?`<span class="text-mute" style="font-size:12px"> · 共${r.eps.length}集</span>`:''}</div>
-                  <div class="threshold">兑换花费 ${r.cost} 积分 ${can?'':('· 还差 '+(r.cost-c.points)+' 分')}${(r.eps&&r.eps.length>=2)?' · 一次兑换看全部':''}${r.cat==='playground'?(' · 可玩 '+gcPlayMins(r)+' 分钟'):''}</div>
+                  <div class="threshold">兑换花费 ${r.cost} 积分 ${can?'':('· 还差 '+(r.cost-c.points)+' 分')}${(r.eps&&r.eps.length>=2)?' · 一次兑换看全部':''}${rwIsPlayground(r)?(' · 可玩 '+gcPlayMins(r)+' 分钟'):''}</div>
                 </div>
                 <button class="btn-primary" style="padding:6px 12px;font-size:12px" ${can?'':'disabled'} onclick="${can?`redeemReward('${r.id}')`:`''`}">${can?('兑换 -'+r.cost):'积分不够'}</button>
               </div>`;
@@ -3603,7 +3627,7 @@
                 <div class="name">${esc(r.rewardTitle)}</div>
                 <div class="threshold">${r.cost} 积分 · ${r.at?fmtClock(r.at):''} · ${r.status==='pending'?'<span style="color:var(--red-600)">待妈妈兑现</span>':'已兑换'}${shown}</div>
               </div>
-              ${r.cat === 'playground'
+              ${rwIsPlayground(r)
                 ? (gcLeft(r) > 0
                     ? `<button class="btn-primary" style="padding:6px 12px;font-size:12px" onclick="openGameCenter('${r.id}')">🎮 去玩 · 剩 ${gcMinTxt(gcLeft(r))}</button>`
                     : `<span class="text-mute" style="font-size:12px">玩完啦，再兑换一次就能继续</span>`)
@@ -8035,14 +8059,39 @@ function momFutureTasks() {
     `;
     document.getElementById('modal-root').appendChild(modal);
   }
+  // 绘本清单长这样：标题 | PDF直链 | 音频文件夹 | manifest网址（每行一本）
+  // 老的资源导入弹窗只认 WBEPS1: 开头的导入码，妈妈很容易把绘本清单贴错地方。
+  // 这里做个兜底：只要认出是绘本清单，就自动切换过去，不让她看到"导入码无效"。
+  function looksLikeBookList(raw) {
+    var lines = (raw || '').split('\n');
+    for (var i = 0; i < lines.length; i++) {
+      var p = lines[i].trim();
+      if (!p || p.indexOf('//') === 0) continue;
+      var c = p.split('|');
+      if (c.length >= 2 && /^https?:\/\//i.test((c[1] || '').trim())) return true;
+    }
+    return false;
+  }
+
   function previewImport() {
     const el = document.getElementById('imp-code');
     const box = document.getElementById('imp-preview');
     const goBtn = document.getElementById('imp-go');
     if (!el || !box || !goBtn) return;
+    const raw = (el.value || '').trim();
+    // 绘本清单贴到了资源导入框 → 直接转到绘本批量导入，别报"导入码无效"
+    if (raw && !/^WBEPS\d*:/i.test(raw) && looksLikeBookList(raw)) {
+      const mask = el.closest('.modal-mask');
+      if (mask && mask.remove) mask.remove();
+      openBookImportModal();
+      const ta = document.getElementById('bimp-text');
+      if (ta) ta.value = raw;
+      toast('这是绘本清单，已切到「📚 批量导入绘本」，点「开始导入」即可');
+      return;
+    }
     const items = decodeImportCode(el.value);
     if (!items || !items.length) {
-      box.innerHTML = '<p style="margin-top:10px;color:var(--red-600);font-size:13px">❌ 导入码无效，请确认复制完整（以 WBEPS1: 开头）</p>';
+      box.innerHTML = '<p style="margin-top:10px;color:var(--red-600);font-size:13px">❌ 导入码无效，请确认复制完整（以 WBEPS1: 开头）<br/><span style="color:var(--gray-500);font-size:12px">如果你要导入的是绘本（标题|链接|音频夹|manifest），请关掉这里，点右上角的 📚</span></p>';
       goBtn.style.display = 'none';
       return;
     }
@@ -9640,51 +9689,58 @@ function momFutureTasks() {
     if (tip) tip.textContent = '';
   }
 
-  // ========== 模态：添加奖励 ==========
-  function openRewardModal() {
+  // ========== 模态：添加 / 编辑奖励 ==========
+  // 不带参 = 添加；带奖励 id = 编辑模式，所有字段预填，保存走 updateReward()
+  function openRewardModal(id) {
+    const ed = id ? (DATA.rewards || []).find(r => r.id === id) : null;
+    // 多分集还原成一行一集的文本（和录入时的格式一致，保存时再解析回去）
+    const epsText = (ed && ed.eps && ed.eps.length) ? ed.eps.map(e => (e.title ? e.title + ' | ' : '') + (e.url || '')).join('\n') : '';
+    const saveFn = ed ? ("updateReward('" + ed.id + "')") : 'addReward()';
     const modal = document.createElement('div');
     modal.className = 'modal-mask';
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     modal.innerHTML = `
       <div class="modal">
         <button class="icon-btn close" onclick="this.closest('.modal-mask').remove()">✕</button>
-        <h3>添加奖励</h3>
+        <h3>${ed ? '编辑奖励' : '添加奖励'}</h3>
         <div class="field">
           <label>Emoji 头像</label>
-          <input id="rw-emoji" value="🎁" maxlength="2" />
+          <input id="rw-emoji" value="${ed ? esc(ed.emoji || '🎁') : '🎁'}" maxlength="2" />
         </div>
         <div class="field">
           <label>标题</label>
-          <input id="rw-title" placeholder="例：冰雪奇缘片段 / 出去吃火锅一次" />
+          <input id="rw-title" value="${ed ? esc(ed.title) : ''}" placeholder="例：冰雪奇缘片段 / 出去吃火锅一次" />
         </div>
         <div class="field">
           <label>分类</label>
-          <select id="rw-cat" onchange="rwCatChange()">${Object.entries(REWARD_CATS).map(([k,v]) => `<option value="${k}">${v.emoji} ${v.name}</option>`).join('')}</select>
+          <select id="rw-cat" onchange="rwCatChange()">${Object.entries(REWARD_CATS).map(([k,v]) => `<option value="${k}"${ed && ed.cat === k ? ' selected' : ''}>${v.emoji} ${v.name}</option>`).join('')}</select>
         </div>
         <div class="field" id="rw-url-field">
           <label>微云链接（视频/音频类需要）</label>
-          <input id="rw-url" placeholder="https://share.weiyun.com/xxx" />
+          <input id="rw-url" value="${ed ? esc(ed.url || '') : ''}" placeholder="https://share.weiyun.com/xxx" />
           <label style="margin-top:10px">多分集（可选，一行一集）</label>
-          <textarea id="rw-eps" rows="4" placeholder="第1集 | https://share.weiyun.com/aaa&#10;第2集 | https://share.weiyun.com/bbb&#10;只贴链接也行，一行一条"></textarea>
-          <p class="wq-hint" style="text-align:left;margin-top:6px">一部动画有很多集时，在这里一行贴一集（标题和链接用竖线隔开）。孩子兑换一次就能看全部集数，<b>每集各限看 5 次</b></p>
+          <textarea id="rw-eps" rows="4" placeholder="第1集 | https://share.weiyun.com/aaa&#10;第2集 | https://share.weiyun.com/bbb&#10;只贴链接也行，一行一条">${ed ? esc(epsText) : ''}</textarea>
+          <p class="wq-hint" style="text-align:left;margin-top:6px">一部动画有很多集时，在这里一行贴一集（标题和链接用竖线隔开）。孩子兑换一次就能看全部集数，<b>每集各限看 5 次</b>。编辑时清空这里即表示只用上面的单链接。</p>
         </div>
         <p class="text-mute" id="rw-url-note" style="display:none;font-size:12px">「妈妈许诺」类（火锅/肯德基等）孩子兑换后进入待兑现，妈妈在后台确认，不用填链接。</p>
         <div class="field" id="rw-min-field" style="display:none">
           <label>能玩多少分钟</label>
-          <input id="rw-min" type="number" value="30" min="5" max="120" step="5" />
+          <input id="rw-min" type="number" value="${ed && ed.minutes ? ed.minutes : 30}" min="5" max="120" step="5" />
           <p class="wq-hint" style="text-align:left;margin-top:6px">孩子要先用积分兑换才能进游戏乐园，进去后自己挑游戏。<b>时间用完就得再兑换一次</b>，中途退出会自动暂停、不清零。</p>
         </div>
         <div class="field">
           <label>兑换花费（积分）</label>
-          <input id="rw-cost" type="number" value="100" min="1" max="9999" />
+          <input id="rw-cost" type="number" value="${ed ? ed.cost : 100}" min="1" max="9999" />
         </div>
         <div class="btn-row">
           <button class="btn-secondary" onclick="this.closest('.modal-mask').remove()">取消</button>
-          <button class="btn-primary" onclick="addReward()">添加</button>
+          <button class="btn-primary" onclick="${saveFn}">${ed ? '保存修改' : '添加'}</button>
         </div>
       </div>
     `;
     document.getElementById('modal-root').appendChild(modal);
+    // 编辑模式：按预填的分类立即切换字段显隐（链接/许诺提示/分钟数）
+    rwCatChange();
   }
   function rwCatChange() {
     const cat = document.getElementById('rw-cat').value;
@@ -9750,6 +9806,31 @@ function momFutureTasks() {
     DATA.rewards.push(rw);
     saveData(DATA); document.querySelector('.modal-mask').remove(); render();
     toast(eps.length >= 2 ? ('已添加，共 ' + eps.length + ' 集') : '已添加');
+  }
+  // 编辑保存：只改这条奖励本身（id 不变，兑换记录/转盘引用都不受影响），modifiedAt 更新后按 last-write-wins 同步到全家设备
+  function updateReward(id) {
+    const r = DATA.rewards.find(x => x.id === id);
+    if (!r) { toast('这条奖励不存在了'); return; }
+    const emoji = document.getElementById('rw-emoji').value || '\uD83C\uDF81';
+    const title = document.getElementById('rw-title').value.trim();
+    const cat = document.getElementById('rw-cat') ? document.getElementById('rw-cat').value : 'cartoon';
+    const cost = parseInt(document.getElementById('rw-cost').value) || 100;
+    const url = (cat === 'promise' || cat === 'playground') ? '' : document.getElementById('rw-url').value.trim();
+    const eps = (cat === 'promise' || cat === 'playground') ? [] : parseEpsText((document.getElementById('rw-eps') || {}).value || '');
+    if (!title) { toast('标题要填'); return; }
+    if (cat !== 'promise' && cat !== 'playground' && !url && !eps.length) { toast('视频类奖励要填微云链接或分集'); return; }
+    if (eps.length === 1 && !url) { toast('只有 1 集就直接填上面的链接'); return; }
+    let minutes = 0;
+    if (cat === 'playground') {
+      minutes = parseInt((document.getElementById('rw-min') || {}).value);
+      if (!isFinite(minutes) || minutes < 5) minutes = 5;
+      if (minutes > 120) minutes = 120;
+    }
+    r.emoji = emoji; r.title = title; r.cat = cat; r.cost = cost; r.url = url; r.modifiedAt = Date.now();
+    if (minutes) r.minutes = minutes; else delete r.minutes;
+    if (eps.length >= 2) { r.eps = eps; if (!url) r.url = eps[0].url; } else if (r.eps) { delete r.eps; }
+    saveData(DATA); document.querySelector('.modal-mask').remove(); render();
+    toast('已保存修改');
   }
   function delReward(id) {
     if (!confirm('确认删除？')) return;
@@ -9911,6 +9992,16 @@ function momFutureTasks() {
     if (rdId) {
       rd = (DATA.redemptions || []).find(x => x.id === rdId);
       if (!rd) { toast('找不到这条兑换记录'); return; }
+            // 老兑换记录兜底：当初兑换时没充上时间（奖励分类标错），按奖励的分钟数补一次。
+      // 孩子不用再花一次积分重新兑换 —— 已经扣过的分不能白扣。
+      // left === 0 是真的玩完了，不补；只有 left 压根没写过（null/undefined）才补。
+      if (rd.left == null) {
+        const rw0 = DATA.rewards.find(x => x.id === rd.rewardId);
+        const m0 = parseInt(rw0 && rw0.minutes);
+        if (rwIsPlayground(rw0) && isFinite(m0) && m0 > 0) {
+          rd.left = m0 * 60; rd.total = m0 * 60; saveData(DATA);
+        }
+      }
       left = gcLeft(rd);
       if (left <= 0) { toast('游戏时间已经用完啦，再兑换一次就能继续玩'); return; }
       const c = kidCheck();
@@ -10026,7 +10117,7 @@ function momFutureTasks() {
     const isPromise = r.cat === 'promise';
     const rd = { id: 'rd'+Date.now(), childId: c.id, rewardId: id, rewardTitle: r.title, emoji: r.emoji, cost: r.cost, cat: r.cat, at: Date.now(), status: isPromise ? 'pending' : 'done', views: 0 };
     // 游戏乐园：兑换即充入「可玩秒数」，孩子从「我的兑换」里进去玩，用完为止
-    if (r.cat === 'playground') {
+    if (rwIsPlayground(r)) {
       const mins = parseInt(r.minutes);
       const sec = (isFinite(mins) && mins > 0 ? mins : 30) * 60;
       rd.left = sec; rd.total = sec;
@@ -10034,7 +10125,7 @@ function momFutureTasks() {
     DATA.redemptions.unshift(rd);
     DATA.pointsHistory.unshift({ id: 'h'+Date.now(), childId: c.id, date: TODAY, title: '兑换：'+r.title, points: -r.cost, at: Date.now() });
     saveData(DATA); render();
-    if (r.cat === 'playground') { toast('兑换成功！在下面「我的兑换」里点「去玩」🎮'); return; }
+    if (rwIsPlayground(r)) { toast('兑换成功！在下面「我的兑换」里点「去玩」🎮'); return; }
     if (isPromise) toast('已申请！等妈妈带你去 ' + r.emoji);
     else if (rwEpsOf(r).length >= 2) { saveData(DATA); render(); openRedeemEps(rd.id); }
     else playRedemption(rd.id);
