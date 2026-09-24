@@ -838,6 +838,29 @@
   .pet-live-bubble.on{opacity:1}
   .pet-live-x{position:absolute;right:-2px;top:-4px;width:20px;height:20px;padding:0;border:0;border-radius:50%;background:rgba(255,255,255,.95);color:var(--gray-600);font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.16)}
   .pet-live-hide{position:fixed;right:12px;bottom:96px;z-index:60;width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.95);border:1px solid var(--border-soft);display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 4px 12px rgba(0,0,0,.16)}
+.chat-warn{background:var(--red-50);color:var(--red-600);font-size:12px;line-height:1.5;padding:8px 10px;border-radius:8px;margin-bottom:10px}
+.chat-wrap{display:flex;flex-direction:column;gap:10px;padding:4px 0}
+.chat-row{display:flex;align-items:flex-end;gap:6px}
+.chat-row.me{flex-direction:row-reverse}
+.chat-face{width:30px;height:30px;border-radius:50%;background:var(--gray-100);display:flex;align-items:center;justify-content:center;font-size:16px;flex:none}
+.chat-bubble{max-width:74%;padding:9px 12px;border-radius:14px;font-size:14px;line-height:1.55;word-break:break-word;white-space:pre-wrap;background:var(--gray-100);color:var(--gray-900)}
+.chat-row.me .chat-bubble{background:var(--indigo-50);color:var(--indigo-600)}
+.chat-big{font-size:22px;line-height:1.4;padding:6px 12px}
+.chat-time{font-size:11px;color:var(--gray-400);margin-top:3px;text-align:right}
+.chat-row:not(.me) .chat-time{text-align:left}
+.chat-empty{text-align:center;color:var(--gray-400);font-size:13px;padding:26px 0}
+.chat-quick{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.chat-quick button{border:1px solid var(--border);background:var(--bg-card);border-radius:16px;padding:6px 11px;font-size:13px;color:var(--gray-800);cursor:pointer}
+.chat-quick button:active{background:var(--gray-100)}
+.chat-bar{display:flex;gap:8px;align-items:center}
+.chat-bar input{flex:1;border:1px solid var(--border);border-radius:18px;padding:9px 14px;font-size:14px;background:var(--bg-card);color:var(--gray-900)}
+.chat-send{border:none;background:var(--pink-400);color:#fff;border-radius:18px;padding:9px 16px;font-size:14px;font-weight:600;flex:none}
+.chat-unread{display:inline-block;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--red-400);color:#fff;font-size:11px;line-height:18px;text-align:center;margin-left:6px;vertical-align:1px}
+.chat-entry{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:12px;margin-bottom:12px;cursor:pointer}
+.chat-entry .ico{font-size:22px}
+.chat-entry .txt{flex:1;min-width:0}
+.chat-entry .nm{font-size:14px;font-weight:600;color:var(--gray-900)}
+.chat-entry .pv{font-size:12px;color:var(--gray-600);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 </style>
 </head>
 <body data-page-node-id="3DqP1Xb73JvetEw9f46gVv">
@@ -851,6 +874,7 @@
   const DEFAULT_DATA = {
     tomb: {},
     pets: {},
+    chats: [],
     footprints: [],
     momPassword: '8888',
     children: [
@@ -1010,7 +1034,7 @@
   const SYNC = {
     code: localStorage.getItem('flp-sb-uid') || '',
     status: 'off', // off | on | err
-    busy: false, pending: false, poll: null, lastTs: 0,
+    busy: false, pending: false, poll: null, pollMs: 5000, lastTs: 0,
     lastRemoteTs: 0, dirty: false, lastErr: '',
   };
 
@@ -1067,13 +1091,13 @@
   // ---- 合并式同步 ----
   // 坑（重要）：原来是「谁后写谁赢」的整包覆盖 —— 妈妈刚加的词库，只要孩子端在
   // 这 2.8 秒里打了一次卡，整包就被冲掉。改成按 id 取并集，两边的新增都能活下来。
-  const MERGE_KEYS = ['resources', 'wordSets', 'wordTasks', 'wordPlans', 'homeworks', 'tasks', 'rewards', 'redemptions', 'wheel', 'pointsHistory', 'children', 'habits', 'habitLogs', 'footprints', 'wheelLogs', 'schedules'];
+  const MERGE_KEYS = ['resources', 'wordSets', 'wordTasks', 'wordPlans', 'homeworks', 'tasks', 'rewards', 'redemptions', 'wheel', 'pointsHistory', 'children', 'habits', 'habitLogs', 'footprints', 'wheelLogs', 'schedules', 'chats'];
   // 墓碑：删掉的东西记一笔，别的设备推回来时不许复活
   // （合并规则是「本地新增一律保留」，只删数组会被另一台设备的旧缓存救回来）
   // 坑（2026-08-30）：原来这里只写了 tasks/homeworks，于是资源、奖励、词库这些
   // 删完又活 —— 尤其出厂那 10 条示例资源，任何一台新设备首次打开都自带一份，
   // 一推送就把全家删掉的东西全带回来。凡是用户能删的实体，一律进墓碑。
-  const TOMB_KEYS = ['tasks', 'homeworks', 'resources', 'rewards', 'wordSets', 'wordTasks', 'wordPlans', 'children', 'wheel', 'habits', 'habitLogs', 'redemptions', 'wheelLogs', 'schedules'];
+  const TOMB_KEYS = ['tasks', 'homeworks', 'resources', 'rewards', 'wordSets', 'wordTasks', 'wordPlans', 'children', 'wheel', 'habits', 'habitLogs', 'redemptions', 'wheelLogs', 'schedules', 'chats'];
   const TOMB_TTL = 14 * 86400000;
   function tombAdd(kind, id) {
     if (!id) return;
@@ -1178,7 +1202,7 @@
         merged = [];
         // 配置类集合（课表/资源/奖励/词库/转盘）：按「最后修改时间」逐条判定谁新（last-write-wins），
         // 修掉 2026-09-04 事故（电脑改的课表被手机旧版按 id 盲信云端覆盖）。其余集合沿用原有 localWins 逻辑，避免波及无关数据。
-        const cfg = (key === 'schedules' || key === 'resources' || key === 'rewards' || key === 'wordSets' || key === 'wheel');
+        const cfg = (key === 'schedules' || key === 'resources' || key === 'rewards' || key === 'wordSets' || key === 'wheel' || key === 'chats');
         const seen = {};
         for (let x = 0; x < b.length; x++) {
           const remote = b[x]; if (!remote || !remote.id) continue;
@@ -1314,6 +1338,7 @@
     if (!d.wordPlans) d.wordPlans = [];
     if (!Array.isArray(d.wheelLogs)) d.wheelLogs = [];
   if (!Array.isArray(d.schedules)) d.schedules = [];
+  if (!Array.isArray(d.chats)) d.chats = [];
     d.schedules.forEach(sc => { if (!Array.isArray(sc.cancelled)) sc.cancelled = []; });
     if (!d.tomb) d.tomb = {};
     seedBuiltinResources(d);          // 补种新上架的内置资源（删过的不复活）
@@ -1623,7 +1648,7 @@
     // 而自动推送只依赖 saveData 里那一次 scheduleSyncPush()，它一旦被 status/busy 门槛挡掉，
     // 就再没有任何机制补推：手机上新增的作业永远上不了云，只能手动点「用本机覆盖云端」
     // （2026-09-05 根因修复）。现在只要 dirty/pending 为真，最多 5 秒必补推一次。
-    SYNC.poll = setInterval(syncTick, 5000);
+    SYNC.poll = setInterval(syncTick, SYNC.pollMs || 5000);
   }
   async function enableSync() { await accSignIn(); } // 兼容旧入口
   async function accSignIn() {
@@ -1926,6 +1951,8 @@
       'kid-mine':    viewKidMine,
       'kid-memory':  viewKidMemory,
       'kid-math24':  viewKidMath24,
+      'kid-chat':    viewKidChat,
+      'mom-chat':    viewMomChat,
       'cat':         viewCategory,
       'collections': viewCollection,
     };
@@ -2451,6 +2478,8 @@
             ${DATA.children.map(c => momKidCol(c)).join('')}
           </div>
         </div>${momFutureTasks()}
+
+        ${momChatSection()}
 
         ${momHabitSection()}
 
@@ -3509,6 +3538,185 @@
       + '<path d="M -4.5,-7 Q 0,-3.5 4.5,-7" fill="none" stroke="' + co + '" stroke-width="1.4" stroke-linecap="round"/>'
       + f + '</g></svg>';
   }
+  // ================= 妈妈 ↔ 孩子 聊天 =================
+  // 每条消息属于一个孩子的会话；from 是 'mom' 或孩子 id。
+  // read 只有一个字段 = 「接收方读了没」（发的人永远算已读，不占这个位）。
+  // 坑：数组默认合并是 localWins（本地赢），那样「已读」根本同步不回去 ——
+  // 妈妈在手机上看过了，孩子平板上还会一直亮红点。所以 chats 加了 modifiedAt
+  // 并进了 mergeData 的 cfg 白名单，按 modifiedAt 谁新用谁。
+  const CHAT_KEEP = 200;          // 每个会话最多留这么多条，超了删最老的
+  const CHAT_MAX = 200;           // 单条最多字数
+  const CHAT_EMOJI = ['👍', '❤️', '😊', '🎉', '🙏', '😴', '🍚', '🥛', '📚', '⚽', '🎮', '🌙', '☀️', '😭', '🤔', '💪'];
+  const CHAT_QUICK = ['我做完啦', '妈妈陪我', '我饿了', '想你了', '作业好难', '今天很开心', '我知道了', '好的妈妈'];
+
+  function chatList(kid) {
+    if (!Array.isArray(DATA.chats)) DATA.chats = [];
+    return DATA.chats.filter(function (m) { return m && m.kid === kid; })
+      .sort(function (a, b) { return (Number(a.ts) || 0) - (Number(b.ts) || 0); });
+  }
+  // who: 'mom' 看「孩子发来我没读的」；孩子 id 看「妈妈发来我没读的」
+  function chatUnread(kid, who) {
+    var isMom = (who === 'mom');
+    return chatList(kid).filter(function (m) {
+      var fromMom = (m.from === 'mom');
+      var toMe = isMom ? !fromMom : fromMom;   // 只统计「对方发给我的」
+      return toMe && !m.read;
+    }).length;
+  }
+  function chatMarkRead(kid, who) {
+    var isMom = (who === 'mom'), ch = false, now = Date.now();
+    (DATA.chats || []).forEach(function (m) {
+      if (!m || m.kid !== kid) return;
+      var fromMom = (m.from === 'mom');
+      var toMe = isMom ? !fromMom : fromMom;
+      if (toMe && !m.read) { m.read = 1; m.modifiedAt = now; ch = true; }
+    });
+    if (ch) saveData(DATA);
+  }
+  function chatSend(kid, from, text) {
+    var t = String(text == null ? '' : text).trim().slice(0, CHAT_MAX);
+    if (!t) return false;
+    if (!Array.isArray(DATA.chats)) DATA.chats = [];
+    var now = Date.now();
+    DATA.chats.push({
+      id: 'm' + now + '_' + Math.random().toString(36).slice(2, 7),
+      kid: kid, from: from, text: t, ts: now, read: 0, modifiedAt: now
+    });
+    chatTrim(kid);
+    saveData(DATA);
+    return true;
+  }
+  function chatTrim(kid) {
+    var all = chatList(kid);
+    if (all.length <= CHAT_KEEP) return;
+    var drop = all.slice(0, all.length - CHAT_KEEP), ids = {};
+    drop.forEach(function (m) { ids[m.id] = 1; tombAdd('chats', m.id); });
+    DATA.chats = (DATA.chats || []).filter(function (m) { return !ids[m.id]; });
+  }
+  function chatQuick(kid, from, text) {
+    if (!chatSend(kid, from, text)) return;
+    render();
+  }
+  function chatSendDo(kid, from) {
+    var el = document.getElementById('chat-input');
+    var v = el ? el.value : '';
+    if (!chatSend(kid, from, v)) { toast('先写点什么吧'); return; }
+    if (el) el.value = '';
+    render();
+    var e2 = document.getElementById('chat-input');
+    if (e2) e2.focus();
+  }
+  function chatTime(ts) {
+    var d = new Date(Number(ts) || Date.now());
+    var p = function (x) { return (x < 10 ? '0' : '') + x; };
+    var now = new Date(), same = (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate());
+    var hm = p(d.getHours()) + ':' + p(d.getMinutes());
+    return same ? hm : (d.getMonth() + 1) + '/' + d.getDate() + ' ' + hm;
+  }
+  function chatSyncWarn() {
+    try {
+      if (SYNC && SYNC.code) return '';
+    } catch (e) { return ''; }
+    return '<div class="chat-warn">⚠️ 还没开启云端同步，这条消息<b>只有这台设备能看到</b>。去「设置 → 云端同步」登录后，消息才能在手机和平板之间传。</div>';
+  }
+  function chatBubbles(kid, whoIsMe) {
+    var msgs = chatList(kid);
+    if (!msgs.length) return '<div class="chat-empty">还没有消息，说句话吧 👋</div>';
+    return '<div class="chat-wrap">' + msgs.map(function (m) {
+      var mine = (m.from === whoIsMe);
+      var big = (String(m.text).length <= 2) ? ' chat-big' : '';
+      var face = mine ? '' : '<div class="chat-face">' + (m.from === 'mom' ? '👩' : (function () {
+        var k = DATA.children.find(function (c) { return c.id === m.from; });
+        return k ? (k.avatar || '🙂') : '🙂';
+      })()) + '</div>';
+      return '<div class="chat-row' + (mine ? ' me' : '') + '">' + face +
+        '<div><div class="chat-bubble' + big + '">' + esc(m.text) + '</div>' +
+        '<div class="chat-time">' + chatTime(m.ts) + '</div></div></div>';
+    }).join('') + '</div>';
+  }
+  function chatQuickBar(kid, from) {
+    return '<div class="chat-quick">' +
+      CHAT_EMOJI.map(function (e) { return '<button onclick="chatQuick(\'' + kid + '\',\'' + from + '\',\'' + e + '\')">' + e + '</button>'; }).join('') +
+      '</div><div class="chat-quick">' +
+      CHAT_QUICK.map(function (t) { return '<button onclick="chatQuick(\'' + kid + '\',\'' + from + '\',\'' + t + '\')">' + t + '</button>'; }).join('') +
+      '</div>';
+  }
+  function chatComposer(kid, from) {
+    return chatQuickBar(kid, from) +
+      '<div class="chat-bar">' +
+      '<input id="chat-input" placeholder="想说点什么…" maxlength="' + CHAT_MAX + '" onkeydown="if(event.key===\'Enter\'){chatSendDo(\'' + kid + '\',\'' + from + '\')}" />' +
+      '<button class="chat-send" onclick="chatSendDo(\'' + kid + '\',\'' + from + '\')">发送</button>' +
+      '</div>';
+  }
+
+  // 孩子端任务页的入口卡
+  function chatCard(c) {
+    var n = chatUnread(c.id, c.id);
+    var last = chatList(c.id).slice(-1)[0];
+    var pv = last ? ((last.from === 'mom' ? '妈妈：' : '我：') + String(last.text)) : '给妈妈留个言吧';
+    return '<div class="chat-entry" onclick="location.hash=\'kid-chat\'">' +
+      '<div class="ico">💬</div>' +
+      '<div class="txt"><div class="nm">给妈妈留言' + (n ? '<span class="chat-unread">' + (n > 99 ? '99+' : n) + '</span>' : '') + '</div>' +
+      '<div class="pv">' + esc(pv) + '</div></div>' +
+      '<div class="ico" style="font-size:16px;color:var(--gray-400)">›</div></div>';
+  }
+
+  function viewKidChat() {
+    var c = kidCheck();
+    if (!c) { location.hash = 'kid-select'; return ''; }
+    chatMarkRead(c.id, c.id);
+    return '' +
+      '<div class="topbar"><h1>💬 和妈妈说话</h1>' +
+      '<div class="actions"><button class="icon-btn" data-back data-to="kid-tasks">' + ICN.back + '</button></div></div>' +
+      '<div class="page">' + chatSyncWarn() +
+      '<div class="section">' + chatBubbles(c.id, c.id) + '</div>' +
+      '<div class="section">' + chatComposer(c.id, c.id) + '</div>' +
+      '</div>';
+  }
+
+  function viewMomChat(params) {
+    if (!sessionStorage.getItem('mom-auth')) { location.hash = 'mom-pin'; return ''; }
+    var kid = params && params.kid;
+    var c = DATA.children.find(function (x) { return x.id === kid; });
+    if (!c) { location.hash = 'mom-today'; return ''; }
+    chatMarkRead(c.id, 'mom');
+    return '' +
+      '<div class="topbar"><h1>💬 ' + esc(c.name) + '</h1>' +
+      '<div class="actions"><button class="icon-btn" data-back data-to="mom-today">' + ICN.back + '</button></div></div>' +
+      '<div class="page">' + chatSyncWarn() +
+      '<div class="section">' + chatBubbles(c.id, 'mom') + '</div>' +
+      '<div class="section">' + chatComposer(c.id, 'mom') + '</div>' +
+      '</div>';
+  }
+
+  // 妈妈端首页：每个孩子一行，带未读
+  function momChatSection() {
+    if (!DATA.children.length) return '';
+    return '<div class="section"><h3>💬 孩子留言</h3>' +
+      DATA.children.map(function (c) {
+        var n = chatUnread(c.id, 'mom');
+        var last = chatList(c.id).slice(-1)[0];
+        var pv = last ? ((last.from === 'mom' ? '我：' : (c.name + '：')) + String(last.text)) : '还没说过话';
+        return '<div class="chat-entry" onclick="location.hash=\'mom-chat?kid=' + c.id + '\'">' +
+          '<div class="ico">' + (c.avatar || '🙂') + '</div>' +
+          '<div class="txt"><div class="nm">' + esc(c.name) + (n ? '<span class="chat-unread">' + (n > 99 ? '99+' : n) + '</span>' : '') + '</div>' +
+          '<div class="pv">' + esc(pv) + '</div></div>' +
+          '<div class="ico" style="font-size:16px;color:var(--gray-400)">›</div></div>';
+      }).join('') + '</div>';
+  }
+
+  // 聊天页把轮询从 5 秒压到 1.5 秒（只在聊天页，别全站常驻高频轮询拖慢同步）
+  function chatPollAdjust() {
+    try {
+      var r = String(location.hash || '').replace(/^#/, '').split('?')[0];
+      var want = (r === 'kid-chat' || r === 'mom-chat') ? 1500 : 5000;
+      if (SYNC.pollMs === want) return;
+      SYNC.pollMs = want;
+      if (SYNC.poll) { clearInterval(SYNC.poll); SYNC.poll = null; }
+      if (SYNC.code) SYNC.poll = setInterval(syncTick, want);
+    } catch (e) {}
+  }
+
   function petCard(c) {
     const p = petOf(c.id);
     if (!p) {
@@ -3743,6 +3951,7 @@
     try { localStorage.removeItem(petLiveOffKey(k.id)); } catch (e) {}
     const b = document.getElementById('pet-live-reopen'); if (b && b.remove) b.remove();
     petLiveSync();
+    chatPollAdjust();
   }
   function petLiveReopenBtn() {
     let b = document.getElementById('pet-live-reopen');
@@ -4088,6 +4297,7 @@
           <div class="meta"><div>已完成 <span>${done}</span></div><div>待打卡 <span>${todays.length-done}</span></div><div>连签 <span>${c.streak}</span> 天</div></div>
         </div>
         ${petCard(c)}
+        ${chatCard(c)}
         ${todayCoursesBlock(c)}
         <div class="section">
           <h3>今日任务</h3>
