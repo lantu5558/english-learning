@@ -819,6 +819,25 @@
   .pet-evo-name{font-size:15px;font-weight:600;margin:10px 0 14px}
   .pop{animation:petPop .6s ease}
   @keyframes petPop{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+
+  /* ===== 会走动的宠物（浮层） ===== */
+  /* 三层结构：外层负责位移，中层负责左右翻转，内层负责呼吸/走路动画 —— 分开是为了
+     不让 transform 互相覆盖（CSS animation 会盖掉 inline style） */
+  .pet-live{position:fixed;left:0;top:0;width:78px;height:78px;z-index:60;touch-action:none;-webkit-user-select:none;user-select:none;cursor:grab}
+  .pet-live.dragging{cursor:grabbing}
+  .pet-live-flip{width:100%;height:100%}
+  .pet-live-in{width:100%;height:100%;border-radius:50%;overflow:hidden;border:2px solid rgba(255,255,255,.9);background:rgba(255,255,255,.55);box-shadow:0 6px 18px rgba(0,0,0,.18);display:flex;align-items:center;justify-content:center}
+  .pet-live-in img,.pet-live-in svg{width:100%;height:100%;object-fit:cover;display:block}
+  .pet-live.walk .pet-live-in{animation:petWalk .6s ease-in-out infinite}
+  .pet-live.idle .pet-live-in{animation:petBreath 2.8s ease-in-out infinite}
+  .pet-live-in.hop{animation:petHop .9s ease}
+  @keyframes petWalk{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-6px) rotate(3deg)}}
+  @keyframes petBreath{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-4px) scale(1.03)}}
+  @keyframes petHop{0%{transform:translateY(0) scale(1)}30%{transform:translateY(-16px) scale(1.12)}60%{transform:translateY(0) scale(.96)}100%{transform:translateY(0) scale(1)}}
+  .pet-live-bubble{position:absolute;left:50%;bottom:calc(100% + 5px);transform:translate(-50%,0);white-space:nowrap;background:rgba(255,255,255,.97);color:var(--gray-800);font-size:12px;font-weight:600;padding:5px 10px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,.14);opacity:0;transition:opacity .25s ease;pointer-events:none}
+  .pet-live-bubble.on{opacity:1}
+  .pet-live-x{position:absolute;right:-2px;top:-4px;width:20px;height:20px;padding:0;border:0;border-radius:50%;background:rgba(255,255,255,.95);color:var(--gray-600);font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.16)}
+  .pet-live-hide{position:fixed;right:12px;bottom:96px;z-index:60;width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.95);border:1px solid var(--border-soft);display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 4px 12px rgba(0,0,0,.16)}
 </style>
 </head>
 <body data-page-node-id="3DqP1Xb73JvetEw9f46gVv">
@@ -1922,6 +1941,7 @@
       else history.back();
     });
     if (typeof window.__afterRender === 'function') window.__afterRender();
+    try { petLiveSync(); } catch (e) {}   // 页面重绘后把走动宠物补回来（它在 #app 外面）
   }
 
   // ========== 每日一句（按日期自动轮换） ==========
@@ -2720,6 +2740,8 @@
           <p class="text-mute" style="font-size:12px;margin-bottom:8px">孩子用积分喂养宠物，宠物会长大变形。喂一次花多少分、多久长大、心情怎么掉，都能改；还能自己加宠物形象。</p>
           <button class="btn-secondary" onclick="openPetCfgModal()">数值设置 / 给孩子换一只</button>
           <button class="btn-secondary mt-12" onclick="openPetCatModal()">宠物形象（${petCatList().length} 种）</button>
+          <button class="btn-secondary mt-12" onclick="petLiveToggle()">屏幕上的走动宠物：${petLiveEnabled() ? '开 ✅' : '关'}</button>
+          <p class="text-mute" style="font-size:12px;margin-top:6px">开着时，孩子端每一页都有一只小宠物在屏幕上溜达、会说话、能拖着走；点它就打开喂养面板。嫌挡事可以关掉，或让孩子自己点 ✕ 收起来。</p>
         </div>
         <div class="section">
           <h3>🌐 上网白名单</h3>
@@ -3511,6 +3533,271 @@
       + ' · 心情 ' + Math.round(p.mood) + ' · 今天已喂 ' + fed + '/' + cfg.maxFeed + '</div>'
       + '</div></div></div>';
   }
+
+  /* ===== 会走动的宠物 =====
+     挂件挂在 body 上（不在 #app 里），render() 重绘页面不会把它抹掉，所以它能一直在。
+     位置只存本机 localStorage、不参与家庭同步：否则两台设备会互相抢宠物站哪儿。
+     移动只改 transform + 一个 rAF，APK WebView 也不掉帧。 */
+  const PET_LIVE_SIZE = 78;
+  let petLiveRAF = 0, petLiveSt = null;
+
+  function petLiveCur() { return petLiveSt; }   // 给测试用
+  function petLiveEnabled() {                       // 妈妈端可以整体关掉
+    const c = (DATA.pets && DATA.pets.__cfg) ? DATA.pets.__cfg : null;
+    return !(c && c.live === false);
+  }
+  function petLiveChild() {
+    let k = null;
+    try { k = kidCheck(); } catch (e) {}
+    if (!k && selectedChildId) k = (DATA.children || []).find(x => x.id === selectedChildId) || null;
+    return k || null;
+  }
+  function petLiveOffKey(id) { return 'pet-live-off-' + id; }
+  function petLivePosKey(id) { return 'pet-live-pos-' + id; }
+  function petLiveBounds() {
+    const vw = window.innerWidth || 360, vh = window.innerHeight || 640;
+    const s = PET_LIVE_SIZE;
+    // 上留 64 给 topbar，下留 84 给底部 tab，别挡住孩子点任务
+    return { x0: 8, x1: Math.max(8, vw - s - 8), y0: 64, y1: Math.max(72, vh - s - 84) };
+  }
+  function petLiveClamp(x, y) {
+    const b = petLiveBounds();
+    return { x: Math.max(b.x0, Math.min(b.x1, Number(x) || 0)), y: Math.max(b.y0, Math.min(b.y1, Number(y) || 0)) };
+  }
+  function petLiveStep(st, dt) {
+    const b = petLiveBounds();
+    st.x += st.vx * dt / 1000;
+    st.y += st.vy * dt / 1000;
+    if (st.x <= b.x0) { st.x = b.x0; st.vx = Math.abs(st.vx); }
+    if (st.x >= b.x1) { st.x = b.x1; st.vx = -Math.abs(st.vx); }
+    if (st.y <= b.y0) { st.y = b.y0; st.vy = Math.abs(st.vy); }
+    if (st.y >= b.y1) { st.y = b.y1; st.vy = -Math.abs(st.vy); }
+    return st;
+  }
+  function petLiveNewTarget(st) {
+    const el = st.el;
+    if (Math.random() < 0.42) {                     // 有时站一会儿，别一直在屏幕上乱窜
+      st.vx = 0; st.vy = 0; st.moving = false; st.next = 1400 + Math.random() * 3200;
+      if (el) { el.classList.remove('walk'); el.classList.add('idle'); }
+    } else {
+      const sp = 14 + Math.random() * 22;
+      const a = Math.random() * Math.PI * 2;
+      st.vx = Math.cos(a) * sp;
+      st.vy = Math.sin(a) * sp * 0.55;              // 纵向慢一点，看着像在地上走
+      st.moving = true; st.next = 900 + Math.random() * 1700;
+      if (el) { el.classList.remove('idle'); el.classList.add('walk'); }
+    }
+  }
+  function petLivePlace(st) {
+    if (!st || !st.el) return;
+    st.el.style.transform = 'translate3d(' + Math.round(st.x) + 'px,' + Math.round(st.y) + 'px,0)';
+    if (st.flip) st.flip.style.transform = (st.face < 0 ? 'scaleX(-1)' : '');
+  }
+  function petLiveSavePos(st) {
+    try { localStorage.setItem(petLivePosKey(st.id), JSON.stringify({ x: Math.round(st.x), y: Math.round(st.y) })); } catch (e) {}
+  }
+  function petLiveSay(txt) {
+    const st = petLiveSt; if (!st || !txt) return;
+    const b = document.getElementById('pet-live-bub'); if (!b) return;
+    b.textContent = txt;
+    b.classList.add('on');
+    clearTimeout(st.bubT);
+    st.bubT = setTimeout(function () {
+      const b2 = document.getElementById('pet-live-bub'); if (b2) b2.classList.remove('on');
+    }, 3400);
+  }
+  function petLiveWord(st) {
+    const p = petOf(st.id); if (!p) return '';
+    const m = Number(p.mood == null ? 100 : p.mood);
+    const cfg = petCfg();
+    const fed = (p.feedDay === TODAY) ? (p.feedN || 0) : 0;
+    const hungry = !p.lastFeed || (Date.now() - Number(p.lastFeed) > 20 * 3600000);
+    if (hungry) return '肚子饿了 🍖';
+    if (m < 40) return '有点无聊…陪陪我';
+    if (fed >= (cfg.maxFeed || 3)) return '今天吃饱啦～';
+    const ws = ['陪我玩会儿～', '摸摸头嘛 ✋', '今天也要加油呀', '我在看着你呢 👀', '再喂一口好不好', '我最喜欢你啦 💕', '长大了好开心 ✨'];
+    return ws[Math.floor(Math.random() * ws.length)];
+  }
+  function petLiveHop() {
+    const pic = document.getElementById('pet-live-pic'); if (!pic) return;
+    const el = document.getElementById('pet-live');
+    if (el) { el.classList.remove('walk'); el.classList.remove('idle'); }
+    pic.classList.add('hop');
+    setTimeout(function () { pic.classList.remove('hop'); }, 950);
+  }
+  function petLiveRefresh(force) {
+    const st = petLiveSt; if (!st) return;
+    const p = petOf(st.id); if (!p) return;
+    petApplyDecay(p);
+    const now = petStage(p.exp);
+    if (!force && now === st.stage) return;
+    st.stage = now;
+    const pic = document.getElementById('pet-live-pic');
+    if (pic) pic.innerHTML = petPicHtml(petCatOf(p.sp), now);
+    if (!force) { petLiveHop(); petLiveSay('我进化成「' + PET_STAGE_NAME[now] + '」啦！'); }
+  }
+  function petLiveTick(ts) {
+    const st = petLiveSt;
+    if (!st || !st.el || st.stop) { petLiveRAF = 0; return; }
+    const now = ts || Date.now();
+    if (!st.last) st.last = now;
+    const dt = Math.min(60, now - st.last);
+    st.last = now;
+    if (!st.drag) {
+      st.t = (st.t || 0) + dt;
+      if (st.t >= (st.next || 1200)) { petLiveNewTarget(st); st.t = 0; }
+      if (st.moving) {
+        petLiveStep(st, dt);
+        if (st.vx < -0.5) st.face = -1; else if (st.vx > 0.5) st.face = 1;
+      }
+    }
+    st.sayT = (st.sayT || 0) + dt;
+    if (st.sayT > (st.sayNext || 12000)) {
+      petLiveSay(petLiveWord(st));
+      st.sayT = 0; st.sayNext = 26000 + Math.random() * 24000;
+    }
+    petLivePlace(st);
+    petLiveRAF = requestAnimationFrame(petLiveTick);
+  }
+  function petLiveBind(st) {
+    const el = st.el; if (!el) return;
+    const pt = (e) => ((e.touches && e.touches[0]) ? e.touches[0] : e);
+    const start = function (e) {
+      const t = pt(e);
+      st.drag = true; st.moved = 0; st.t0 = Date.now();
+      st.sx = t.clientX; st.sy = t.clientY; st.ox = st.x; st.oy = st.y;
+      el.classList.add('dragging');
+    };
+    const move = function (e) {
+      if (!st.drag) return;
+      const t = pt(e);
+      const dx = t.clientX - st.sx, dy = t.clientY - st.sy;
+      st.moved = Math.max(st.moved || 0, Math.abs(dx) + Math.abs(dy));
+      const p = petLiveClamp(st.ox + dx, st.oy + dy);
+      st.x = p.x; st.y = p.y;
+      petLivePlace(st);
+      if (e.cancelable) e.preventDefault();
+    };
+    const end = function () {
+      if (!st.drag) return;
+      st.drag = false;
+      el.classList.remove('dragging');
+      petLiveSavePos(st);
+      st.t = 0;
+      if ((st.moved || 0) < 8 && Date.now() - (st.t0 || 0) < 500) {
+        st.vx = 0; st.vy = 0; st.moving = false; st.next = 700;   // 轻点 = 打开宠物面板
+        openPetModal();
+      } else {
+        st.next = 1200;
+      }
+    };
+    el.addEventListener('touchstart', start, { passive: true });
+    el.addEventListener('touchmove', move, { passive: false });
+    el.addEventListener('touchend', end);
+    el.addEventListener('touchcancel', end);
+    el.addEventListener('mousedown', start);
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', end);
+  }
+  function petLiveCreate(k) {
+    const el = document.createElement('div');
+    el.id = 'pet-live';
+    el.className = 'pet-live idle';
+    el.innerHTML = '<div class="pet-live-flip"><div class="pet-live-in" id="pet-live-pic"></div></div>'
+      + '<div class="pet-live-bubble" id="pet-live-bub"></div>'
+      + '<button class="pet-live-x" onclick="event.stopPropagation();petLiveHide()">✕</button>';
+    document.body.appendChild(el);
+    const st = {
+      id: k.id, el: el, flip: el.querySelector('.pet-live-flip'),
+      x: 0, y: 0, vx: 0, vy: 0, face: 1, moving: false,
+      t: 0, next: 1200, sayT: 0, sayNext: 9000, stage: -1, drag: false, last: 0, stop: false
+    };
+    let pos = null;
+    try { pos = JSON.parse(localStorage.getItem(petLivePosKey(k.id)) || 'null'); } catch (e) {}
+    const b = petLiveBounds();
+    const c = petLiveClamp((pos && isFinite(pos.x)) ? pos.x : b.x1, (pos && isFinite(pos.y)) ? pos.y : b.y1);
+    st.x = c.x; st.y = c.y;
+    petLiveSt = st;
+    petLiveBind(st);
+    petLiveRefresh(true);
+    petLivePlace(st);
+    if (!petLiveRAF) petLiveRAF = requestAnimationFrame(petLiveTick);
+    return st;
+  }
+  function petLiveStop() {
+    if (petLiveSt) { petLiveSavePos(petLiveSt); petLiveSt.stop = true; }
+    if (petLiveRAF) { cancelAnimationFrame(petLiveRAF); petLiveRAF = 0; }
+    const el = document.getElementById('pet-live');
+    if (el && el.remove) el.remove();
+    petLiveSt = null;
+  }
+  function petLiveHide() {
+    const st = petLiveSt; if (!st) return;
+    try { localStorage.setItem(petLiveOffKey(st.id), '1'); } catch (e) {}
+    petLiveStop();
+    petLiveReopenBtn();
+    toast('宠物先躲起来了，点右下角 🐾 就能叫回来');
+  }
+  function petLiveShow() {
+    const k = petLiveChild(); if (!k) return;
+    try { localStorage.removeItem(petLiveOffKey(k.id)); } catch (e) {}
+    const b = document.getElementById('pet-live-reopen'); if (b && b.remove) b.remove();
+    petLiveSync();
+  }
+  function petLiveReopenBtn() {
+    let b = document.getElementById('pet-live-reopen');
+    if (b) return;
+    b = document.createElement('div');
+    b.id = 'pet-live-reopen';
+    b.className = 'pet-live-hide';
+    b.textContent = '🐾';
+    b.onclick = function () { petLiveShow(); };
+    document.body.appendChild(b);
+  }
+  // 每次 render() 都会走这里：该出现就出现，换孩子/换页面/进化了都跟着换
+  function petLiveSync() {
+    const k = petLiveChild();
+    const route = String(location.hash || '').replace(/^#/, '').split('?')[0];   // 带不带 # 都能认
+    const want = !!k && petLiveEnabled() && !!petOf(k.id) && route.indexOf('kid-') === 0;
+    if (!want) {
+      petLiveStop();
+      const b = document.getElementById('pet-live-reopen'); if (b && b.remove) b.remove();
+      return;
+    }
+    let off = false;
+    try { off = localStorage.getItem(petLiveOffKey(k.id)) === '1'; } catch (e) {}
+    if (off) { petLiveStop(); petLiveReopenBtn(); return; }
+    const b2 = document.getElementById('pet-live-reopen'); if (b2 && b2.remove) b2.remove();
+    if (!petLiveSt || petLiveSt.id !== k.id) { petLiveStop(); petLiveCreate(k); }
+    else { petLiveRefresh(false); petLivePlace(petLiveSt); }
+  }
+  function petLiveToggle() {
+    if (!DATA.pets || typeof DATA.pets !== 'object') DATA.pets = {};
+    if (!DATA.pets.__cfg || typeof DATA.pets.__cfg !== 'object') DATA.pets.__cfg = {};
+    const on = !(DATA.pets.__cfg.live === false);
+    DATA.pets.__cfg.live = !on;
+    DATA.pets.__cfg.ts = Date.now();          // 让别的设备也同步到这个开关
+    saveData(DATA);
+    render();
+    toast(DATA.pets.__cfg.live === false ? '已关掉：宠物只在任务页卡片里' : '宠物会在屏幕上走动啦');
+  }
+  // 切到后台就别跑动画，省电
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) {
+      if (petLiveRAF) { cancelAnimationFrame(petLiveRAF); petLiveRAF = 0; }
+    } else if (petLiveSt && !petLiveRAF) {
+      petLiveSt.last = 0;
+      petLiveRAF = requestAnimationFrame(petLiveTick);
+    }
+  });
+  // 转屏 / 改窗口大小后，宠物可能被挤到屏幕外，拉回来
+  window.addEventListener('resize', function () {
+    if (!petLiveSt) return;
+    const c = petLiveClamp(petLiveSt.x, petLiveSt.y);
+    petLiveSt.x = c.x; petLiveSt.y = c.y;
+    petLivePlace(petLiveSt);
+  });
+
   function openPetModal() {
     const c = kidCheck(); if (!c) return;
     const p = petOf(c.id);
@@ -3664,9 +3951,11 @@
     const g = (id) => { const e = document.getElementById(id); return e ? e.value : ''; };
     if (!DATA.pets || typeof DATA.pets !== 'object') DATA.pets = {};
     const oldCfg = (DATA.pets && DATA.pets.__cfg && typeof DATA.pets.__cfg === 'object') ? DATA.pets.__cfg : {};
+    const oldLive = oldCfg.live;   // 走动开关也要留着，别被数值设置冲掉
     DATA.pets.__cfg = {
       ts: Date.now(),
       base: oldCfg.base || '',   // 图片目录不能被数值设置冲掉
+      live: oldLive === false ? false : true,
       cost: g('pc-cost'), exp: g('pc-exp'), maxFeed: g('pc-max'),
       need: [0, g('pc-n1'), g('pc-n2'), g('pc-n3')],
       decayH: g('pc-dh'), decay: g('pc-dc'), patMax: g('pc-pmax'), patMood: g('pc-pmood')
