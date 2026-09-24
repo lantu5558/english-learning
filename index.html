@@ -785,6 +785,40 @@
   .cal-col .course .c-title { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .cal-col .course .c-meta { display: none; }  /* hide meta in tight calendar cell */
   .cal-empty { font-size: 9px; color: var(--gray-300); text-align: center; padding-top: 4px; }
+  /* ===== 宠物养成 ===== */
+  .pet-card{display:flex;align-items:center;gap:12px;border-radius:14px;padding:10px;cursor:pointer}
+  .pet-pic{width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .pet-pic img{width:100%;height:100%;object-fit:cover;border-radius:12px;display:block}
+  .pet-pic svg{width:100%;height:100%;display:block}
+  .pet-card .pet-pic{width:76px;height:76px;flex:0 0 76px;border-radius:12px}
+  .pet-pic.sm{width:64px;height:64px;margin:0 auto 4px}
+  .pet-pic.big{width:190px;height:190px;margin:0 auto}
+  .pet-info{flex:1;min-width:0}
+  .pet-name{font-size:15px;font-weight:600;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .pet-stage{font-size:11px;font-weight:500;background:rgba(255,255,255,.8);border-radius:8px;padding:2px 7px}
+  .pet-bar{height:8px;border-radius:6px;background:rgba(255,255,255,.75);overflow:hidden;margin-top:6px}
+  .pet-bar.lg{height:11px;margin-top:8px}
+  .pet-bar i{display:block;height:100%;border-radius:6px;transition:width .4s ease}
+  .pet-meta{font-size:11.5px;color:var(--gray-500);margin-top:5px;line-height:1.5}
+  .pet-empty{display:flex;align-items:center;gap:12px;background:var(--purple-50);border-radius:14px;padding:12px;cursor:pointer}
+  .pet-empty-ico{font-size:30px}
+  .pet-empty b{font-size:14px}
+  .pet-modal{max-width:360px}
+  .pet-hero{border-radius:16px;padding:14px}
+  .pet-hero .pet-pic{width:180px;height:180px;margin:0 auto}
+  .pet-prog,.pet-mood{margin-top:10px}
+  .pet-mood-t{font-size:12.5px;font-weight:600}
+  .pet-acts{display:flex;gap:8px;margin-top:14px}
+  .pet-acts button{flex:1}
+  .pet-pick{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .pet-pick-item{border-radius:14px;padding:10px 6px;text-align:center;cursor:pointer}
+  .pet-pick-item .n{font-size:12px;font-weight:600;margin-top:4px}
+  .pet-cat-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,.06)}
+  .pet-evo-box{text-align:center;padding:20px;border-radius:20px;max-width:330px}
+  .pet-evo-word{font-size:21px;font-weight:700;color:var(--pink-600)}
+  .pet-evo-name{font-size:15px;font-weight:600;margin:10px 0 14px}
+  .pop{animation:petPop .6s ease}
+  @keyframes petPop{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
 </style>
 </head>
 <body data-page-node-id="3DqP1Xb73JvetEw9f46gVv">
@@ -797,6 +831,7 @@
   const LS_KEY = 'lebao-data-v1';
   const DEFAULT_DATA = {
     tomb: {},
+    pets: {},
     footprints: [],
     momPassword: '8888',
     children: [
@@ -1176,6 +1211,41 @@
       Object.keys(la).forEach(k => { if (la[k]) out3[k] = la[k]; });
       if (Object.keys(out3).length) out.demoAudio = out3;
     }
+    // 宠物档案（DATA.pets）同样是「对象」，走不了按 id 合并，单独写：
+    // - 经验只会涨不会跌（只掉心情不掉级），所以两边取大，老缓存绝不可能把进度拉回去
+    // - 心情/品种/计数 用 __t 时间戳 last-write-wins
+    // - __cats（妈妈端自定义物种）取并集，同 id 谁新用谁
+    {
+      const la = (base && base.pets && typeof base.pets === 'object') ? base.pets : {};
+      const lb = (incoming.pets && typeof incoming.pets === 'object') ? incoming.pets : {};
+      const out2 = {};
+      const ca = Array.isArray(la.__cats) ? la.__cats : [];
+      const cb = Array.isArray(lb.__cats) ? lb.__cats : [];
+      const cm = {};
+      cb.forEach(x => { if (x && x.id) cm[x.id] = x; });
+      const cats = [];
+      ca.forEach(x => {
+        if (!x || !x.id) return;
+        const r = cm[x.id];
+        if (r) { cats.push((Number(r.ts || 0) >= Number(x.ts || 0)) ? r : x); delete cm[x.id]; }
+        else cats.push(x);
+      });
+      Object.keys(cm).forEach(k => cats.push(cm[k]));
+      if (cats.length) out2.__cats = cats;
+      if (lb.__cfg && typeof lb.__cfg === 'object') out2.__cfg = (la.__cfg && typeof la.__cfg === 'object')
+        ? ((Number(lb.__cfg.ts || 0) >= Number(la.__cfg.ts || 0)) ? lb.__cfg : la.__cfg) : lb.__cfg;
+      else if (la.__cfg && typeof la.__cfg === 'object') out2.__cfg = la.__cfg;
+      Object.keys(lb).forEach(k => { if (k === '__cats' || k === '__cfg') return; out2[k] = lb[k]; });
+      Object.keys(la).forEach(k => {
+        if (k === '__cats' || k === '__cfg') return;
+        const a = la[k], b = lb[k];
+        if (!b || typeof b !== 'object') { out2[k] = a; return; }
+        const r = Object.assign({}, (Number(b.__t || 0) > Number(a.__t || 0)) ? b : a);
+        r.exp = Math.max(Number(a.exp) || 0, Number(b.exp) || 0);  // 经验只增不减
+        out2[k] = r;
+      });
+      if (Object.keys(out2).length) out.pets = out2;
+    }
     // 墓碑过滤：删掉的条目即使被别的设备推回来也不收
     for (let i = 0; i < TOMB_KEYS.length; i++) {
       const k = TOMB_KEYS[i];
@@ -1285,6 +1355,8 @@
                  : (d.children.indexOf(c) === 0 ? 'genshin' : 'fc');
       }
     });
+    if (!d.pets || typeof d.pets !== 'object' || Array.isArray(d.pets)) d.pets = {};
+    if (!Array.isArray(d.pets.__cats)) d.pets.__cats = [];
     if (!Array.isArray(d.safeDomains)) d.safeDomains = JSON.parse(JSON.stringify(DEFAULT_DATA.safeDomains));
     if (!Array.isArray(d.habits)) d.habits = [];
     if (!Array.isArray(d.habitLogs)) d.habitLogs = [];
@@ -2644,6 +2716,12 @@
           <button class="btn-secondary" onclick="openHabitModal()">编辑清单（${(DATA.habits || []).length} 条）</button>
         </div>
         <div class="section">
+          <h3>🐾 宠物养成</h3>
+          <p class="text-mute" style="font-size:12px;margin-bottom:8px">孩子用积分喂养宠物，宠物会长大变形。喂一次花多少分、多久长大、心情怎么掉，都能改；还能自己加宠物形象。</p>
+          <button class="btn-secondary" onclick="openPetCfgModal()">数值设置 / 给孩子换一只</button>
+          <button class="btn-secondary mt-12" onclick="openPetCatModal()">宠物形象（${petCatList().length} 种）</button>
+        </div>
+        <div class="section">
           <h3>🌐 上网白名单</h3>
           <p class="text-mute" style="font-size:12px;margin-bottom:8px">孩子点开外部链接时，只有名单里的网站能直接打开；其他网站需要妈妈密码解锁才能访问。</p>
           <div class="chip-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
@@ -3242,6 +3320,465 @@
     render();
   }
 
+
+  /* ===================== 宠物养成 =====================
+     形象图托管在 OSS，前缀 pets/，命名 <物种>_<阶段>.jpg。
+     数据挂 DATA.pets（对象型）：key=孩子id 是宠物档案，__cfg 是数值配置，__cats 是妈妈端自定义物种。
+     为什么不放 child 身上：children 在合并时是「整条替换」，两台设备会互相覆盖；
+     这里单独写合并块，经验取大（只涨不跌），其余按 __t 新者赢。
+  */
+  // 注意：这串 %E5... 是「宠物形象_待上传OSS」的 URL 编码（中文路径），别手改成中文原文
+  // 妈妈端「宠物形象 → 图片目录」可以整体改掉，改完不用动这里
+  const PET_BASE = 'https://lantu5558.oss-cn-shenzhen.aliyuncs.com/'
+    + '%E5%AE%A0%E7%89%A9%E5%BD%A2%E8%B1%A1_%E5%BE%85%E4%B8%8A%E4%BC%A0OSS/';
+  const PET_STAGE_KEY = ['1_egg', '2_cub', '3_grow', '4_adult'];
+  const PET_STAGE_NAME = ['蛋', '幼崽', '成长体', '完全体'];
+  const PET_SPECIES = [
+    { id: 'fox',  name: '粉白灵狐',     color: '#D4537E', bg: '#FBEAF0' },
+    { id: 'dino', name: '青绿小恐龙',   color: '#0F6E56', bg: '#E1F5EE' },
+    { id: 'bot',  name: '蓝紫机械萌宠', color: '#534AB7', bg: '#EEEDFE' }
+  ];
+  const PET_CFG_DFLT = { cost: 20, exp: 10, maxFeed: 3, need: [0, 60, 180, 400], decayH: 24, decay: 10, patMax: 5, patMood: 2 };
+
+  function petCfg() {
+    const o = (DATA.pets && DATA.pets.__cfg && typeof DATA.pets.__cfg === 'object') ? DATA.pets.__cfg : {};
+    const g = {};
+    for (const k in PET_CFG_DFLT) {
+      if (k === 'need') continue;
+      let v = (o[k] != null && o[k] !== '') ? Number(o[k]) : NaN;
+      g[k] = isFinite(v) ? v : PET_CFG_DFLT[k];
+    }
+    const nd = [];
+    for (let i = 0; i < 4; i++) {
+      const v = Number(Array.isArray(o.need) ? o.need[i] : NaN);
+      nd.push(isFinite(v) && v >= 0 ? v : PET_CFG_DFLT.need[i]);
+    }
+    for (let i = 1; i < 4; i++) { if (nd[i] <= nd[i - 1]) nd[i] = nd[i - 1] + 1; }  // 门槛必须递增
+    if (nd[0] !== 0) nd[0] = 0;
+    g.need = nd;
+    return g;
+  }
+  // 可选物种 = 妈妈端自定义（可覆盖内置，用于换图）+ 内置 3 种
+  function petCatList() {
+    const cus = (DATA.pets && Array.isArray(DATA.pets.__cats)) ? DATA.pets.__cats : [];
+    const out = [], seen = {};
+    cus.forEach(x => { if (x && x.id) { out.push(x); seen[x.id] = 1; } });
+    PET_SPECIES.forEach(x => { if (!seen[x.id]) out.push(x); });
+    return out;
+  }
+  function petCatOf(id) {
+    const cus = (DATA.pets && Array.isArray(DATA.pets.__cats)) ? DATA.pets.__cats : [];
+    for (let i = 0; i < cus.length; i++) if (cus[i] && cus[i].id === id) return cus[i];
+    for (let i = 0; i < PET_SPECIES.length; i++) if (PET_SPECIES[i].id === id) return PET_SPECIES[i];
+    return PET_SPECIES[0];
+  }
+  function petOf(childId) {
+    if (!DATA.pets || typeof DATA.pets !== 'object') DATA.pets = {};
+    const p = DATA.pets[childId];
+    return (p && typeof p === 'object') ? p : null;
+  }
+  function petNew(childId, sp) {
+    if (!DATA.pets || typeof DATA.pets !== 'object') DATA.pets = {};
+    const p = { __t: Date.now(), sp: sp, exp: 0, mood: 100, moodAt: Date.now(), lastFeed: 0, feedDay: '', feedN: 0, patDay: '', patN: 0, name: '' };
+    DATA.pets[childId] = p;
+    return p;
+  }
+  function petStage(exp) {
+    const nd = petCfg().need;
+    let st = 0;
+    for (let i = 0; i < nd.length; i++) if (Number(exp) >= Number(nd[i])) st = i;
+    return st;
+  }
+  // 心情自然衰减：按整段扣（每 decayH 小时扣 decay），重复调用不会重复扣
+  function petApplyDecay(p) {
+    if (!p) return;
+    const cfg = petCfg();
+    const unit = Number(cfg.decayH) * 3600000;
+    let m = Number(p.mood == null ? 100 : p.mood);
+    if (!isFinite(m)) m = 100;
+    const at = Number(p.moodAt || p.lastFeed || 0);
+    if (at && unit > 0) {
+      const times = Math.floor((Date.now() - at) / unit);
+      if (times > 0) { m = Math.max(0, m - times * Number(cfg.decay)); p.moodAt = at + times * unit; }
+    }
+    if (!p.moodAt) p.moodAt = Date.now();
+    p.mood = m;
+  }
+  // 图床目录：默认用内置 PET_BASE；妈妈端可在「宠物形象」里换，换目录不用改代码
+  function petBase() {
+    const o = (DATA.pets && DATA.pets.__cfg) ? DATA.pets.__cfg : null;
+    let b = (o && typeof o.base === 'string') ? o.base.trim() : '';
+    if (!b) return PET_BASE;
+    if (b.charAt(b.length - 1) !== '/') b += '/';
+    return b;
+  }
+  function petImgUrl(sp, stage) {
+    const cat = petCatOf(sp);
+    const us = (cat && cat.urls) ? cat.urls : null;
+    if (us && us[stage]) return us[stage];
+    // 只有内置物种才有云端图。按「请求的 id」判断，不能用 cat.id：
+    // 自定义覆盖内置时 cat.id 就是内置的，会错误地拿内置图顶上没填图的自定义阶段
+    for (let i = 0; i < PET_SPECIES.length; i++) if (PET_SPECIES[i].id === sp) return petBase() + sp + '_' + PET_STAGE_KEY[stage] + '.jpg';
+    return '';
+  }
+  // 图挂了（OSS 不可达 / 离线）→ 换成本地手绘矢量，绝不能让孩子看到裂图
+  function petPicHtml(cat, stage) {
+    const u = petImgUrl(cat.id, stage);
+    if (!u) return petSvg(cat, stage);
+    return '<img src="' + esc(u) + '" alt="" onerror="petPicFallback(this)">';
+  }
+  function petPicFallback(img) {
+    const host = img && img.parentNode;
+    if (!host) return;
+    const ci = host.getAttribute('data-cat'), si = parseInt(host.getAttribute('data-stage'));
+    host.innerHTML = petSvg(petCatOf(ci), isFinite(si) ? si : 0);
+  }
+  // 手绘矢量兜底形象：不依赖网络，离线/图挂时顶上
+  function petSvg(cat, stage) {
+    const co = (cat && cat.color) || '#D4537E';
+    const st = Math.max(0, Math.min(3, parseInt(stage) || 0));
+    if (st === 0) {
+      return '<svg viewBox="0 0 120 130" width="100%" height="100%">'
+        + '<ellipse cx="60" cy="120" rx="30" ry="5" fill="#000" opacity="0.07"/>'
+        + '<circle cx="60" cy="64" r="46" fill="' + co + '" opacity="0.10"/>'
+        + '<ellipse cx="60" cy="66" rx="36" ry="46" fill="#FFFAFD" stroke="#EBC4DF" stroke-width="1"/>'
+        + '<ellipse cx="48" cy="48" rx="11" ry="15" fill="#fff" opacity="0.85"/>'
+        + '<circle cx="66" cy="42" r="3" fill="' + co + '" opacity="0.5"/>'
+        + '<circle cx="76" cy="64" r="3.4" fill="' + co + '" opacity="0.45"/>'
+        + '<circle cx="62" cy="88" r="3" fill="' + co + '" opacity="0.5"/>'
+        + '<circle cx="44" cy="76" r="2.6" fill="' + co + '" opacity="0.4"/>'
+        + '</svg>';
+    }
+    const sc = [0.70, 0.80, 0.90, 1.00][st];
+    let f = '';
+    for (let i = 0; i < st; i++) {
+      const fx = -16 + i * 11, fy = -50 - (i % 2) * 7;
+      f += '<g transform="translate(' + fx + ',' + fy + ')">'
+        + '<circle cx="0" cy="-2.8" r="2.4" fill="#fff"/><circle cx="2.6" cy="-0.9" r="2.4" fill="#fff"/>'
+        + '<circle cx="1.6" cy="2.3" r="2.4" fill="#fff"/><circle cx="-1.6" cy="2.3" r="2.4" fill="#fff"/>'
+        + '<circle cx="-2.6" cy="-0.9" r="2.4" fill="#fff"/><circle cx="0" cy="0" r="1.6" fill="' + co + '"/></g>';
+    }
+    return '<svg viewBox="0 0 120 130" width="100%" height="100%">'
+      + '<ellipse cx="60" cy="120" rx="30" ry="5" fill="#000" opacity="0.07"/>'
+      + '<circle cx="60" cy="60" r="52" fill="' + co + '" opacity="0.09"/>'
+      + (st >= 3 ? '<circle cx="60" cy="44" r="40" fill="none" stroke="' + co + '" stroke-width="1.6" opacity="0.35"/>' : '')
+      + '<g transform="translate(58,66) scale(' + sc + ')">'
+      + '<ellipse cx="36" cy="-2" rx="15" ry="12" transform="rotate(-24 36 -2)" fill="#FFF3FA" stroke="#EBC4DF" stroke-width="1"/>'
+      + '<ellipse cx="47" cy="-19" rx="11" ry="9" transform="rotate(-44 47 -19)" fill="#FFF3FA" stroke="#EBC4DF" stroke-width="1"/>'
+      + '<path d="M -21,-38 L -31,-70 L -4,-45 Z" fill="#FFF3FA" stroke="#EBC4DF" stroke-width="1.4" stroke-linejoin="round"/>'
+      + '<path d="M -19,-43 L -26,-63 L -8,-46 Z" fill="' + co + '" opacity="0.4"/>'
+      + '<path d="M 21,-38 L 31,-70 L 4,-45 Z" fill="#FFF3FA" stroke="#EBC4DF" stroke-width="1.4" stroke-linejoin="round"/>'
+      + '<path d="M 19,-43 L 26,-63 L 8,-46 Z" fill="' + co + '" opacity="0.4"/>'
+      + '<ellipse cx="0" cy="12" rx="21" ry="17" fill="#FFFAFD" stroke="#EBC4DF" stroke-width="1"/>'
+      + '<ellipse cx="-11" cy="26" rx="8" ry="5.5" fill="#FFFAFD" stroke="#EBC4DF" stroke-width="1"/>'
+      + '<ellipse cx="11" cy="26" rx="8" ry="5.5" fill="#FFFAFD" stroke="#EBC4DF" stroke-width="1"/>'
+      + '<ellipse cx="0" cy="-24" rx="25" ry="22" fill="#FFFAFD" stroke="#EBC4DF" stroke-width="1"/>'
+      + '<ellipse cx="-10" cy="-25" rx="7.5" ry="9.5" fill="#14384D"/>'
+      + '<ellipse cx="-10" cy="-26" rx="5.6" ry="7.2" fill="' + co + '"/>'
+      + '<ellipse cx="-10" cy="-24" rx="3" ry="4.8" fill="#14384D"/>'
+      + '<circle cx="-12" cy="-28" r="2.5" fill="#fff"/>'
+      + '<ellipse cx="10" cy="-25" rx="7.5" ry="9.5" fill="#14384D"/>'
+      + '<ellipse cx="10" cy="-26" rx="5.6" ry="7.2" fill="' + co + '"/>'
+      + '<ellipse cx="10" cy="-24" rx="3" ry="4.8" fill="#14384D"/>'
+      + '<circle cx="8" cy="-28" r="2.5" fill="#fff"/>'
+      + '<ellipse cx="-18" cy="-13" rx="6.5" ry="4.2" fill="' + co + '" opacity="0.35"/>'
+      + '<ellipse cx="18" cy="-13" rx="6.5" ry="4.2" fill="' + co + '" opacity="0.35"/>'
+      + '<path d="M -2.6,-13 L 2.6,-13 L 0,-10 Z" fill="' + co + '"/>'
+      + '<path d="M -4.5,-7 Q 0,-3.5 4.5,-7" fill="none" stroke="' + co + '" stroke-width="1.4" stroke-linecap="round"/>'
+      + f + '</g></svg>';
+  }
+  function petCard(c) {
+    const p = petOf(c.id);
+    if (!p) {
+      return '<div class="section"><div class="pet-empty" onclick="petPickOpen(\'' + c.id + '\')">'
+        + '<div class="pet-empty-ico">🥚</div>'
+        + '<div style="flex:1"><b>领养一只宠物</b>'
+        + '<div class="text-mute" style="font-size:12px">用积分喂养它，会一天天长大、变形</div></div>'
+        + '<button class="btn-primary btn-sm">去领养</button></div></div>';
+    }
+    petApplyDecay(p);
+    const cat = petCatOf(p.sp), st = petStage(p.exp), cfg = petCfg();
+    const nd = cfg.need, lo = Number(nd[st]);
+    const hi = st >= 3 ? lo : Number(nd[st + 1]);
+    const pct = st >= 3 ? 100 : Math.max(0, Math.min(100, Math.round((Number(p.exp) - lo) / Math.max(1, hi - lo) * 100)));
+    const fed = (p.feedDay === TODAY) ? (p.feedN || 0) : 0;
+    return '<div class="section"><div class="pet-card" onclick="openPetModal()" style="background:' + cat.bg + '">'
+      + '<div class="pet-pic" data-cat="' + esc(cat.id) + '" data-stage="' + st + '">' + petPicHtml(cat, st) + '</div>'
+      + '<div class="pet-info"><div class="pet-name">' + esc(p.name || cat.name)
+      + '<span class="pet-stage">' + PET_STAGE_NAME[st] + '</span></div>'
+      + '<div class="pet-bar"><i style="width:' + pct + '%;background:' + cat.color + '"></i></div>'
+      + '<div class="pet-meta">' + (st >= 3 ? '已是最终形态 ✨' : '再 ' + (hi - Number(p.exp)) + ' 经验进化成「' + PET_STAGE_NAME[st + 1] + '」')
+      + ' · 心情 ' + Math.round(p.mood) + ' · 今天已喂 ' + fed + '/' + cfg.maxFeed + '</div>'
+      + '</div></div></div>';
+  }
+  function openPetModal() {
+    const c = kidCheck(); if (!c) return;
+    const p = petOf(c.id);
+    if (!p) { petPickOpen(c.id); return; }
+    petApplyDecay(p);
+    const cat = petCatOf(p.sp), st = petStage(p.exp), cfg = petCfg();
+    const nd = cfg.need, lo = Number(nd[st]);
+    const hi = st >= 3 ? lo : Number(nd[st + 1]);
+    const pct = st >= 3 ? 100 : Math.max(0, Math.min(100, Math.round((Number(p.exp) - lo) / Math.max(1, hi - lo) * 100)));
+    const fed = (p.feedDay === TODAY) ? (p.feedN || 0) : 0;
+    const pat = (p.patDay === TODAY) ? (p.patN || 0) : 0;
+    const mc = p.mood >= 80 ? 'var(--green-600)' : (p.mood < 40 ? 'var(--red-600)' : 'var(--amber-600)');
+    let m = document.getElementById('pet-modal'); if (m) m.remove();
+    m = document.createElement('div');
+    m.className = 'modal-mask'; m.id = 'pet-modal';
+    m.onclick = (e) => { if (e.target === m) m.remove(); };
+    m.innerHTML = '<div class="modal pet-modal">'
+      + '<button class="icon-btn close" onclick="this.closest(\'.modal-mask\').remove()">✕</button>'
+      + '<div class="pet-hero" style="background:' + cat.bg + '">'
+      + '<div class="pet-pic" data-cat="' + esc(cat.id) + '" data-stage="' + st + '">' + petPicHtml(cat, st) + '</div></div>'
+      + '<h3 style="text-align:center;margin:10px 0 2px">' + esc(p.name || cat.name) + '</h3>'
+      + '<div style="text-align:center;font-size:12px" class="text-mute">' + PET_STAGE_NAME[st] + ' · ' + esc(cat.name) + '</div>'
+      + '<div class="pet-prog"><div class="pet-bar lg"><i style="width:' + pct + '%;background:' + cat.color + '"></i></div>'
+      + '<div class="pet-meta">' + (st >= 3 ? '已是最终形态 ✨' : '距「' + PET_STAGE_NAME[st + 1] + '」还差 ' + (hi - Number(p.exp)) + ' 经验')
+      + '（累计 ' + Number(p.exp) + '）</div></div>'
+      + '<div class="pet-mood"><div class="pet-mood-t">心情 ' + Math.round(p.mood) + ' / 100</div>'
+      + '<div class="pet-bar mood"><i style="width:' + Math.round(p.mood) + '%;background:' + mc + '"></i></div>'
+      + '<div class="pet-meta">' + (p.mood >= 80 ? '心情超好，喂养经验 ×1.5' : (p.mood < 40 ? '有点低落，喂养经验只剩一半' : '心情尚可，快陪陪它')) + '</div></div>'
+      + '<div class="pet-acts">'
+      + '<button class="btn-primary" ' + (fed >= cfg.maxFeed ? 'disabled' : '') + ' onclick="petFeed()">🍖 喂养（-' + cfg.cost + ' 分）</button>'
+      + '<button class="btn-secondary" ' + (pat >= cfg.patMax ? 'disabled' : '') + ' onclick="petPat()">✋ 摸摸头</button>'
+      + '</div><div class="pet-meta" style="text-align:center">今天已喂 ' + fed + '/' + cfg.maxFeed + ' 次 · 摸头 ' + pat + '/' + cfg.patMax + ' 次</div>'
+      + '</div>';
+    document.body.appendChild(m);
+  }
+  function petFeed() {
+    const c = kidCheck(); if (!c) return;
+    const p = petOf(c.id); if (!p) { petPickOpen(c.id); return; }
+    const cfg = petCfg();
+    if (p.feedDay !== TODAY) { p.feedDay = TODAY; p.feedN = 0; }
+    if ((p.feedN || 0) >= cfg.maxFeed) { toast('今天已经喂了 ' + cfg.maxFeed + ' 次啦，明天再来'); return; }
+    const cost = Number(cfg.cost) || 0;
+    if (c.points < cost) { toast('积分不够，还差 ' + (cost - c.points) + ' 分'); return; }
+    petApplyDecay(p);
+    c.points -= cost;
+    let gain = Number(cfg.exp) || 0;
+    if (p.mood >= 80) gain = Math.round(gain * 1.5);
+    else if (p.mood < 40) gain = Math.round(gain * 0.5);
+    const before = petStage(p.exp);
+    p.exp = Number(p.exp || 0) + gain;
+    p.mood = Math.min(100, Number(p.mood || 0) + 5);
+    p.moodAt = Date.now();
+    p.lastFeed = Date.now();
+    p.feedN = (p.feedN || 0) + 1;
+    p.__t = Date.now();
+    DATA.pointsHistory.unshift({ id: 'h' + Date.now(), childId: c.id, date: TODAY, title: '喂养宠物（' + petCatOf(p.sp).name + '）', points: -cost, at: Date.now() });
+    saveData(DATA);
+    const after = petStage(p.exp);
+    render();
+    if (after > before) petEvolveShow(after);
+    else { toast('吃饱啦！+' + gain + ' 经验'); openPetModal(); }
+  }
+  function petPat() {
+    const c = kidCheck(); if (!c) return;
+    const p = petOf(c.id); if (!p) { petPickOpen(c.id); return; }
+    const cfg = petCfg();
+    if (p.patDay !== TODAY) { p.patDay = TODAY; p.patN = 0; }
+    if ((p.patN || 0) >= cfg.patMax) { toast('今天摸够啦，明天再来'); return; }
+    petApplyDecay(p);
+    p.mood = Math.min(100, Number(p.mood || 0) + Number(cfg.patMood));
+    p.moodAt = Date.now();
+    p.patN = (p.patN || 0) + 1;
+    p.__t = Date.now();
+    saveData(DATA); render();
+    toast('它很开心 +' + cfg.patMood + ' 心情'); openPetModal();
+  }
+  function petEvolveShow(st) {
+    const c = kidCheck(); if (!c) return;
+    const p = petOf(c.id); if (!p) return;
+    const cat = petCatOf(p.sp);
+    const m = document.createElement('div');
+    m.className = 'modal-mask pet-evo';
+    m.onclick = (e) => { if (e.target === m) m.remove(); };
+    m.innerHTML = '<div class="modal pet-evo-box" style="background:' + cat.bg + '">'
+      + '<div class="pet-evo-word">进化啦！</div>'
+      + '<div class="pet-pic big pop" data-cat="' + esc(cat.id) + '" data-stage="' + st + '">' + petPicHtml(cat, st) + '</div>'
+      + '<div class="pet-evo-name">' + PET_STAGE_NAME[st] + '</div>'
+      + '<button class="btn-primary" onclick="this.closest(\'.modal-mask\').remove()">太棒了</button></div>';
+    document.body.appendChild(m);
+  }
+  // 选宠物（孩子端领养 / 妈妈端帮孩子换一只，共用）
+  function petPickOpen(childId) {
+    let m = document.getElementById('pet-modal'); if (m) m.remove();
+    m = document.createElement('div');
+    m.className = 'modal-mask'; m.id = 'pet-modal';
+    m.onclick = (e) => { if (e.target === m) m.remove(); };
+    m.innerHTML = '<div class="modal">'
+      + '<button class="icon-btn close" onclick="this.closest(\'.modal-mask\').remove()">✕</button>'
+      + '<h3 style="text-align:center">选一只宠物</h3>'
+      + '<p class="text-mute" style="font-size:12px;text-align:center;margin-bottom:10px">用积分喂养它，它会一天天长大、变形</p>'
+      + '<div class="pet-pick">' + petCatList().map(cat => '<div class="pet-pick-item" onclick="petPickDo(\'' + childId + '\',\'' + esc(cat.id) + '\')" style="background:' + (cat.bg || '#FBEAF0') + '">'
+        + '<div class="pet-pic sm" data-cat="' + esc(cat.id) + '" data-stage="0">' + petPicHtml(cat, 0) + '</div>'
+        + '<div class="n">' + esc(cat.name) + '</div></div>').join('') + '</div></div>';
+    document.body.appendChild(m);
+  }
+  function petPickDo(childId, sp) {
+    const ch = (DATA.children || []).find(x => x.id === childId);
+    if (!ch) return;
+    const p = petOf(childId);
+    if (p) { p.sp = sp; p.__t = Date.now(); }
+    else petNew(childId, sp);
+    saveData(DATA);
+    const m = document.getElementById('pet-modal'); if (m) m.remove();
+    render(); toast('领养成功！记得每天喂它哦');
+    if (sessionStorage.getItem('kid-auth') === childId) openPetModal();
+  }
+  // ---------- 妈妈端 ----------
+  function openPetCfgModal() {
+    const cfg = petCfg();
+    let m = document.getElementById('petcfg-modal'); if (m) m.remove();
+    m = document.createElement('div');
+    m.className = 'modal-mask'; m.id = 'petcfg-modal';
+    m.onclick = (e) => { if (e.target === m) m.remove(); };
+    m.innerHTML = '<div class="modal">'
+      + '<button class="icon-btn close" onclick="this.closest(\'.modal-mask\').remove()">✕</button>'
+      + '<h3>🐾 宠物养成 · 数值设置</h3>'
+      + '<div class="field"><label>喂一次花多少积分</label><input id="pc-cost" type="number" min="0" value="' + cfg.cost + '"></div>'
+      + '<div class="field"><label>喂一次给多少经验</label><input id="pc-exp" type="number" min="1" value="' + cfg.exp + '"></div>'
+      + '<div class="field"><label>每天最多喂几次</label><input id="pc-max" type="number" min="1" value="' + cfg.maxFeed + '"></div>'
+      + '<div class="field"><label>升级门槛（累计经验：幼崽 / 成长体 / 完全体）</label>'
+      + '<input id="pc-n1" type="number" min="1" value="' + cfg.need[1] + '">'
+      + '<input id="pc-n2" type="number" min="2" value="' + cfg.need[2] + '" style="margin-top:6px">'
+      + '<input id="pc-n3" type="number" min="3" value="' + cfg.need[3] + '" style="margin-top:6px"></div>'
+      + '<div class="field"><label>多久不喂开始掉心情（小时）</label><input id="pc-dh" type="number" min="1" value="' + cfg.decayH + '"></div>'
+      + '<div class="field"><label>每过这么久掉多少心情</label><input id="pc-dc" type="number" min="0" value="' + cfg.decay + '"></div>'
+      + '<div class="field"><label>摸摸头：每天几次 / 每次加多少</label>'
+      + '<input id="pc-pmax" type="number" min="0" value="' + cfg.patMax + '">'
+      + '<input id="pc-pmood" type="number" min="0" value="' + cfg.patMood + '" style="margin-top:6px"></div>'
+      + '<div class="section" style="padding:0"><h3 style="font-size:13px">给孩子换一只 / 重置</h3>'
+      + (DATA.children || []).map(c => {
+        const p = petOf(c.id);
+        return '<div class="kid-row"><div class="avatar">' + c.avatar + '</div><div class="info"><div class="name">' + esc(c.name) + '</div>'
+          + '<div class="progress">' + (p ? esc(petCatOf(p.sp).name) + ' · ' + PET_STAGE_NAME[petStage(p.exp)] + ' · 累计 ' + Number(p.exp) + ' 经验' : '还没领养') + '</div></div>'
+          + '<button class="icon-btn" onclick="petPickOpen(\'' + c.id + '\')">' + (p ? '换' : '+') + '</button>'
+          + (p ? '<button class="icon-btn" onclick="petReset(\'' + c.id + '\')">🗑</button>' : '') + '</div>';
+      }).join('') + '</div>'
+      + '<button class="btn-primary" onclick="savePetCfg()">保存</button></div>';
+    document.body.appendChild(m);
+  }
+  function savePetCfg() {
+    const g = (id) => { const e = document.getElementById(id); return e ? e.value : ''; };
+    if (!DATA.pets || typeof DATA.pets !== 'object') DATA.pets = {};
+    const oldCfg = (DATA.pets && DATA.pets.__cfg && typeof DATA.pets.__cfg === 'object') ? DATA.pets.__cfg : {};
+    DATA.pets.__cfg = {
+      ts: Date.now(),
+      base: oldCfg.base || '',   // 图片目录不能被数值设置冲掉
+      cost: g('pc-cost'), exp: g('pc-exp'), maxFeed: g('pc-max'),
+      need: [0, g('pc-n1'), g('pc-n2'), g('pc-n3')],
+      decayH: g('pc-dh'), decay: g('pc-dc'), patMax: g('pc-pmax'), patMood: g('pc-pmood')
+    };
+    saveData(DATA);
+    const m = document.getElementById('petcfg-modal'); if (m) m.remove();
+    render(); toast('已保存');
+  }
+  // 重置是两步：先弹确认再真删。别用原生 confirm() —— APK WebView 没接管 onJsConfirm，
+  // 永远返回 false，等于功能在 APP 里失效
+  function petReset(childId) {
+    const p = petOf(childId); if (!p) return;
+    let m = document.getElementById('petrst-modal'); if (m) m.remove();
+    m = document.createElement('div');
+    m.className = 'modal-mask'; m.id = 'petrst-modal';
+    m.onclick = (e) => { if (e.target === m) m.remove(); };
+    m.innerHTML = '<div class="modal"><h3>重置这只宠物？</h3>'
+      + '<p class="text-mute" style="font-size:13px">经验、心情全部清零，花掉的积分不退。孩子可以重新领养。</p>'
+      + '<div class="pet-acts"><button class="btn-secondary" onclick="this.closest(\'.modal-mask\').remove()">取消</button>'
+      + '<button class="btn-primary" onclick="petResetSure(\'' + childId + '\')">确认重置</button></div></div>';
+    document.body.appendChild(m);
+  }
+  function petResetSure(childId) {
+    if (DATA.pets) delete DATA.pets[childId];
+    saveData(DATA); render(); toast('已重置');
+    const m = document.getElementById('petcfg-modal'); if (m) m.remove();
+  }
+  // 自定义宠物形象：加新物种，或给内置的 3 种换图
+  function openPetCatModal() {
+    const list = petCatList();
+    let m = document.getElementById('petcat-modal'); if (m) m.remove();
+    m = document.createElement('div');
+    m.className = 'modal-mask'; m.id = 'petcat-modal';
+    m.onclick = (e) => { if (e.target === m) m.remove(); };
+    m.innerHTML = '<div class="modal">'
+      + '<button class="icon-btn close" onclick="this.closest(\'.modal-mask\').remove()">✕</button>'
+      + '<h3>🎨 宠物形象</h3>'
+      + '<p class="text-mute" style="font-size:12px;margin-bottom:8px">内置 3 种的形象图在云端；想换图就点「换图」，填 4 个图片网址即可覆盖。想加新物种点下面的「+ 新增形象」。</p>'
+      + list.map(cat => {
+        const isB = PET_SPECIES.some(x => x.id === cat.id);
+        return '<div class="pet-cat-row">'
+          + '<div class="pet-pic sm" data-cat="' + esc(cat.id) + '" data-stage="0" style="width:46px;height:46px">' + petPicHtml(cat, 0) + '</div>'
+          + '<div class="info" style="flex:1"><div class="name">' + esc(cat.name) + '</div>'
+          + '<div class="progress">' + (isB ? '内置' : '自定义') + ' · ' + ((cat.urls || []).filter(Boolean).length) + '/4 张图</div></div>'
+          + '<button class="icon-btn" onclick="openPetCatEdit(\'' + esc(cat.id) + '\')">' + (isB ? '换图' : '改') + '</button>'
+          + (isB ? '' : '<button class="icon-btn" onclick="delPetCat(\'' + esc(cat.id) + '\')">🗑</button>')
+          + '</div>';
+      }).join('')
+      + '<button class="btn-secondary mt-12" onclick="openPetCatEdit(\'\')">+ 新增形象</button>'
+      + '<div class="field mt-12"><label>图片目录（一般不改）</label>'
+      + '<input id="pt-base" value="' + esc((DATA.pets && DATA.pets.__cfg && DATA.pets.__cfg.base) || '') + '" placeholder="' + esc(PET_BASE) + '"></div>'
+      + '<p class="text-mute" style="font-size:12px;margin:6px 0">内置 3 种宠物的图从这个网址目录下取（按 物种_阶段.jpg 拼）。换地方放了就改这里。</p>'
+      + '<button class="btn-primary" onclick="savePetBase()">保存目录</button></div>';
+    document.body.appendChild(m);
+  }
+  function savePetBase() {
+    const el = document.getElementById('pt-base');
+    let v = el ? String(el.value || '').trim() : '';
+    if (v && v.charAt(v.length - 1) !== '/') v += '/';
+    if (!DATA.pets || typeof DATA.pets !== 'object') DATA.pets = {};
+    if (!DATA.pets.__cfg || typeof DATA.pets.__cfg !== 'object') DATA.pets.__cfg = {};
+    if (v) DATA.pets.__cfg.base = v; else delete DATA.pets.__cfg.base;
+    DATA.pets.__cfg.ts = Date.now();   // 让合并块把这条配置同步到别的设备
+    saveData(DATA);
+    const m = document.getElementById('petcat-modal'); if (m) m.remove();
+    render();
+    toast(v ? '图片目录已更新' : '已恢复默认图片目录');
+  }
+  function openPetCatEdit(id) {
+    const ed = id ? petCatOf(id) : null;
+    const us = (ed && ed.urls) ? ed.urls : ['', '', '', ''];
+    let m = document.getElementById('petcat-modal'); if (m) m.remove();
+    m = document.createElement('div');
+    m.className = 'modal-mask'; m.id = 'petcat-modal';
+    m.onclick = (e) => { if (e.target === m) m.remove(); };
+    m.innerHTML = '<div class="modal">'
+      + '<button class="icon-btn close" onclick="this.closest(\'.modal-mask\').remove()">✕</button>'
+      + '<h3>' + (ed ? '编辑形象' : '新增宠物形象') + '</h3>'
+      + '<div class="field"><label>名字</label><input id="pt-name" value="' + (ed ? esc(ed.name) : '') + '" placeholder="例：彩虹独角兽"></div>'
+      + '<div class="field"><label>主题色（十六进制）</label><input id="pt-color" value="' + (ed ? esc(ed.color || '#D4537E') : '#D4537E') + '"></div>'
+      + '<p class="text-mute" style="font-size:12px;margin:6px 0">4 个阶段各一张图，按「蛋 / 幼崽 / 成长体 / 完全体」顺序填网址。留空的会用手绘兜底形象。</p>'
+      + PET_STAGE_NAME.map((nm, i) => '<div class="field"><label>' + nm + '</label><input id="pt-u' + i + '" value="' + esc(us[i] || '') + '" placeholder="https://.../xx.jpg"></div>').join('')
+      + '<button class="btn-primary" onclick="savePetCat(' + (ed ? '\'' + esc(ed.id) + '\'' : '\'\'') + ')">保存</button></div>';
+    document.body.appendChild(m);
+  }
+  function savePetCat(id) {
+    const g = (k) => { const e = document.getElementById(k); return e ? String(e.value || '').trim() : ''; };
+    const name = g('pt-name');
+    if (!name) { toast('先填个名字'); return; }
+    if (!DATA.pets || typeof DATA.pets !== 'object') DATA.pets = {};
+    if (!Array.isArray(DATA.pets.__cats)) DATA.pets.__cats = [];
+    let cat = id ? DATA.pets.__cats.find(x => x.id === id) : null;
+    if (!cat) {
+      cat = { id: id || ('pc' + Date.now().toString(36)) };
+      DATA.pets.__cats.push(cat);
+    }
+    cat.name = name;
+    cat.color = g('pt-color') || '#D4537E';
+    cat.urls = [g('pt-u0'), g('pt-u1'), g('pt-u2'), g('pt-u3')];
+    cat.ts = Date.now();
+    saveData(DATA);
+    const m = document.getElementById('petcat-modal'); if (m) m.remove();
+    render(); toast('已保存');
+  }
+  function delPetCat(id) {
+    if (!DATA.pets || !Array.isArray(DATA.pets.__cats)) return;
+    DATA.pets.__cats = DATA.pets.__cats.filter(x => x.id !== id);
+    saveData(DATA);
+    const m = document.getElementById('petcat-modal'); if (m) m.remove();
+    render(); openPetCatModal(); toast('已删除');
+  }
+
   function viewKidTasks() {
     const c = kidCheck();
     if (!c) { location.hash='kid-select'; return ''; }
@@ -3261,6 +3798,7 @@
           <div class="big">${done}/${todays.length}</div>
           <div class="meta"><div>已完成 <span>${done}</span></div><div>待打卡 <span>${todays.length-done}</span></div><div>连签 <span>${c.streak}</span> 天</div></div>
         </div>
+        ${petCard(c)}
         ${todayCoursesBlock(c)}
         <div class="section">
           <h3>今日任务</h3>
